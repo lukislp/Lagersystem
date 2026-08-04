@@ -35,6 +35,10 @@ jobs:
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'LagersystemLVHome.sln') }}
           restore-keys: |
             nuget-${{ runner.os }}-
+      # SkiaSharp.NativeAssets.Linux (pulled in transitively via LagersystemLVHome.Application)
+      # needs these system libraries to load libSkiaSharp.so - same reason the Dockerfile
+      # installs them, ubuntu-latest doesn't ship them by default.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libfontconfig1 libfreetype6 fonts-liberation
       - run: dotnet test LagersystemLVHome.UnitTests/LagersystemLVHome.UnitTests.csproj --configuration ${{ env.CONFIGURATION }} --logger "junit;LogFilePath=TestResults/unit-tests-junit.xml"
       - if: always()
         uses: actions/upload-artifact@v7
@@ -142,6 +146,9 @@ jobs:
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'LagersystemLVHome.sln') }}
           restore-keys: |
             nuget-${{ runner.os }}-
+      # SkiaSharp.NativeAssets.Linux needs these to load libSkiaSharp.so - same as the
+      # Dockerfile, and this job actually runs the full app via `dotnet run`.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libfontconfig1 libfreetype6 fonts-liberation
       - name: Set provider connection settings
         run: |
           case "${{ matrix.provider }}" in

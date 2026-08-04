@@ -10,6 +10,14 @@
 .env*       text eol=lf
 Dockerfile  text eol=lf
 
+# Force CRLF regardless of checkout platform - matches this project's actual formatting
+# convention (dotnet format/.editorconfig expect \r\n). Without this, * text=auto normalizes
+# based on the checking-out platform's git config, so the same committed file can evaluate
+# as "correctly formatted" on Windows (auto-converted to CRLF) and "needs reformatting" on
+# a Linux CI runner (checked out as LF) - not an actual content difference, just this rule
+# being platform-dependent.
+*.cs        text eol=crlf
+
 ###############################################################################
 # Set default behavior for command prompt diff.
 #

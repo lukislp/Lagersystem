@@ -173,6 +173,7 @@ Configure the provider in `appsettings.json` under `DatabaseSettings`:
 ```
 
 **MySQL:**
+> **Known issue:** currently broken on .NET 10 - [Pomelo.EntityFrameworkCore.MySql](https://github.com/PomeloFoundation/Pomelo.EntityFrameworkCore.MySql) has no stable release for EF Core 10 yet (latest is `9.0.0`, targeting EF Core 9), which crashes the app at startup with a `MissingMethodException`. Use PostgreSQL or SQLite until Pomelo ships a compatible version.
 ```json
 {
     "DatabaseSettings": {

@@ -1,3 +1,4 @@
+using System.Threading;
 using Microsoft.EntityFrameworkCore;
 using LagersystemLVHome.Application.Configuration;
 using LagersystemLVHome.Data;
@@ -62,7 +63,7 @@ public sealed class DatabaseProviderService : IDatabaseProviderService
 
             case DatabaseProvider.MySQL:
                 options.UseMySql(connectionString,
-                    ServerVersion.AutoDetect(connectionString),
+                    AutoDetectMySqlServerVersionWithRetry(connectionString),
                     mySqlOptions =>
                     {
                         mySqlOptions.CommandTimeout(_settings.CommandTimeout);
@@ -84,6 +85,31 @@ public sealed class DatabaseProviderService : IDatabaseProviderService
 
         options.EnableSensitiveDataLogging(false);
         options.EnableDetailedErrors(true);
+    }
+
+    /// <summary>
+    /// ServerVersion.AutoDetect opens a raw connection to negotiate the server version, before
+    /// EF Core's own EnableRetryOnFailure exists to cover it. A MySQL server can start accepting
+    /// TCP connections (and answer a health-check ping) slightly before its user/database grants
+    /// are fully live, so this can fail transiently right after the server comes up - retry with
+    /// a short backoff instead of crashing the app on that race.
+    /// </summary>
+    private static ServerVersion AutoDetectMySqlServerVersionWithRetry(string connectionString)
+    {
+        const int maxAttempts = 5;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                return ServerVersion.AutoDetect(connectionString);
+            }
+            catch when (attempt < maxAttempts)
+            {
+                Thread.Sleep(TimeSpan.FromSeconds(2 * attempt));
+            }
+        }
+
+        return ServerVersion.AutoDetect(connectionString);
     }
 
     /// <summary>

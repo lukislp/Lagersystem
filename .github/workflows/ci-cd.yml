@@ -170,12 +170,17 @@ jobs:
               echo "DatabaseSettings__ConnectionString=Server=localhost;Port=3306;Database=lagersystem;User=lagersystem;Password=testpass;" >> "$GITHUB_ENV"
               ;;
           esac
+      # Build separately from starting the app - a cold build of this solution (SkiaSharp/ML.NET
+      # native assets, 6 projects) can itself take close to a minute on a shared runner, which
+      # left too little of the /healthz wait window for the app to actually start once `dotnet
+      # run` did the build inline. Compile time shouldn't compete with the runtime-startup budget.
+      - run: dotnet build LagersystemLVHome/LagersystemLVHome.csproj --configuration ${{ env.CONFIGURATION }} -p:TreatWarningsAsErrors=false
       - name: Start app against ${{ matrix.provider }}
         env:
           ASPNETCORE_URLS: http://+:5000
           ASPNETCORE_ENVIRONMENT: Production
         run: |
-          dotnet run --project LagersystemLVHome/LagersystemLVHome.csproj --configuration ${{ env.CONFIGURATION }} --no-launch-profile \
+          dotnet run --project LagersystemLVHome/LagersystemLVHome.csproj --configuration ${{ env.CONFIGURATION }} --no-launch-profile --no-build \
             -p:TreatWarningsAsErrors=false > app.log 2>&1 &
           echo $! > app.pid
       # Confirms Database.EnsureCreatedAsync() plus the custom missing-column check (this app's
@@ -183,7 +188,7 @@ jobs:
       # a real database for every supported provider, not just whichever one was tested by hand.
       - name: Wait for /healthz
         run: |
-          for i in $(seq 1 30); do
+          for i in $(seq 1 45); do
             if curl -sf http://localhost:5000/healthz > /dev/null; then
               echo "App is healthy against ${{ matrix.provider }}"
               exit 0

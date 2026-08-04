@@ -61,9 +61,12 @@
     <None Remove="AR\**" />
   </ItemGroup>
 
-  <!-- Include GeoIP2 database in output -->
+  <!-- Include GeoIP2 database in output, if present. MaxMind's license doesn't permit
+       redistributing it, so it's gitignored and won't exist on a fresh checkout (CI, or
+       anyone else cloning this repo) - GeoLocationService already treats it as optional
+       at runtime, so the build shouldn't hard-require it either. -->
   <ItemGroup>
-    <Content Include="GeoData\GeoLite2-City.mmdb" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="GeoData\GeoLite2-City.mmdb" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('GeoData\GeoLite2-City.mmdb')" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\LagersystemLVHome.Domain\LagersystemLVHome.Domain.csproj" />

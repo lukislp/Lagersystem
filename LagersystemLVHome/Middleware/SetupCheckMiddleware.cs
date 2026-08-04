@@ -23,9 +23,14 @@ public class SetupCheckMiddleware
 
         // Skip static files and specific paths. Health/readiness probes must always respond
         // regardless of setup state - otherwise a fresh, unseeded instance (e.g. right after
-        // `docker compose up` before the setup wizard has run) never reports healthy.
+        // `docker compose up` before the setup wizard has run) never reports healthy. The Blazor
+        // Server SignalR hub (/_blazor) must also be excluded - redirecting its negotiate/connect
+        // requests to /setup breaks the circuit entirely ("Failed to complete negotiation... is
+        // not valid JSON", "Circuit host not initialized"), which makes the app non-interactive
+        // on any fresh install, including the setup wizard page itself.
         if (path.StartsWith("/_framework") ||
             path.StartsWith("/_content") ||
+            path.StartsWith("/_blazor") ||
             path.StartsWith("/css") ||
             path.StartsWith("/js") ||
             path.StartsWith("/lib") ||

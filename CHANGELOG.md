@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/lukislp/Lagersystem/compare/v1.1.0...v1.1.1) (2026-08-04)
+
+
+### Bug Fixes
+
+* exclude Blazor Server SignalR hub from setup-required redirect ([907d327](https://github.com/lukislp/Lagersystem/commit/907d327794c9ae9b72b9fea305ac8666085c5520))
+
 # [1.1.0](https://github.com/lukislp/Lagersystem/compare/v1.0.0...v1.1.0) (2026-08-04)
 
 

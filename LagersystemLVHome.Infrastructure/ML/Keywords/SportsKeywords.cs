@@ -76,13 +76,13 @@ public class SportsKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["sport"] = 2.0,
-    ["fitness"] = 2.0,
-    ["training"] = 1.5,
-    ["workout"] = 1.5
+            ["sport"] = 2.0,
+            ["fitness"] = 2.0,
+            ["training"] = 1.5,
+            ["workout"] = 1.5
         };
     }
-    }
+}

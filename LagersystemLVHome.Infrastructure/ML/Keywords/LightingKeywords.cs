@@ -116,19 +116,19 @@ public class LightingKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["led"] = 3.0,
-    ["lampe"] = 2.5,
-    ["lamp"] = 2.5,
-    ["leuchte"] = 2.5,
-    ["beleuchtung"] = 2.5,
-    ["lighting"] = 2.5,
-    ["licht"] = 2.0,
-    ["light"] = 2.0,
-    ["smart"] = 2.0,
-    ["hue"] = 2.0
+            ["led"] = 3.0,
+            ["lampe"] = 2.5,
+            ["lamp"] = 2.5,
+            ["leuchte"] = 2.5,
+            ["beleuchtung"] = 2.5,
+            ["lighting"] = 2.5,
+            ["licht"] = 2.0,
+            ["light"] = 2.0,
+            ["smart"] = 2.0,
+            ["hue"] = 2.0
         };
     }
-    }
+}

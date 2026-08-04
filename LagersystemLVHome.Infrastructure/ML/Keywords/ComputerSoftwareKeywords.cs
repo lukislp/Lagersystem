@@ -58,15 +58,15 @@ public class ComputerSoftwareKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["computer"] = 2.0,
-    ["pc"] = 2.0,
-    ["software"] = 2.0,
-    ["gaming"] = 1.5,
-    ["prozessor"] = 1.5,
-    ["grafikkarte"] = 1.5
+            ["computer"] = 2.0,
+            ["pc"] = 2.0,
+            ["software"] = 2.0,
+            ["gaming"] = 1.5,
+            ["prozessor"] = 1.5,
+            ["grafikkarte"] = 1.5
         };
     }
-    }
+}

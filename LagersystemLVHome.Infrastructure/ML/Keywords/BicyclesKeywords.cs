@@ -118,16 +118,16 @@ public class BicyclesKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["fahrrad"] = 2.5,
-    ["bike"] = 2.5,
-    ["e-bike"] = 3.0,
-    ["ebike"] = 3.0,
-    ["pedelec"] = 2.5,
-    ["mountainbike"] = 2.0,
-    ["rennrad"] = 2.0
+            ["fahrrad"] = 2.5,
+            ["bike"] = 2.5,
+            ["e-bike"] = 3.0,
+            ["ebike"] = 3.0,
+            ["pedelec"] = 2.5,
+            ["mountainbike"] = 2.0,
+            ["rennrad"] = 2.0
         };
     }
-    }
+}

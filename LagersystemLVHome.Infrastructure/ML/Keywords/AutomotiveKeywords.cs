@@ -76,14 +76,14 @@ public class AutomotiveKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["auto"] = 2.0,
-    ["car"] = 2.0,
-    ["automotive"] = 2.0,
-    ["kfz"] = 1.5,
-    ["motorrad"] = 1.5
+            ["auto"] = 2.0,
+            ["car"] = 2.0,
+            ["automotive"] = 2.0,
+            ["kfz"] = 1.5,
+            ["motorrad"] = 1.5
         };
     }
-    }
+}

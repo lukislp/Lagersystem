@@ -86,13 +86,13 @@ public class DrugstoreKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["drogerie"] = 2.0,
-    ["pflege"] = 1.5,
-    ["reiniger"] = 1.5,
-    ["waschmittel"] = 1.5
+            ["drogerie"] = 2.0,
+            ["pflege"] = 1.5,
+            ["reiniger"] = 1.5,
+            ["waschmittel"] = 1.5
         };
     }
-    }
+}

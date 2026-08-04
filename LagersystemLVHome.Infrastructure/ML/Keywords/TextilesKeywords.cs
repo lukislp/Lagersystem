@@ -72,13 +72,13 @@ public class TextilesKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["textilien"] = 2.0,
-    ["bettwäsche"] = 1.5,
-    ["handtuch"] = 1.5,
-    ["decke"] = 1.5
+            ["textilien"] = 2.0,
+            ["bettwäsche"] = 1.5,
+            ["handtuch"] = 1.5,
+            ["decke"] = 1.5
         };
     }
-    }
+}

@@ -30,12 +30,12 @@ public class BabyKidsKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["baby"] = 2.0,
-    ["kind"] = 2.0,
-    ["kinder"] = 1.5
+            ["baby"] = 2.0,
+            ["kind"] = 2.0,
+            ["kinder"] = 1.5
         };
     }
-    }
+}

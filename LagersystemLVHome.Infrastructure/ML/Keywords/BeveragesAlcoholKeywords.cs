@@ -69,14 +69,14 @@ public class BeveragesAlcoholKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["wein"] = 2.0,
-    ["wine"] = 2.0,
-    ["whisky"] = 2.0,
-    ["spirituosen"] = 2.0,
-    ["alkohol"] = 1.5
+            ["wein"] = 2.0,
+            ["wine"] = 2.0,
+            ["whisky"] = 2.0,
+            ["spirituosen"] = 2.0,
+            ["alkohol"] = 1.5
         };
     }
-    }
+}

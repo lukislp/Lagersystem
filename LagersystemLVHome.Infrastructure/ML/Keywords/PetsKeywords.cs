@@ -28,13 +28,13 @@ public class PetsKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["haustier"] = 2.0,
-    ["pet"] = 2.0,
-    ["hund"] = 1.5,
-    ["katze"] = 1.5
+            ["haustier"] = 2.0,
+            ["pet"] = 2.0,
+            ["hund"] = 1.5,
+            ["katze"] = 1.5
         };
     }
-    }
+}

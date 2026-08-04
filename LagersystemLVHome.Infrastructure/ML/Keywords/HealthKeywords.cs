@@ -26,13 +26,13 @@ public class HealthKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["gesundheit"] = 2.0,
-    ["health"] = 2.0,
-    ["medikament"] = 1.5,
-    ["pflege"] = 1.5
+            ["gesundheit"] = 2.0,
+            ["health"] = 2.0,
+            ["medikament"] = 1.5,
+            ["pflege"] = 1.5
         };
     }
-    }
+}

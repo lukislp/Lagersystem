@@ -12,7 +12,8 @@ public class WarehouseServiceTests
     private sealed class NoOpCategorySeeder : CategorySeederService
     {
         public NoOpCategorySeeder() : base(new ServiceCollection().BuildServiceProvider(),
-            NullLogger<CategorySeederService>.Instance) { }
+            NullLogger<CategorySeederService>.Instance)
+        { }
         public override Task SeedCategoriesAsync(int? warehouseId = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 

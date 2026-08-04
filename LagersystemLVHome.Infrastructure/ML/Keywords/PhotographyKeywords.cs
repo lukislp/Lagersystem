@@ -66,15 +66,15 @@ public class PhotographyKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["kamera"] = 2.0,
-    ["camera"] = 2.0,
-    ["objektiv"] = 2.0,
-    ["lens"] = 2.0,
-    ["fotografie"] = 1.5,
-    ["video"] = 1.5
+            ["kamera"] = 2.0,
+            ["camera"] = 2.0,
+            ["objektiv"] = 2.0,
+            ["lens"] = 2.0,
+            ["fotografie"] = 1.5,
+            ["video"] = 1.5
         };
     }
-    }
+}

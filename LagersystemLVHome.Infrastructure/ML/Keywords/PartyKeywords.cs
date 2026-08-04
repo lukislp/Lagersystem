@@ -91,14 +91,14 @@ public class PartyKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["party"] = 2.0,
-    ["feier"] = 2.0,
-    ["fest"] = 1.5,
-    ["dekoration"] = 1.5,
-    ["geburtstag"] = 1.5
+            ["party"] = 2.0,
+            ["feier"] = 2.0,
+            ["fest"] = 1.5,
+            ["dekoration"] = 1.5,
+            ["geburtstag"] = 1.5
         };
     }
-    }
+}

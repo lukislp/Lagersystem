@@ -26,13 +26,13 @@ public class HouseholdKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["haushalt"] = 2.0,
-    ["household"] = 2.0,
-    ["küche"] = 1.5,
-    ["kitchen"] = 1.5
+            ["haushalt"] = 2.0,
+            ["household"] = 2.0,
+            ["küche"] = 1.5,
+            ["kitchen"] = 1.5
         };
     }
-    }
+}

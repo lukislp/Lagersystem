@@ -31,12 +31,12 @@ public class HardwareKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["baumarkt"] = 2.0,
-    ["hardware"] = 2.0,
-    ["bau"] = 1.5
+            ["baumarkt"] = 2.0,
+            ["hardware"] = 2.0,
+            ["bau"] = 1.5
         };
     }
-    }
+}

@@ -87,14 +87,14 @@ public class HobbyModelBuildingKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["modellbau"] = 2.0,
-    ["model"] = 2.0,
-    ["hobby"] = 1.5,
-    ["bausatz"] = 1.5,
-    ["rc"] = 1.5
+            ["modellbau"] = 2.0,
+            ["model"] = 2.0,
+            ["hobby"] = 1.5,
+            ["bausatz"] = 1.5,
+            ["rc"] = 1.5
         };
     }
-    }
+}

@@ -18,7 +18,8 @@ public class SetupServiceTests
     private sealed class NoOpCategorySeeder : CategorySeederService
     {
         public NoOpCategorySeeder() : base(new ServiceCollection().BuildServiceProvider(),
-            NullLogger<CategorySeederService>.Instance) { }
+            NullLogger<CategorySeederService>.Instance)
+        { }
 
         public override Task SeedCategoriesAsync(int? warehouseId = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
@@ -68,9 +69,13 @@ public class SetupServiceTests
             db.Warehouses.Add(new Warehouse { Id = 1, Name = "X", Code = "X", IsActive = true });
             db.Users.Add(new User
             {
-                Username = "existing", Email = "e@e", DisplayName = "E",
-                PasswordHash = "-", WarehouseId = 1,
-                ApprovalStatus = UserApprovalStatus.Approved, IsActive = true
+                Username = "existing",
+                Email = "e@e",
+                DisplayName = "E",
+                PasswordHash = "-",
+                WarehouseId = 1,
+                ApprovalStatus = UserApprovalStatus.Approved,
+                IsActive = true
             });
             await db.SaveChangesAsync();
         }
@@ -113,9 +118,13 @@ public class SetupServiceTests
             db.Warehouses.Add(new Warehouse { Id = 1, Name = "X", Code = "X", IsActive = true });
             db.Users.Add(new User
             {
-                Username = "existing", Email = "e@e", DisplayName = "E",
-                PasswordHash = "-", WarehouseId = 1,
-                ApprovalStatus = UserApprovalStatus.Approved, IsActive = true
+                Username = "existing",
+                Email = "e@e",
+                DisplayName = "E",
+                PasswordHash = "-",
+                WarehouseId = 1,
+                ApprovalStatus = UserApprovalStatus.Approved,
+                IsActive = true
             });
             await db.SaveChangesAsync();
         }

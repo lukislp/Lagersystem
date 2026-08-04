@@ -55,26 +55,26 @@ public class ToolsKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["werkzeug"] = 2.0,
-    ["tool"] = 2.0,
+            ["werkzeug"] = 2.0,
+            ["tool"] = 2.0,
             // Hand tools
-    ["bosch"] = 1.5,
-    ["makita"] = 1.5,
+            ["bosch"] = 1.5,
+            ["makita"] = 1.5,
 
             // Weight CNC tools higher
-    ["fräser"] = 1.8,
-    ["schaftfräser"] = 1.8,
-    ["end mill"] = 1.8,
-    ["cnc"] = 1.7,
-    ["vollhartmetall"] = 1.5,
-    ["carbide"] = 1.5,
-    ["hss"] = 1.4,
-    ["schneider"] = 1.3,
-    ["collet"] = 1.2,
-    ["spannzange"] = 1.2
+            ["fräser"] = 1.8,
+            ["schaftfräser"] = 1.8,
+            ["end mill"] = 1.8,
+            ["cnc"] = 1.7,
+            ["vollhartmetall"] = 1.5,
+            ["carbide"] = 1.5,
+            ["hss"] = 1.4,
+            ["schneider"] = 1.3,
+            ["collet"] = 1.2,
+            ["spannzange"] = 1.2
         };
     }
-    }
+}

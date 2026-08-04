@@ -115,16 +115,16 @@ public class PetSuppliesKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["tiermedizin"] = 2.5,
-    ["pflege"] = 2.0,
-    ["supplement"] = 2.0,
-    ["floh"] = 2.0,
-    ["zecke"] = 2.0,
-    ["wurmkur"] = 2.0,
-    ["nahrungsergänzung"] = 1.5
+            ["tiermedizin"] = 2.5,
+            ["pflege"] = 2.0,
+            ["supplement"] = 2.0,
+            ["floh"] = 2.0,
+            ["zecke"] = 2.0,
+            ["wurmkur"] = 2.0,
+            ["nahrungsergänzung"] = 1.5
         };
     }
-    }
+}

@@ -26,12 +26,12 @@ public class BooksMediaKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["buch"] = 2.0,
-    ["book"] = 2.0,
-    ["medien"] = 1.5
+            ["buch"] = 2.0,
+            ["book"] = 2.0,
+            ["medien"] = 1.5
         };
     }
-    }
+}

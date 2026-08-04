@@ -134,7 +134,8 @@ public sealed partial class AuthService : IAuthService
         if (!user.AnalyticsConsent || !user.DeviceFingerprintConsent)
         {
             await _auditService.SafeLogAsync(_logger, "LOGIN_DENIED", "User", user.Id,
-                new {
+                new
+                {
                     Reason = "Granular consents required",
                     AnalyticsConsent = user.AnalyticsConsent,
                     DeviceFingerprintConsent = user.DeviceFingerprintConsent

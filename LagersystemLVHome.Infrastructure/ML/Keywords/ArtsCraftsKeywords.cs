@@ -97,15 +97,15 @@ public class ArtsCraftsKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["kunst"] = 2.0,
-    ["basteln"] = 2.0,
-    ["malen"] = 2.0,
-    ["craft"] = 2.0,
-    ["farbe"] = 1.5,
-    ["pinsel"] = 1.5
+            ["kunst"] = 2.0,
+            ["basteln"] = 2.0,
+            ["malen"] = 2.0,
+            ["craft"] = 2.0,
+            ["farbe"] = 1.5,
+            ["pinsel"] = 1.5
         };
     }
-    }
+}

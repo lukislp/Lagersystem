@@ -56,12 +56,12 @@ public class OfficeKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["bürobedarf"] = 2.0,
-    ["office"] = 2.0,
-    ["büro"] = 1.5
+            ["bürobedarf"] = 2.0,
+            ["office"] = 2.0,
+            ["büro"] = 1.5
         };
     }
-    }
+}

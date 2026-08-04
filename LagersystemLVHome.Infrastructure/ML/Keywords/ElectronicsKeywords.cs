@@ -160,21 +160,21 @@ public class ElectronicsKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
             // Main keywords with higher weighting
-    ["smart"] = 2.0,
-    ["alexa"] = 2.0,
-    ["google"] = 2.0,
-    ["apple"] = 2.0,
-    ["samsung"] = 2.0,
-    ["philips"] = 2.0,
-    ["hue"] = 2.0,
-    ["bluetooth"] = 1.5,
-    ["wifi"] = 1.5,
-    ["wireless"] = 1.5,
-    ["iot"] = 2.0
+            ["smart"] = 2.0,
+            ["alexa"] = 2.0,
+            ["google"] = 2.0,
+            ["apple"] = 2.0,
+            ["samsung"] = 2.0,
+            ["philips"] = 2.0,
+            ["hue"] = 2.0,
+            ["bluetooth"] = 1.5,
+            ["wifi"] = 1.5,
+            ["wireless"] = 1.5,
+            ["iot"] = 2.0
         };
     }
-    }
+}

@@ -30,12 +30,12 @@ public class FurnitureKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["möbel"] = 2.0,
-    ["furniture"] = 2.0,
-    ["einrichtung"] = 1.5
+            ["möbel"] = 2.0,
+            ["furniture"] = 2.0,
+            ["einrichtung"] = 1.5
         };
     }
-    }
+}

@@ -107,44 +107,44 @@ public class BatteriesKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
             // HIGHEST PRIORITY - main keywords
-    ["batterie"] = 3.0,
-    ["batterien"] = 3.0,
-    ["akku"] = 3.0,
-    ["battery"] = 3.0,
-    ["batteries"] = 3.0,
+            ["batterie"] = 3.0,
+            ["batterien"] = 3.0,
+            ["akku"] = 3.0,
+            ["battery"] = 3.0,
+            ["batteries"] = 3.0,
 
             // VERY IMPORTANT - specific sizes (longer variants preferred!)
-    ["aa-batterie"] = 2.5,
-    ["aaa-batterie"] = 2.5,
-    ["aa batterie"] = 2.5,
-    ["aaa batterie"] = 2.5,
-    ["9v-batterie"] = 2.5,
-    ["9v batterie"] = 2.5,
-    ["mignon"] = 2.0,
-    ["micro"] = 2.0,
+            ["aa-batterie"] = 2.5,
+            ["aaa-batterie"] = 2.5,
+            ["aa batterie"] = 2.5,
+            ["aaa batterie"] = 2.5,
+            ["9v-batterie"] = 2.5,
+            ["9v batterie"] = 2.5,
+            ["mignon"] = 2.0,
+            ["micro"] = 2.0,
 
             // IMPORTANT BUT SHORT - automatically scored lower by match quality
             // These matter for bare "AA", but quality 0.1 (2 chars)
-    ["aa"] = 1.8,  // Important but short - quality lowers the score automatically
-    ["aaa"] = 1.8,
-    ["9v"] = 1.5,
+            ["aa"] = 1.8,  // Important but short - quality lowers the score automatically
+            ["aaa"] = 1.8,
+            ["9v"] = 1.5,
 
             // IMPORTANT - types & brands
-    ["alkaline"] = 2.0,
-    ["lithium"] = 2.0,
-    ["rechargeable"] = 2.0,
-    ["duracell"] = 2.0,
-    ["varta"] = 2.0,
-    ["energizer"] = 2.0,
-    ["eneloop"] = 2.0,
+            ["alkaline"] = 2.0,
+            ["lithium"] = 2.0,
+            ["rechargeable"] = 2.0,
+            ["duracell"] = 2.0,
+            ["varta"] = 2.0,
+            ["energizer"] = 2.0,
+            ["eneloop"] = 2.0,
 
             // MEDIUM - chargers
-    ["ladegerät"] = 1.5,
-    ["charger"] = 1.5
+            ["ladegerät"] = 1.5,
+            ["charger"] = 1.5
         };
     }
-    }
+}

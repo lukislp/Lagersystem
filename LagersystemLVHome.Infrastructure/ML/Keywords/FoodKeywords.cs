@@ -96,14 +96,14 @@ public class FoodKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["lebensmittel"] = 2.0,
-    ["food"] = 2.0,
-    ["essen"] = 1.5,
-    ["trinken"] = 1.5,
-    ["getränk"] = 1.5
+            ["lebensmittel"] = 2.0,
+            ["food"] = 2.0,
+            ["essen"] = 1.5,
+            ["trinken"] = 1.5,
+            ["getränk"] = 1.5
         };
     }
-    }
+}

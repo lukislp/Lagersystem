@@ -28,13 +28,13 @@ public class JewelryKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["schmuck"] = 2.0,
-    ["jewelry"] = 2.0,
-    ["uhr"] = 1.5,
-    ["watch"] = 1.5
+            ["schmuck"] = 2.0,
+            ["jewelry"] = 2.0,
+            ["uhr"] = 1.5,
+            ["watch"] = 1.5
         };
     }
-    }
+}

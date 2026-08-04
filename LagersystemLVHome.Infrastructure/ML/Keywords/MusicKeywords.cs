@@ -34,12 +34,12 @@ public class MusicKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["musik"] = 2.0,
-    ["music"] = 2.0,
-    ["instrument"] = 2.0
+            ["musik"] = 2.0,
+            ["music"] = 2.0,
+            ["instrument"] = 2.0
         };
     }
-    }
+}

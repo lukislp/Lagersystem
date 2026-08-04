@@ -83,14 +83,14 @@ public class SupplementsKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["nahrungsergänzung"] = 2.0,
-    ["supplement"] = 2.0,
-    ["vitamin"] = 1.5,
-    ["protein"] = 1.5,
-    ["omega"] = 1.5
+            ["nahrungsergänzung"] = 2.0,
+            ["supplement"] = 2.0,
+            ["vitamin"] = 1.5,
+            ["protein"] = 1.5,
+            ["omega"] = 1.5
         };
     }
-    }
+}

@@ -104,16 +104,16 @@ public class CoffeeTeaKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["kaffee"] = 2.5,
-    ["coffee"] = 2.5,
-    ["tee"] = 2.5,
-    ["tea"] = 2.5,
-    ["espresso"] = 2.0,
-    ["cappuccino"] = 2.0,
-    ["nespresso"] = 2.0
+            ["kaffee"] = 2.5,
+            ["coffee"] = 2.5,
+            ["tee"] = 2.5,
+            ["tea"] = 2.5,
+            ["espresso"] = 2.0,
+            ["cappuccino"] = 2.0,
+            ["nespresso"] = 2.0
         };
     }
-    }
+}

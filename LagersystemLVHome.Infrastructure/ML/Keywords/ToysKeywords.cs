@@ -28,13 +28,13 @@ public class ToysKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["spielzeug"] = 2.0,
-    ["toy"] = 2.0,
-    ["lego"] = 1.5,
-    ["playmobil"] = 1.5
+            ["spielzeug"] = 2.0,
+            ["toy"] = 2.0,
+            ["lego"] = 1.5,
+            ["playmobil"] = 1.5
         };
     }
-    }
+}

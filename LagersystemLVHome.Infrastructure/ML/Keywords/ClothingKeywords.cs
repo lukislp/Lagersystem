@@ -27,12 +27,12 @@ public class ClothingKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["kleidung"] = 2.0,
-    ["clothing"] = 2.0,
-    ["mode"] = 1.5
+            ["kleidung"] = 2.0,
+            ["clothing"] = 2.0,
+            ["mode"] = 1.5
         };
     }
-    }
+}

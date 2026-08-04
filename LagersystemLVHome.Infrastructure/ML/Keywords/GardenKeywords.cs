@@ -27,11 +27,11 @@ public class GardenKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["garten"] = 2.0,
-    ["garden"] = 2.0
+            ["garten"] = 2.0,
+            ["garden"] = 2.0
         };
     }
-    }
+}

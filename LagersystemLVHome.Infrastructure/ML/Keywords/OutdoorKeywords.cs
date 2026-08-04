@@ -32,13 +32,13 @@ public class OutdoorKeywords : ICategoryKeywordProvider
     }
 
     public Dictionary<string, double> GetWeightedKeywords()
-        {
+    {
         return new Dictionary<string, double>
         {
-    ["camping"] = 2.0,
-    ["outdoor"] = 2.0,
-    ["zelt"] = 1.5,
-    ["tent"] = 1.5
+            ["camping"] = 2.0,
+            ["outdoor"] = 2.0,
+            ["zelt"] = 1.5,
+            ["tent"] = 1.5
         };
     }
-    }
+}

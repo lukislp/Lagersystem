@@ -42,58 +42,58 @@ public class InventoryDbContext : DbContext
         }
     }
 
-    public DbSet<Product> Products { get; set; }
-    public DbSet<Category> Categories { get; set; }
-    public DbSet<StockMovement> StockMovements { get; set; }
-    public DbSet<StorageLocation> StorageLocations { get; set; }
-    public DbSet<Warehouse> Warehouses { get; set; }
-    public DbSet<User> Users { get; set; }
-    public DbSet<Room> Rooms { get; set; }
-    public DbSet<ProductStorageLocation> ProductStorageLocations { get; set; }
-    public DbSet<AuditLog> AuditLogs { get; set; }
-    public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
-    public DbSet<Notification> Notifications { get; set; }
-    public DbSet<UserNotificationSettings> UserNotificationSettings { get; set; }
-    public DbSet<ProductBatch> ProductBatches { get; set; }
-    public DbSet<ApiKey> ApiKeys { get; set; }
-    public DbSet<PageView> PageViews { get; set; }
-    public DbSet<ApiRequest> ApiRequests { get; set; }
-    public DbSet<PerformanceMetric> PerformanceMetrics { get; set; }
-    public DbSet<UserActivity> UserActivities { get; set; }
-    public DbSet<ProductPrice> ProductPrices { get; set; }
+    public DbSet<Product> Products { get; set; } = null!;
+    public DbSet<Category> Categories { get; set; } = null!;
+    public DbSet<StockMovement> StockMovements { get; set; } = null!;
+    public DbSet<StorageLocation> StorageLocations { get; set; } = null!;
+    public DbSet<Warehouse> Warehouses { get; set; } = null!;
+    public DbSet<User> Users { get; set; } = null!;
+    public DbSet<Room> Rooms { get; set; } = null!;
+    public DbSet<ProductStorageLocation> ProductStorageLocations { get; set; } = null!;
+    public DbSet<AuditLog> AuditLogs { get; set; } = null!;
+    public DbSet<PasswordResetToken> PasswordResetTokens { get; set; } = null!;
+    public DbSet<Notification> Notifications { get; set; } = null!;
+    public DbSet<UserNotificationSettings> UserNotificationSettings { get; set; } = null!;
+    public DbSet<ProductBatch> ProductBatches { get; set; } = null!;
+    public DbSet<ApiKey> ApiKeys { get; set; } = null!;
+    public DbSet<PageView> PageViews { get; set; } = null!;
+    public DbSet<ApiRequest> ApiRequests { get; set; } = null!;
+    public DbSet<PerformanceMetric> PerformanceMetrics { get; set; } = null!;
+    public DbSet<UserActivity> UserActivities { get; set; } = null!;
+    public DbSet<ProductPrice> ProductPrices { get; set; } = null!;
 
     // Backup System
-    public DbSet<BackupSettings> BackupSettings { get; set; }
-    public DbSet<BackupProvider> BackupProviders { get; set; }
-    public DbSet<BackupHistory> BackupHistory { get; set; }
+    public DbSet<BackupSettings> BackupSettings { get; set; } = null!;
+    public DbSet<BackupProvider> BackupProviders { get; set; } = null!;
+    public DbSet<BackupHistory> BackupHistory { get; set; } = null!;
 
     // Key-Backup System (uses existing local providers)
-    public DbSet<KeyBackupHistory> KeyBackupHistory { get; set; }
+    public DbSet<KeyBackupHistory> KeyBackupHistory { get; set; } = null!;
 
     // System Settings (Encryption Keys, etc.)
-    public DbSet<SystemSetting> SystemSettings { get; set; }
+    public DbSet<SystemSetting> SystemSettings { get; set; } = null!;
 
     // Session Management
-    public DbSet<UserSession> UserSessions { get; set; }
-    public DbSet<SecurityEvent> SecurityEvents { get; set; }
-    public DbSet<SessionActivity> SessionActivities { get; set; }
-    public DbSet<GdprCleanupHistory> GdprCleanupHistory { get; set; }
+    public DbSet<UserSession> UserSessions { get; set; } = null!;
+    public DbSet<SecurityEvent> SecurityEvents { get; set; } = null!;
+    public DbSet<SessionActivity> SessionActivities { get; set; } = null!;
+    public DbSet<GdprCleanupHistory> GdprCleanupHistory { get; set; } = null!;
 
     // Passwordless Login & IP Access Rules
-    public DbSet<MagicLinkToken> MagicLinkTokens { get; set; }
-    public DbSet<UserIpAccessRule> UserIpAccessRules { get; set; }
+    public DbSet<MagicLinkToken> MagicLinkTokens { get; set; } = null!;
+    public DbSet<UserIpAccessRule> UserIpAccessRules { get; set; } = null!;
 
     // WebAuthn / Passkeys
-    public DbSet<UserPasskey> UserPasskeys { get; set; }
-    public DbSet<WebAuthnChallenge> WebAuthnChallenges { get; set; }
+    public DbSet<UserPasskey> UserPasskeys { get; set; } = null!;
+    public DbSet<WebAuthnChallenge> WebAuthnChallenges { get; set; } = null!;
 
     // E-Mail OTP for 2FA
-    public DbSet<EmailOtpToken> EmailOtpTokens { get; set; }
+    public DbSet<EmailOtpToken> EmailOtpTokens { get; set; } = null!;
 
     // Trusted Devices (skip 2FA)
-    public DbSet<TrustedDevice> TrustedDevices { get; set; }
-    public DbSet<LinkedDeviceFingerprint> LinkedDeviceFingerprints { get; set; }
-    public DbSet<UserGamificationStats> UserGamificationStats { get; set; }
+    public DbSet<TrustedDevice> TrustedDevices { get; set; } = null!;
+    public DbSet<LinkedDeviceFingerprint> LinkedDeviceFingerprints { get; set; } = null!;
+    public DbSet<UserGamificationStats> UserGamificationStats { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

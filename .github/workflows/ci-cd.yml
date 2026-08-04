@@ -1,0 +1,361 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  CONFIGURATION: Release
+  IMAGE: ghcr.io/lukislp/lagersystem
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------
+  # Test stage — runs on every push to main AND every pull request
+  # ---------------------------------------------------------------------
+  test-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'LagersystemLVHome.sln') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+      - run: dotnet test LagersystemLVHome.UnitTests/LagersystemLVHome.UnitTests.csproj --configuration ${{ env.CONFIGURATION }} --logger "junit;LogFilePath=TestResults/unit-tests-junit.xml"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: LagersystemLVHome.UnitTests/TestResults/unit-tests-junit.xml
+          retention-days: 7
+
+  test-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'LagersystemLVHome.sln') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+      - run: dotnet format LagersystemLVHome.sln --verify-no-changes --verbosity diagnostic
+
+  test-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'LagersystemLVHome.sln') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+      - run: dotnet restore LagersystemLVHome.sln
+      - run: |
+          dotnet list LagersystemLVHome.sln package --vulnerable --include-transitive | tee nuget-vulnerabilities.txt
+          # SQLitePCLRaw.lib.e_sqlite3 (GHSA-2m69-gcr7-jv3q) is a documented, deliberately-accepted
+          # risk - see the NuGetAuditSuppress block + comment in Directory.Build.props. No safe fix
+          # exists yet: Microsoft's own EF Core Sqlite package still depends on the vulnerable
+          # SQLitePCLRaw 2.1.x line as of its latest release, and forcing an isolated upgrade risks
+          # a native-interop mismatch. Excluded from the severity gate here so CI doesn't
+          # permanently fail on an already-accepted risk; any OTHER High/Critical finding still fails.
+          grep -v "SQLitePCLRaw" nuget-vulnerabilities.txt > nuget-vulnerabilities-filtered.txt || true
+          if grep -q "has the following vulnerable packages" nuget-vulnerabilities-filtered.txt; then
+            echo "NuGet advisory findings detected (excluding the accepted SQLitePCLRaw risk) - see nuget-vulnerabilities.txt artifact for details."
+            if grep -qE "^\s*>\s+\S+.*\s+(High|Critical)\s+http" nuget-vulnerabilities-filtered.txt; then
+              echo "::error::High or Critical severity vulnerability found among the findings above."
+              exit 1
+            fi
+          else
+            echo "No known vulnerable NuGet packages found (excluding the accepted SQLitePCLRaw risk)."
+          fi
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nuget-vulnerabilities
+          path: nuget-vulnerabilities.txt
+          retention-days: 7
+
+  test-db-providers:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        provider: [sqlite, postgresql, mysql]
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: lagersystem
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: lagersystem
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lagersystem -d lagersystem"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: testpass
+          MYSQL_DATABASE: lagersystem
+          MYSQL_USER: lagersystem
+          MYSQL_PASSWORD: testpass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h localhost"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'LagersystemLVHome.sln') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+      - name: Set provider connection settings
+        run: |
+          case "${{ matrix.provider }}" in
+            sqlite)
+              echo "DatabaseSettings__Provider=SQLite" >> "$GITHUB_ENV"
+              echo "DatabaseSettings__ConnectionString=Data Source=inventory-ci.db" >> "$GITHUB_ENV"
+              ;;
+            postgresql)
+              echo "DatabaseSettings__Provider=PostgreSQL" >> "$GITHUB_ENV"
+              echo "DatabaseSettings__ConnectionString=Host=localhost;Port=5432;Database=lagersystem;Username=lagersystem;Password=testpass" >> "$GITHUB_ENV"
+              ;;
+            mysql)
+              echo "DatabaseSettings__Provider=MySQL" >> "$GITHUB_ENV"
+              echo "DatabaseSettings__ConnectionString=Server=localhost;Port=3306;Database=lagersystem;User=lagersystem;Password=testpass;" >> "$GITHUB_ENV"
+              ;;
+          esac
+      - name: Start app against ${{ matrix.provider }}
+        env:
+          ASPNETCORE_URLS: http://+:5000
+          ASPNETCORE_ENVIRONMENT: Production
+        run: |
+          dotnet run --project LagersystemLVHome/LagersystemLVHome.csproj --configuration ${{ env.CONFIGURATION }} --no-launch-profile \
+            -p:TreatWarningsAsErrors=false > app.log 2>&1 &
+          echo $! > app.pid
+      # Confirms Database.EnsureCreatedAsync() plus the custom missing-column check (this app's
+      # equivalent of a migration step - there is no Migrations/ folder) actually succeed against
+      # a real database for every supported provider, not just whichever one was tested by hand.
+      - name: Wait for /healthz
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5000/healthz > /dev/null; then
+              echo "App is healthy against ${{ matrix.provider }}"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::App did not become healthy against ${{ matrix.provider }} in time"
+          cat app.log
+          exit 1
+      - if: always()
+        name: Stop app
+        run: kill "$(cat app.pid)" 2>/dev/null || true
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: app-log-${{ matrix.provider }}
+          path: app.log
+          retention-days: 7
+
+  build:
+    # No implicit stage-sequencing under GitHub's DAG model (unlike GitLab) - wait for every
+    # test job, including all test-db-providers matrix legs, explicitly.
+    needs: [test-unit, test-lint, test-security, test-db-providers]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'LagersystemLVHome.sln') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+      - run: dotnet restore LagersystemLVHome.sln
+      - run: dotnet build LagersystemLVHome.sln --configuration ${{ env.CONFIGURATION }} --no-restore
+
+  # ---------------------------------------------------------------------
+  # Version / docker / release — push to main only
+  # ---------------------------------------------------------------------
+  get-version:
+    needs: [build]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: lagersystem-release-chain
+      cancel-in-progress: false
+    # @semantic-release/github verifies push/write access as part of its plugin lifecycle
+    # even during a dry run - a read-only token fails that check outright. No actual writes
+    # happen here regardless of these permissions; dry_run: true never pushes/tags/releases.
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      next_version: ${{ steps.semrel.outputs.new_release_version }}
+      published: ${{ steps.semrel.outputs.new_release_published }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - id: semrel
+        uses: cycjimmy/semantic-release-action@b12c8f6015dc215fe37bc154d4ad456dd3833c90 # v6.0.0
+        with:
+          dry_run: true
+          extra_plugins: |
+            @semantic-release/changelog
+            @semantic-release/github
+            @semantic-release/git
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Fail if no next version determined
+        if: steps.semrel.outputs.new_release_published != 'true'
+        run: |
+          echo "::error::semantic-release did not determine a next version (no releasable commits since the last tag). Aborting instead of silently skipping."
+          exit 1
+
+  docker-build-push:
+    needs: [get-version]
+    if: github.event_name == 'push' && needs.get-version.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: lagersystem-release-chain
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    env:
+      NEXT_VERSION: ${{ needs.get-version.outputs.next_version }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Guard against duplicate tag
+        run: |
+          if docker manifest inspect "${{ env.IMAGE }}:${{ env.NEXT_VERSION }}" >/dev/null 2>&1; then
+            echo "::error::registry tag ${{ env.NEXT_VERSION }} already exists (version race with a parallel run). Do NOT retry this run; wait for it to finish, then push again to produce a fresh version."
+            exit 1
+          fi
+      # Dockerfile is self-contained (restores/builds/publishes from source inside the image
+      # build itself, unlike a split publish-then-copy setup) - matches how the README documents
+      # `docker compose up --build` as a normal end-user deployment path. amd64 only for now:
+      # no stated ARM/Raspberry Pi target, and building this multi-project solution's full SDK
+      # compile under arm64 QEMU emulation would be considerably slower than native.
+      - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ env.NEXT_VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  trivy-scan:
+    needs: [get-version, docker-build-push]
+    if: github.event_name == 'push' && needs.get-version.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    env:
+      NEXT_VERSION: ${{ needs.get-version.outputs.next_version }}
+    steps:
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}:${{ env.NEXT_VERSION }}
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+
+  semantic-release:
+    # get-version listed explicitly (not just transitively via docker-build-push) so its
+    # outputs are reliably accessible below - GitHub Actions' needs context only guarantees
+    # access to directly-listed dependencies.
+    needs: [get-version, docker-build-push]
+    if: github.event_name == 'push' && needs.get-version.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: lagersystem-release-chain
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - id: semrel
+        uses: cycjimmy/semantic-release-action@b12c8f6015dc215fe37bc154d4ad456dd3833c90 # v6.0.0
+        with:
+          extra_plugins: |
+            @semantic-release/changelog
+            @semantic-release/github
+            @semantic-release/git
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+      # Retry once for the narrow window where an out-of-band push to main landed between
+      # this job's checkout and its own push (the concurrency group above already serializes
+      # overlapping runs of this workflow, so this only guards against a genuinely external push).
+      - if: steps.semrel.outcome == 'failure'
+        run: |
+          git fetch origin main
+          git checkout -B main origin/main
+      - if: steps.semrel.outcome == 'failure'
+        uses: cycjimmy/semantic-release-action@b12c8f6015dc215fe37bc154d4ad456dd3833c90 # v6.0.0
+        with:
+          extra_plugins: |
+            @semantic-release/changelog
+            @semantic-release/github
+            @semantic-release/git
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

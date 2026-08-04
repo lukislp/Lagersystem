@@ -1,0 +1,637 @@
+@using LagersystemLVHome.Domain.Models
+@using LagersystemLVHome.Application.Services
+@inject ISessionManagementService SessionManagementService
+@inject ITrustedDeviceService TrustedDeviceService
+@inject IDeviceFingerprintService DeviceFingerprintService
+@inject ILogger<UserDeviceList> Logger
+@inject I18nText I18nText
+<div class="device-list-container">
+    @if (IsLoading)
+    {
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">@T.UserDeviceList_Loading</span>
+            </div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle"></i> @ErrorMessage
+        </div>
+    }
+    else if (Devices == null || !Devices.Any())
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> @(T.UserDeviceList_NoDevices ?? "Keine Geräte gefunden.")
+        </div>
+    }
+    else
+    {
+        <div class="mb-3">
+            <!-- Use bi-hdd-stack for the device icon (definitely exists in Bootstrap Icons) -->
+            <h5><i class="bi bi-hdd-stack text-primary me-2"></i>@GroupedDevices.Count() @(GroupedDevices.Count() == 1 ? (T.UserDeviceList_DeviceCount_Single ?? "Gerät") : (T.UserDeviceList_DeviceCount_Multi ?? "Geräte"))</h5>
+            <small class="text-muted">
+                @GroupedDevices.Count(g => g.Any(s => s.IsActive)) aktiv, @GroupedDevices.Count(g => g.All(s => !s.IsActive)) beendet
+            </small>
+        </div>
+
+        <!-- Grouping by device fingerprint -->
+        @foreach (var deviceGroup in GroupedDevices)
+        {
+            var latestSession = deviceGroup.OrderByDescending(s => s.LastActivity).First();
+            var isCurrentDevice = latestSession.SessionId == CurrentSessionId;
+            var isActive = deviceGroup.Any(s => s.IsActive);
+
+            <div class="card device-card mb-3 @(isActive ? "border-success" : "border-secondary")">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <!-- Device Icon & Info -->
+                        <div class="col-md-8">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="device-icon me-3 fs-3 text-primary">
+                                    <i class="bi @GetDeviceIcon(latestSession.DeviceType)"></i>
+                                </span>
+                                <div>
+                                    <h6 class="mb-1">
+                                        @GetDeviceName(latestSession)
+                                        @if (isCurrentDevice)
+                                        {
+                                            <span class="badge bg-primary ms-2">
+                                                <i class="bi bi-check-circle"></i> @(T.UserDeviceList_CurrentDevice ?? "Aktuelles Gerät")
+                                            </span>
+                                        }
+                                        @if (IsTrustedDevice(latestSession.DeviceFingerprint))
+                                        {
+                                            <span class="badge bg-success ms-2">
+                                                <i class="bi bi-shield-check"></i> @(T.UserDeviceList_Trusted ?? "Vertraut")
+                                            </span>
+                                        }
+                                        @if (isActive)
+                                        {
+                                            <span class="badge bg-success ms-2">
+                                                <i class="bi bi-circle-fill pulse"></i> @(T.UserDeviceList_Active ?? "Aktiv")
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary ms-2">
+                                                <i class="bi bi-x-circle"></i> @(T.UserDeviceList_Ended ?? "Beendet")
+                                            </span>
+                                        }
+                                    </h6>
+                                    <small class="text-muted">
+                                        <i class="bi bi-browser-chrome"></i> @latestSession.Browser &bull;
+                                        <i class="bi bi-display"></i> @latestSession.OperatingSystem
+                                    </small>
+                                </div>
+                            </div>
+
+                            <!-- Location & Last Activity -->
+                            <div class="device-details">
+                                <div class="mb-1">
+                                    <i class="bi bi-geo-alt text-muted"></i>
+                                    <small>
+                                        @if (!string.IsNullOrEmpty(latestSession.City))
+                                        {
+                                            @latestSession.City
+    
+                                            <text>, </text>
+                                        }
+                                        @(latestSession.Country ?? (T.UserDeviceList_Unknown ?? "Unbekannt"))
+                                    </small>
+                                </div>
+                                <div class="mb-1">
+                                    <i class="bi bi-clock text-muted"></i>
+                                    <small>
+                                        @if (isActive)
+                                        {
+                                            <text>@(T.UserDeviceList_LastActive ?? "Zuletzt aktiv:") @GetTimeAgo(latestSession.LastActivity)</text>
+                                        }
+                                        else
+                                        {
+                                            <text>@(T.UserDeviceList_EndedAt ?? "Beendet:") @GetTimeAgo(latestSession.EndTime ?? latestSession.LastActivity)</text>
+                                        }
+                                    </small>
+                                </div>
+                                @if (!string.IsNullOrEmpty(latestSession.IpAddress))
+                                {
+                                    <div class="mb-1">
+                                        <i class="bi bi-hdd-network text-muted"></i>
+                                        <small class="text-monospace">@latestSession.IpAddress</small>
+                                    </div>
+                                }
+                            </div>
+
+                            <!-- Security Warnings -->
+                            @if (latestSession.IsVpn || latestSession.IsSuspicious)
+                            {
+                                <div class="mt-2">
+                                    @if (latestSession.IsVpn)
+                                    {
+                                        <span class="badge bg-warning text-dark me-2">
+                                            <i class="bi bi-shield-exclamation"></i>
+                                            VPN @(!string.IsNullOrEmpty(latestSession.VpnProvider) ? $"({latestSession.VpnProvider})" : "")
+                                        </span>
+                                    }
+                                    @if (latestSession.IsSuspicious)
+                                    {
+                                        <span class="badge bg-danger">
+                                                <i class="bi bi-exclamation-triangle"></i> @(T.UserDeviceList_Suspicious ?? "Verdächtig")
+                                            </span>
+                                    }
+                                </div>
+                            }
+
+                            <!-- Session Count -->
+                            @if (deviceGroup.Count() > 1)
+                            {
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <i class="bi bi-clock-history"></i>
+                                        @deviceGroup.Count() @(T.UserDeviceList_SessionsOf ?? "Sessions von diesem Gerät")
+                                    </small>
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="col-md-4 text-end">
+                            @if (!string.IsNullOrEmpty(latestSession.DeviceFingerprint))
+                            {
+                                @if (IsTrustedDevice(latestSession.DeviceFingerprint))
+                                {
+                                    <button class="btn btn-sm btn-outline-warning mb-1"
+                                            @onclick="() => UntrustDevice(latestSession.DeviceFingerprint!)"
+                                            disabled="@IsProcessingTrust">
+                                        @if (IsProcessingTrust)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-1"></span>
+                                        }
+                                        <i class="bi bi-shield-x me-1"></i>@(T.UserDeviceList_Untrust ?? "Vertrauen entziehen")
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-sm btn-outline-success mb-1"
+                                            @onclick="() => TrustDevice(latestSession)"
+                                            disabled="@IsProcessingTrust">
+                                        @if (IsProcessingTrust)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-1"></span>
+                                        }
+                                        <i class="bi bi-shield-check me-1"></i>@(T.UserDeviceList_Trust ?? "Vertrauen")
+                                    </button>
+                                }
+                            }
+                            @if (isActive && AllowTerminate && !isCurrentDevice)
+                            {
+                                <button class="btn btn-sm btn-outline-danger"
+                                        @onclick="() => TerminateDevice(deviceGroup)"
+                                        disabled="@IsTerminating">
+                                    @if (IsTerminating)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1"></span>
+                                    }
+                                    <i class="bi bi-power"></i> @(T.UserDeviceList_EndSessions ?? "Sessions beenden")
+                                </button>
+                            }
+
+                            <!-- Device fingerprints (collapsible) - shows all FPs of the group -->
+                            @if (ShowFingerprint)
+                            {
+                                var groupFingerprints = deviceGroup.Select(s => s.DeviceFingerprint!).Distinct().ToList();
+                                <details class="mt-2">
+                                    <summary class="text-muted small" style="cursor: pointer;">
+                                        <i class="bi bi-chevron-right me-1 expand-icon"></i>
+                                        <i class="bi bi-fingerprint me-1"></i>
+                                        @groupFingerprints.Count Device-Fingerprint@(groupFingerprints.Count > 1 ? "s" : "")
+                                        @if (groupFingerprints.Count > 1)
+                                        {
+                                            <span class="badge bg-info ms-1"><i class="bi bi-link-45deg"></i> @T.UserDeviceList_Merged</span>
+                                        }
+                                    </summary>
+                                    @foreach (var fp in groupFingerprints)
+                                    {
+                                        var linkEntry = linkedFingerprints.FirstOrDefault(l => l.LinkedFingerprint == fp);
+                                        <div class="d-flex align-items-center gap-1 mt-1">
+                                            @if (linkEntry != null)
+                                            {
+                                                <i class="bi bi-link-45deg text-info"></i>
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-fingerprint text-muted"></i>
+                                            }
+                                            <code class="small text-break">@fp</code>
+                                            @if (linkEntry != null)
+                                            {
+                                                var unlinkTitle = T.UserDeviceList_Unlink ?? "Verknüpfung lösen";
+                                                <span class="badge bg-secondary">@(linkEntry.Source ?? (T.UserDeviceList_LinkedSource ?? "Verknüpft"))</span>
+                                                <button class="btn btn-sm btn-outline-danger p-0 px-1" style="font-size: 0.7rem;"
+                                                        @onclick="() => UnlinkFingerprint(linkEntry.Id)" title="@unlinkTitle">
+                                                    <i class="bi bi-x"></i>
+                                                </button>
+                                            }
+                                            else if (groupFingerprints.Count > 1)
+                                            {
+                                                <span class="badge bg-primary">@T.UserDeviceList_Primary</span>
+                                            }
+                                        </div>
+                                    }
+                                </details>
+                            }
+
+                            @* Merge devices - for ALL devices when other device groups exist *@
+                            @{
+                                var primaryFp2 = deviceGroup.Key; var mergeTargets2 = GetMergeableGroups(primaryFp2);
+                            }
+                            @if (mergeTargets2.Any())
+                            {
+                                <div class="mt-2">
+                                    @if (linkingDeviceFingerprint == primaryFp2)
+                                    {
+                                        <div class="card border-info p-2">
+                                            <small class="text-muted mb-1">
+                                                <i class="bi bi-link-45deg me-1"></i>@(T.UserDeviceList_MergeWith ?? "Mit welchem Gerät zusammenführen?")
+                                            </small>
+                                            @foreach (var targetFp in mergeTargets2)
+                                            {
+                                                var targetSession = GetLatestSessionForFingerprint(targetFp);
+                                                <button class="btn btn-sm btn-outline-info w-100 text-start mb-1"
+                                                        @onclick="() => LinkDevice(primaryFp2, targetFp, targetSession)"
+                                                        disabled="@IsProcessingLink">
+                                                    @if (IsProcessingLink)
+                                                    {
+                                                        <span class="spinner-border spinner-border-sm me-1"></span>
+                                                    }
+                                                    <i class="bi @GetDeviceIcon(targetSession?.DeviceType) me-1"></i>
+                                                    @if (targetSession != null)
+                                                    {
+                                                        @($"{targetSession.Browser} auf {targetSession.OperatingSystem}")
+                                                    }
+                                                    else
+                                                    {
+                                                        <code class="small">@targetFp[..Math.Min(16, targetFp.Length)]...</code>
+                                                    }
+                                                </button>
+                                            }
+                                            <button class="btn btn-sm btn-outline-secondary w-100 mt-1"
+                                                    @onclick="() => CancelLinking()">
+                                                <i class="bi bi-x me-1"></i>@(T.UserDeviceList_Cancel ?? "Abbrechen")
+                                            </button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-outline-info"
+                                                @onclick="() => StartLinking(primaryFp2)">
+                                            <i class="bi bi-link-45deg me-1"></i>@(T.UserDeviceList_MergeDevice ?? "Gerät zusammenführen")
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int UserId { get; set; }
+
+    [Parameter]
+    public string? CurrentSessionId { get; set; }
+
+    [Parameter]
+    public bool AllowTerminate { get; set; } = true;
+
+    [Parameter]
+    public bool ShowFingerprint { get; set; } = false;
+
+    [Parameter]
+    public EventCallback OnDeviceTerminated { get; set; }
+
+    // Use fully qualified name
+    private List<Domain.Models.UserSession>? Devices { get; set; }
+    private bool IsLoading { get; set; } = true;
+    private bool IsTerminating { get; set; } = false;
+    private bool IsProcessingTrust { get; set; } = false;
+    private bool IsProcessingLink { get; set; } = false;
+    private string? ErrorMessage { get; set; }
+    private HashSet<string> trustedFingerprints = new();
+    private List<LinkedDeviceFingerprint> linkedFingerprints = new();
+    // Cache: fingerprint -> primaryFingerprint (for fast resolution)
+    private Dictionary<string, string> fingerprintLinks = new();
+    private string? linkingDeviceFingerprint;
+
+    private IEnumerable<Domain.Models.UserSession> ActiveDevices =>
+    Devices?.Where(d => d.IsActive) ?? Enumerable.Empty<Domain.Models.UserSession>();
+
+    private IEnumerable<Domain.Models.UserSession> InactiveDevices =>
+    Devices?.Where(d => !d.IsActive) ?? Enumerable.Empty<Domain.Models.UserSession>();
+
+    // Group sessions by linked fingerprints (merged devices = one group)
+    private IEnumerable<IGrouping<string, Domain.Models.UserSession>> GroupedDevices =>
+        Devices?
+        .Where(d => !string.IsNullOrEmpty(d.DeviceFingerprint))
+        .GroupBy(d => ResolvePrimary(d.DeviceFingerprint!))
+        .OrderByDescending(g => g.Any(s => s.IsActive))
+.ThenByDescending(g => g.Max(s => s.LastActivity))
+        ?? Enumerable.Empty<IGrouping<string, Domain.Models.UserSession>>();
+
+    /// <summary>
+    /// Resolves a fingerprint synchronously to its primary (cached)
+    /// </summary>
+    private string ResolvePrimary(string fingerprint)
+    {
+        if (fingerprintLinks.TryGetValue(fingerprint, out var primary))
+            return primary;
+        return fingerprint;
+    }
+
+    private LagersystemLVHome.I18nText.App T = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadDevicesAsync();
+    }
+
+    private async Task LoadDevicesAsync()
+    {
+        try
+        {
+            IsLoading = true;
+            ErrorMessage = null;
+
+            Devices = await SessionManagementService.GetUserSessionsAsync(UserId, onlyActive: false);
+
+            // Load trusted devices
+            var trusted = await TrustedDeviceService.GetTrustedDevicesAsync(UserId);
+            trustedFingerprints = new HashSet<string>(trusted.Select(t => t.DeviceFingerprint));
+
+            // Load linked fingerprints and build cache
+            linkedFingerprints = await DeviceFingerprintService.GetLinkedFingerprintsAsync(UserId);
+            fingerprintLinks.Clear();
+            foreach (var link in linkedFingerprints)
+            {
+                fingerprintLinks[link.LinkedFingerprint] = link.PrimaryFingerprint;
+                // Verknuepfte Fingerprints erben Trust-Status
+                if (trustedFingerprints.Contains(link.PrimaryFingerprint))
+                    trustedFingerprints.Add(link.LinkedFingerprint);
+                if (trustedFingerprints.Contains(link.LinkedFingerprint))
+                    trustedFingerprints.Add(link.PrimaryFingerprint);
+            }
+
+            Logger.LogInformation("Loaded {Count} devices for user {UserId}, {TrustedCount} trusted",
+                Devices?.Count ?? 0, UserId, trustedFingerprints.Count);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading devices for user {UserId}", UserId);
+            ErrorMessage = T.UserDeviceList_LoadError ?? "Fehler beim Laden der Geräte.";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task TerminateDevice(IEnumerable<Domain.Models.UserSession> deviceSessions)
+    {
+        if (!AllowTerminate) return;
+
+        try
+        {
+            IsTerminating = true;
+
+            // Terminate all active sessions of this device
+            var activeSessions = deviceSessions.Where(s => s.IsActive).ToList();
+    
+            foreach (var session in activeSessions)
+            {
+                await SessionManagementService.EndSessionAsync(
+        session.SessionId,
+            SessionEndReason.AdminForceLogout,
+                "Device terminated by user"
+                    );
+            }
+
+            Logger.LogInformation("Terminated {Count} sessions for device", activeSessions.Count);
+
+            // Reload devices
+            await LoadDevicesAsync();
+
+            // Notify parent
+            await OnDeviceTerminated.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error terminating device sessions");
+            ErrorMessage = "Fehler beim Beenden der Sessions.";
+        }
+        finally
+        {
+            IsTerminating = false;
+        }
+    }
+
+    private bool IsTrustedDevice(string? fingerprint)
+    {
+        return !string.IsNullOrEmpty(fingerprint) && trustedFingerprints.Contains(fingerprint);
+    }
+
+    private async Task TrustDevice(Domain.Models.UserSession session)
+    {
+        if (string.IsNullOrEmpty(session.DeviceFingerprint)) return;
+
+        try
+        {
+            IsProcessingTrust = true;
+            var deviceName = $"{session.Browser ?? "Browser"} auf {session.OperatingSystem ?? "Unbekannt"}";
+            var success = await TrustedDeviceService.TrustDeviceAsync(
+                UserId, session.DeviceFingerprint, deviceName, session.IpAddress, 30);
+            if (success)
+            {
+                trustedFingerprints.Add(session.DeviceFingerprint);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error trusting device");
+            ErrorMessage = "Fehler beim Vertrauen des Geraets.";
+        }
+        finally
+        {
+            IsProcessingTrust = false;
+        }
+    }
+
+    private async Task UntrustDevice(string fingerprint)
+    {
+        try
+        {
+            IsProcessingTrust = true;
+            var success = await TrustedDeviceService.UntrustDeviceAsync(UserId, fingerprint);
+            if (success)
+            {
+                trustedFingerprints.Remove(fingerprint);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error untrusting device");
+            ErrorMessage = "Fehler beim Entziehen des Vertrauens.";
+        }
+        finally
+        {
+            IsProcessingTrust = false;
+        }
+    }
+
+    private string GetDeviceIcon(string? deviceType)
+    {
+        return deviceType?.ToLower() switch
+        {
+            "mobile" => "bi-phone",
+            "tablet" => "bi-tablet",
+            "desktop" => "bi-laptop",
+            _ => "bi-device-ssd"
+        };
+    }
+
+    // === Merge devices ===
+
+    private void StartLinking(string fingerprint)
+    {
+        linkingDeviceFingerprint = fingerprint;
+    }
+
+    private void CancelLinking()
+    {
+        linkingDeviceFingerprint = null;
+    }
+
+    /// <summary>
+    /// Returns the primary fingerprints of all OTHER device groups
+    /// that this group could be merged with
+    /// </summary>
+    private IEnumerable<string> GetMergeableGroups(string primaryFingerprint)
+    {
+        return GroupedDevices
+            .Select(g => g.Key)
+            .Where(key => key != primaryFingerprint);
+    }
+
+    private Domain.Models.UserSession? GetLatestSessionForFingerprint(string fingerprint)
+    {
+        // Find sessions that belong to this group (primary or linked)
+        return Devices?
+            .Where(d => ResolvePrimary(d.DeviceFingerprint ?? "") == fingerprint)
+            .OrderByDescending(d => d.LastActivity)
+            .FirstOrDefault();
+    }
+
+    private async Task LinkDevice(string primaryFingerprint, string targetGroupPrimary, Domain.Models.UserSession? targetSession)
+    {
+        try
+        {
+            IsProcessingLink = true;
+
+            var source = targetSession != null
+                ? $"{targetSession.Browser} {targetSession.DeviceType}"
+                : "Verknüpft";
+
+            // Link the target primary as a LinkedFingerprint under our primary
+            var success = await DeviceFingerprintService.LinkFingerprintsAsync(
+                UserId, primaryFingerprint, targetGroupPrimary, source);
+
+            // If the target group itself has LinkedFingerprints, re-link those as well
+            if (success)
+            {
+                var targetLinked = linkedFingerprints
+                    .Where(l => l.PrimaryFingerprint == targetGroupPrimary)
+                    .ToList();
+                foreach (var tl in targetLinked)
+                {
+                    await DeviceFingerprintService.LinkFingerprintsAsync(
+                        UserId, primaryFingerprint, tl.LinkedFingerprint, tl.Source);
+                }
+            }
+
+            if (success)
+            {
+                Logger.LogInformation("Linked device groups {Primary} <- {Target}", primaryFingerprint, targetGroupPrimary);
+                linkingDeviceFingerprint = null;
+                await LoadDevicesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error linking device fingerprints");
+            ErrorMessage = T.UserDeviceList_MergeError ?? "Fehler beim Zusammenführen der Geräte.";
+        }
+        finally
+        {
+            IsProcessingLink = false;
+        }
+    }
+
+    private async Task UnlinkFingerprint(int linkedFingerprintId)
+    {
+        try
+        {
+            IsProcessingLink = true;
+            var success = await DeviceFingerprintService.UnlinkFingerprintAsync(UserId, linkedFingerprintId);
+            if (success)
+            {
+                await LoadDevicesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error unlinking fingerprint");
+            ErrorMessage = T.UserDeviceList_UnlinkError ?? "Fehler beim Lösen der Verknüpfung.";
+        }
+        finally
+        {
+            IsProcessingLink = false;
+        }
+    }
+
+    private string GetDeviceName(Domain.Models.UserSession session)
+    {
+        var os = session.OperatingSystem ?? "Unknown";
+        var deviceType = session.DeviceType ?? "Desktop";
+
+        return $"{os} {deviceType}";
+    }
+
+    private string GetTimeAgo(DateTime dateTime)
+    {
+        var span = DateTime.UtcNow - dateTime;
+
+        if (span.TotalMinutes < 1)
+            return "gerade eben";
+        if (span.TotalMinutes < 60)
+            return $"vor {(int)span.TotalMinutes} Minuten";
+        if (span.TotalHours < 24)
+            return $"vor {(int)span.TotalHours} Stunden";
+        if (span.TotalDays < 7)
+            return $"vor {(int)span.TotalDays} Tagen";
+        if (span.TotalDays < 30)
+            return $"vor {(int)(span.TotalDays / 7)} Wochen";
+        if (span.TotalDays < 365)
+            return $"vor {(int)(span.TotalDays / 30)} Monaten";
+        
+        return $"vor {(int)(span.TotalDays / 365)} Jahren";
+    }
+}

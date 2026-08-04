@@ -1,0 +1,418 @@
+@page "/privacy"
+@inherits CancellableComponentBase
+@layout EmptyLayout
+@using Microsoft.Extensions.Options
+@using LagersystemLVHome.Application.Configuration
+@inject IOptions<PrivacyPolicySettings> PrivacySettings
+
+<PageTitle>Datenschutzerklärung - LagerSystem</PageTitle>
+
+<div class="container my-5">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <div class="mb-4">
+                <a href="/login" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>Zurück
+                </a>
+            </div>
+
+            <h1 class="mb-4">Datenschutzerklärung</h1>
+            <p class="text-muted">Stand: @DateTime.Now.ToString("dd.MM.yyyy")</p>
+            <p class="text-muted"><strong>Version:</strong> @PrivacySettings.Value.Version (mit granularen Consents)</p>
+
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Wichtiger Hinweis:</strong> Diese Datenschutzerklärung beschreibt, wie wir Ihre Daten verarbeiten.
+                Sie mössen dieser Erklärung sowie unseren <strong>erforderlichen</strong> Tracking-Maßnahmen
+                (Analytics & Device Fingerprinting) zustimmen, um die Anwendung nutzen zu können.
+            </div>
+
+            <section class="mb-5">
+                <h2>1. Verantwortlicher</h2>
+                <p>
+                    Verantwortlich für die Datenverarbeitung auf dieser Website ist:<br>
+                    <strong>@PrivacySettings.Value.Company.Name</strong><br>
+                    @PrivacySettings.Value.Company.Address<br>
+                    E-Mail: <a href="mailto:@PrivacySettings.Value.Company.Email">@PrivacySettings.Value.Company.Email</a><br>
+                    Telefon: @PrivacySettings.Value.Company.Phone
+                </p>
+                @if (!string.IsNullOrEmpty(PrivacySettings.Value.Company.Website))
+                {
+                    <p>Website: <a href="@PrivacySettings.Value.Company.Website" target="_blank">@PrivacySettings.Value.Company.Website</a></p>
+                }
+            </section>
+
+            <section class="mb-5">
+                <h2>2. Erhebung und Speicherung personenbezogener Daten</h2>
+     
+                <h3>2.1 Beim Besuch der Website</h3>
+                <p>
+                    Bei der rein informatorischen Nutzung der Website, also wenn Sie sich nicht registrieren oder uns
+                    anderweitig Informationen übermitteln, werden automatisch folgende Daten protokolliert:
+                </p>
+                <ul>
+                    <li>IP-Adresse</li>
+                    <li>Datum und Uhrzeit des Zugriffs</li>
+                    <li>Browser-Typ und Version</li>
+                    <li>Betriebssystem</li>
+                    <li>Bildschirmauflösung und Gerätetyp</li>
+                </ul>
+                <p>
+                    Die Verarbeitung dieser Daten erfolgt auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO zur Gewährleistung
+                    der IT-Sicherheit und zur Optimierung unserer Website.
+                </p>
+
+                <h3>2.2 Bei der Registrierung</h3>
+                <p>Bei der Registrierung eines Benutzerkontos werden folgende Daten erhoben:</p>
+                <ul>
+                    <li>Benutzername</li>
+                    <li>E-Mail-Adresse</li>
+                    <li>Passwort (verschlüsselt gespeichert mit BCrypt)</li>
+                    <li>Anzeigename</li>
+                    <li>Zugeordnetes Lager (Warehouse)</li>
+                    <li>Zeitpunkt der Registrierung</li>
+                    <li>IP-Adresse bei Login</li>
+                    <li><strong>Einwilligungen:</strong> DSGVO-Consent, Analytics-Consent, Device-Fingerprint-Consent, Marketing-Consent (optional)</li>
+                </ul>
+                <p>
+                    Die Verarbeitung erfolgt auf Grundlage Ihrer Einwilligung (Art. 6 Abs. 1 lit. a DSGVO).
+                </p>
+
+                <h3>2.3 Bei der Nutzung der Anwendung</h3>
+                <p>Während der Nutzung werden folgende Daten protokolliert:</p>
+                <ul>
+                    <li>Login-Aktivitäten (Zeitpunkt, IP-Adresse)</li>
+                    <li>änderungen an Produkten, Kategorien und Lagerfächern</li>
+                    <li>Bestandsbewegungen</li>
+                    <li>Fehlgeschlagene Login-Versuche</li>
+                    <li><strong>Analytics-Daten (nur mit Ihrer Zustimmung):</strong> Seitenaufrufe, Ladezeiten, Klicks, Verweildauer</li>
+                    <li><strong>Device Fingerprints (nur mit Ihrer Zustimmung):</strong> Browser-Typ, Plugins, Zeitzone, Spracheinstellungen</li>
+                </ul>
+                <p>
+                    Diese Daten dienen der Sicherheit, Nachvollziehbarkeit und ordnungsgemäßen Nutzung der Anwendung
+                    (Art. 6 Abs. 1 lit. f DSGVO).
+                </p>
+
+                <h3>2.4 Erforderliche Datenverarbeitung</h3>
+                <div class="alert alert-warning">
+                    <h5><i class="bi bi-exclamation-triangle me-2"></i>Wichtig: Pflicht-Zustimmungen</h5>
+                    <p>Folgende Datenverarbeitungen sind <strong>erforderlich</strong> für die Nutzung der Anwendung:</p>
+                    <ol>
+                        <li>
+                            <strong>Analytics & Performance-Tracking</strong>
+                            <ul>
+                                <li><strong>Zweck:</strong> Fehleranalyse, Performance-Optimierung, Bug-Fixes</li>
+                                <li><strong>Daten:</strong> Seitenaufrufe, Ladezeiten, Fehler-Logs</li>
+                                <li><strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. a DSGVO (Einwilligung)</li>
+                                <li><strong>Begründung:</strong> Ohne Analytics können wir die App-Qualität nicht gewährleisten</li>
+                                <li><strong>Widerruf:</strong> Möglich, führt aber zur <strong>Login-Blockierung</strong></li>
+                            </ul>
+                        </li>
+                        <li>
+                            <strong>Device Fingerprinting (Sicherheit)</strong>
+                            <ul>
+                                <li><strong>Zweck:</strong> Schutz vor Session-Hijacking, VPN-Erkennung, Account-übernahme-Prävention</li>
+                                <li><strong>Daten:</strong> Browser-Fingerprint, IP-Adresse, User-Agent</li>
+                                <li><strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse: Sicherheit)</li>
+                                <li><strong>Begründung:</strong> Notwendig für erweiterte Sicherheits-Features</li>
+                                <li><strong>Widerruf:</strong> Möglich, führt aber zur <strong>Login-Blockierung</strong></li>
+                            </ul>
+                        </li>
+                    </ol>
+                    <p class="mb-0">
+                        <i class="bi bi-info-circle me-1"></i>
+                        <strong>Sie können die Einwilligung jederzeit widerrufen</strong>, jedoch ist ein Login danach
+                        nicht mehr möglich. Beim nächsten Login-Versuch werden Sie erneut um Zustimmung gebeten.
+                    </p>
+                </div>
+            </section>
+
+            <section class="mb-5">
+                <h2>3. Zweck der Datenverarbeitung</h2>
+                <p>Die erhobenen personenbezogenen Daten werden für folgende Zwecke verwendet:</p>
+                <ul>
+                    <li>Bereitstellung der Lagerverwaltungs-Software</li>
+                    <li>Benutzerauthentifizierung und -verwaltung</li>
+                    <li>Sicherstellung der IT-Sicherheit</li>
+                    <li>Verhinderung von Missbrauch (Brute-Force-Schutz)</li>
+                    <li>Nachvollziehbarkeit von änderungen (Audit-Trail)</li>
+                    <li>Statistische Auswertungen zur Verbesserung der Anwendung</li>
+                    <li><strong>Analytics (mit Ihrer Zustimmung):</strong> Performance-Analyse, Bug-Detection, User-Experience-Optimierung</li>
+                    <li><strong>Device Fingerprinting (mit Ihrer Zustimmung):</strong> Session-Sicherheit, Anomalie-Erkennung, Account-Schutz</li>
+                </ul>
+            </section>
+
+            <section class="mb-5">
+                <h2>4. Weitergabe von Daten</h2>
+                <p>
+                    Eine übermittlung Ihrer persönlichen Daten an Dritte zu anderen als den im Folgenden aufgeführten
+                    Zwecken findet nicht statt.
+                </p>
+                <p>Wir geben Ihre persönlichen Daten nur an Dritte weiter, wenn:</p>
+                <ul>
+                    <li>Sie Ihre nach Art. 6 Abs. 1 S. 1 lit. a DSGVO ausdrückliche Einwilligung dazu erteilt haben</li>
+                    <li>
+                        die Weitergabe nach Art. 6 Abs. 1 S. 1 lit. f DSGVO zur Geltendmachung, Ausübung oder Verteidigung
+                        von Rechtsansprüchen erforderlich ist
+                    </li>
+                    <li>eine gesetzliche Verpflichtung nach Art. 6 Abs. 1 S. 1 lit. c DSGVO besteht</li>
+                </ul>
+                <p><strong>Cloud-Dienste (optional):</strong></p>
+                <ul>
+                    <li>
+                        Bei Verwendung von Backup-Providern (AWS S3, Azure Blob, Cloudflare R2, Google Drive, OneDrive)
+                        werden verschlüsselte Backups übertragen
+                    </li>
+                    <li>Diese Dienste sind Auftragsverarbeiter gemäß Art. 28 DSGVO</li>
+                    <li>Auftragsverarbeitungsverträge (AVV) sind vorhanden</li>
+                </ul>
+            </section>
+
+            <section class="mb-5">
+                <h2>5. Speicherdauer</h2>
+                <p>
+                    Die Daten werden gelöscht, sobald sie für die Erreichung des Zweckes ihrer Erhebung nicht mehr
+                    erforderlich sind:
+                </p>
+                <ul>
+                    <li><strong>Benutzerdaten:</strong> @PrivacySettings.Value.Retention.UserData</li>
+                    <li><strong>Sessions & Device Fingerprints:</strong> @PrivacySettings.Value.Retention.SessionsAndFingerprints Tage nach letzter Aktivität</li>
+                    <li><strong>Login-Protokolle:</strong> @PrivacySettings.Value.Retention.LoginLogs Tage</li>
+                    <li><strong>Audit-Logs:</strong> @PrivacySettings.Value.Retention.AuditLogs Tage</li>
+                    <li><strong>Analytics-Daten:</strong> @PrivacySettings.Value.Retention.AnalyticsData Tage</li>
+                    <li><strong>Backups:</strong> @PrivacySettings.Value.Retention.DailyBackups Tage (täglich), @PrivacySettings.Value.Retention.WeeklyBackups Tage (wöchentlich), @PrivacySettings.Value.Retention.MonthlyBackups Tage (monatlich)</li>
+                    <li><strong>Gelöschte Accounts:</strong> @PrivacySettings.Value.Retention.DeletedAccounts Tage Retention, dann permanente Löschung (GDPR Cleanup Service)</li>
+                </ul>
+            </section>
+
+            <section class="mb-5">
+                <h2>6. Ihre Rechte</h2>
+                <p>Sie haben folgende Rechte bezüglich Ihrer personenbezogenen Daten:</p>
+
+                <h3>6.1 Recht auf Auskunft (Art. 15 DSGVO)</h3>
+                <p>
+                    Sie können jederzeit eine kostenlose Auskunft über Ihre gespeicherten personenbezogenen Daten anfordern.
+                    Nutzen Sie dazu die <strong>Daten-Export-Funktion</strong> in Ihrem Profil.
+                </p>
+
+                <h3>6.2 Recht auf Berichtigung (Art. 16 DSGVO)</h3>
+                <p>
+                    Sie haben das Recht, unrichtige Daten berichtigen zu lassen. Dies können Sie über Ihr Profil vornehmen.
+                </p>
+
+                <h3>6.3 Recht auf Löschung (Art. 17 DSGVO)</h3>
+                <p>
+                    Sie haben das Recht, die Löschung Ihrer personenbezogenen Daten zu verlangen.
+                    Nutzen Sie dazu die <strong>Account-Löschung-Funktion</strong> in Ihrem Profil.
+                </p>
+                <p>
+                    <strong>Wichtig:</strong> Gelöschte Accounts werden für @PrivacySettings.Value.Retention.DeletedAccounts Tage aufbewahrt (Soft-Delete),
+                    danach erfolgt die permanente Löschung durch unseren automatischen GDPR Cleanup Service.
+                </p>
+
+                <h3>6.4 Recht auf Einschränkung der Verarbeitung (Art. 18 DSGVO)</h3>
+                <p>
+                    Sie haben das Recht, die Einschränkung der Verarbeitung Ihrer personenbezogenen Daten zu verlangen.
+                </p>
+
+                <h3>6.5 Recht auf Datenübertragbarkeit (Art. 20 DSGVO)</h3>
+                <p>
+                    Sie haben das Recht, Ihre Daten in einem strukturierten, gängigen und maschinenlesbaren Format zu erhalten.
+                    Nutzen Sie dazu die <strong>Daten-Export-Funktion</strong> (JSON-Format) in Ihrem Profil.
+                </p>
+
+                <h3>6.6 Widerrufsrecht (Art. 7 Abs. 3 DSGVO)</h3>
+                <div class="alert alert-warning">
+                    <p>
+                        Sie haben das Recht, Ihre erteilte Einwilligung jederzeit zu widerrufen:
+                    </p>
+                    <ul>
+                        <li><strong>Marketing-Einwilligung:</strong> Jederzeit widerrufbar ohne Konsequenzen</li>
+                        <li><strong>Analytics-Consent:</strong> Widerrufbar, aber <strong>Login danach blockiert</strong></li>
+                        <li><strong>Device Fingerprinting-Consent:</strong> Widerrufbar, aber <strong>Login danach blockiert</strong></li>
+                    </ul>
+                    <p>
+                        Sie können diese Einwilligungen über Ihr <strong>Profil → Datenschutz & Privatsphäre</strong> widerrufen.
+                        Beim nächsten Login-Versuch werden Sie erneut um Zustimmung gebeten.
+                    </p>
+                    <p class="mb-0">
+                        <strong>Alternative:</strong> Wenn Sie die App nicht mehr nutzen möchten,
+                        empfehlen wir die <strong>Account-Löschung</strong> statt des Widerrufs einzelner Consents.
+                    </p>
+                </div>
+
+                <h3>6.7 Beschwerderecht (Art. 77 DSGVO)</h3>
+                <p>
+                    Sie haben das Recht, sich bei einer Datenschutz-Aufsichtsbehörde über die Verarbeitung Ihrer
+                    personenbezogenen Daten zu beschweren.
+                </p>
+                <p>
+                    Zuständige Aufsichtsbehörde für Deutschland:<br>
+                    <strong>Der Bundesbeauftragte für den Datenschutz und die Informationsfreiheit (BfDI)</strong><br>
+                    Graurheindorfer Straße 153<br>
+                    53117 Bonn<br>
+                    E-Mail: poststelle@bfdi.bund.de
+                </p>
+            </section>
+
+            <section class="mb-5">
+                <h2>7. Datensicherheit</h2>
+                <p>
+                    Wir verwenden innerhalb des Website-Besuchs das verbreitete SSL-Verfahren (Secure Socket Layer) in
+                    Verbindung mit der jeweils höchsten Verschlüsselungsstufe (TLS 1.3).
+                </p>
+                <p>Zusätzliche Sicherheitsmaßnahmen:</p>
+                <ul>
+                    <li><strong>Passwort-Hashing:</strong> Passwörter werden mit BCrypt (Kosten-Faktor 12) verschlüsselt gespeichert</li>
+                    <li><strong>Brute-Force-Schutz:</strong> Nach 5 Fehlversuchen wird das Konto für 15 Minuten gesperrt</li>
+                    <li><strong>IP-Tracking:</strong> Verdächtige Aktivitäten werden protokolliert</li>
+                    <li><strong>Audit-Logging:</strong> Alle wichtigen Aktionen werden nachvollziehbar protokolliert (tamper-proof)</li>
+                    <li><strong>Multi-Tenancy:</strong> Daten verschiedener Lager sind strikt getrennt</li>
+                    <li><strong>Session Management:</strong> Automatische Session-Terminierung bei Inaktivität</li>
+                    <li><strong>Rate Limiting:</strong> Schutz vor API-Missbrauch und DDoS-Angriffen</li>
+                    <li><strong>2FA (optional):</strong> Zwei-Faktor-Authentifizierung mit Google Authenticator</li>
+                    <li><strong>Device Fingerprinting:</strong> Erkennung von Session-Hijacking-Versuchen</li>
+                    <li><strong>VPN-Erkennung:</strong> Warnung bei verdächtigen Zugriffs-Mustern</li>
+                </ul>
+            </section>
+
+            <section class="mb-5">
+                <h2>8. Cookies</h2>
+                <p>
+                    Diese Website verwendet Session-Cookies zur Authentifizierung. Diese Cookies sind für die Funktionalität
+                    der Anwendung notwendig und werden nach Beendigung der Browser-Sitzung gelöscht.
+                </p>
+                <p>Cookie-Eigenschaften:</p>
+                <ul>
+                    <li><strong>HttpOnly:</strong> @(PrivacySettings.Value.Cookies.HttpOnly ? "Ja" : "Nein") - Schutz vor XSS-Angriffen</li>
+                    <li><strong>Secure:</strong> @(PrivacySettings.Value.Cookies.Secure ? "Ja (nur HTTPS)" : "Nein") - Nur über HTTPS übertragen</li>
+                    <li><strong>SameSite:</strong> @PrivacySettings.Value.Cookies.SameSite - Schutz vor CSRF-Angriffen</li>
+                    <li><strong>Ablauf:</strong> @PrivacySettings.Value.Cookies.ExpirationHours Stunden mit automatischer Verlängerung bei Aktivität</li>
+                    <li><strong>Name:</strong> <code>@PrivacySettings.Value.Cookies.Name</code> (Authentication Cookie)</li>
+                </ul>
+                <p>
+                    <strong>Tracking-Cookies:</strong> Es werden <strong>keine</strong> Third-Party-Cookies oder
+                    Tracking-Cookies von Drittanbietern verwendet. Alle Analytics-Daten werden lokal in unserer
+                    Datenbank gespeichert.
+                </p>
+            </section>
+
+            <section class="mb-5">
+                <h2>9. Automatisierte Entscheidungsfindung / Profiling</h2>
+                <p>
+                    Wir verwenden <strong>Machine Learning (ML)</strong> für folgende Zwecke:
+                </p>
+                <ul>
+                    <li><strong>Kategorie-Vorhersage:</strong> Automatische Produktkategorisierung (ML.NET)</li>
+                    <li><strong>Anomalie-Erkennung:</strong> Erkennung ungewöhnlicher Bestandsbewegungen</li>
+                    <li><strong>Security Risk Assessment:</strong> KI-basierte Sicherheitsrisiko-Bewertung</li>
+                </ul>
+                <p>
+                    <strong>Wichtig:</strong> Diese ML-Features treffen <strong>keine</strong> automatisierten
+                    Entscheidungen gemäß Art. 22 DSGVO. Alle Vorschläge sind rein informativ und können
+                    von Benutzern überschrieben werden.
+                </p>
+            </section>
+
+            <section class="mb-5">
+                <h2>10. Externe Dienste & Integrationen</h2>
+                <h3>10.1 REST API & Home Assistant</h3>
+                <p>
+                    Die Anwendung bietet eine REST API für externe Integrationen (z.B. Home Assistant).
+                </p>
+                <ul>
+                    <li><strong>Authentifizierung:</strong> API-Keys (generiert in Ihrem Profil)</li>
+                    <li><strong>Datenübertragung:</strong> Verschlüsselt über HTTPS</li>
+                    <li><strong>Zugriffskontrolle:</strong> API-Keys können jederzeit widerrufen werden</li>
+                </ul>
+ 
+                @if (PrivacySettings.Value.External.UseCloudflare)
+                {
+                    <h3>10.2 Cloudflare</h3>
+                    <p>
+                        Bei Verwendung von Cloudflare als DDoS-Schutz/CDN:
+                    </p>
+                    <ul>
+                        <li><strong>Dienst:</strong> @PrivacySettings.Value.External.Cloudflare.Name, @PrivacySettings.Value.External.Cloudflare.Address</li>
+                        <li><strong>Zweck:</strong> DDoS-Schutz, WAF, CDN</li>
+                        <li><strong>Datenübermittlung:</strong> USA (Angemessenheitsbeschluss gemäß EU-US Data Privacy Framework)</li>
+                        <li><strong>Datenschutzerklärung:</strong> <a href="@PrivacySettings.Value.External.Cloudflare.PrivacyPolicyUrl" target="_blank" rel="noopener noreferrer">@PrivacySettings.Value.External.Cloudflare.PrivacyPolicyUrl</a></li>
+                        <li><strong>AVV:</strong> <a href="@PrivacySettings.Value.External.Cloudflare.DpaUrl" target="_blank" rel="noopener noreferrer">@PrivacySettings.Value.External.Cloudflare.DpaUrl</a></li>
+                    </ul>
+                }
+            </section>
+
+            <section class="mb-5">
+                <h2>11. änderungen dieser Datenschutzerklärung</h2>
+                <p>
+                    Wir behalten uns vor, diese Datenschutzerklärung anzupassen, damit sie stets den aktuellen rechtlichen
+                    Anforderungen entspricht oder um änderungen unserer Leistungen in der Datenschutzerklärung umzusetzen.
+                </p>
+                <p>
+                    Für Ihren erneuten Besuch gilt dann die neue Datenschutzerklärung.
+                </p>
+                <p>
+                    <strong>änderungshistorie:</strong>
+                </p>
+                <ul>
+                    <li><strong>Version @PrivacySettings.Value.Version:</strong> Granulare Consents (Analytics, Device Fingerprinting) hinzugefügt</li>
+                    <li><strong>Version 1.0:</strong> Initiale Version</li>
+                </ul>
+            </section>
+
+            <section class="mb-5">
+                <h2>12. Kontakt</h2>
+                <p>
+                    Fragen zum Datenschutz? Kontaktieren Sie uns:<br>
+                    E-Mail: <a href="mailto:@PrivacySettings.Value.Company.Email">@PrivacySettings.Value.Company.Email</a><br>
+                    Telefon: @PrivacySettings.Value.Company.Phone
+                </p>
+                <p>
+                    <strong>Datenschutzbeauftragter:</strong><br>
+                    @PrivacySettings.Value.DPO.Name<br>
+                    E-Mail: <a href="mailto:@PrivacySettings.Value.DPO.Email">@PrivacySettings.Value.DPO.Email</a>
+                </p>
+                @if (!string.IsNullOrEmpty(PrivacySettings.Value.DPO.Phone))
+                {
+                    <p>Telefon: @PrivacySettings.Value.DPO.Phone</p>
+                }
+            </section>
+
+            <section class="mb-5">
+                <h2>13. Zusammenfassung für Nutzer</h2>
+                <div class="alert alert-success">
+                    <h5><i class="bi bi-check-circle me-2"></i>Das Wichtigste in Kürze:</h5>
+                    <ul class="mb-0">
+                        <li><i class="bi bi-check-circle-fill text-success me-2"></i>Wir verarbeiten Ihre Daten nur mit Ihrer <strong>Zustimmung</strong></li>
+                        <li><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Analytics & Device Fingerprinting</strong> sind erforderlich für App-Qualität und Sicherheit</li>
+                        <li><i class="bi bi-check-circle-fill text-success me-2"></i>Sie können Ihre <strong>Einwilligung jederzeit widerrufen</strong> (führt aber zur Login-Blockierung)</li>
+                        <li><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Marketing-Consent</strong> ist optional und jederzeit widerrufbar</li>
+                        <li><i class="bi bi-check-circle-fill text-success me-2"></i>Sie haben jederzeit <strong>Recht auf Auskunft, Löschung und Datenexport</strong></li>
+                        <li><i class="bi bi-check-circle-fill text-success me-2"></i>Ihre Daten werden <strong>nicht an Dritte verkauft</strong></li>
+                        <li><i class="bi bi-check-circle-fill text-success me-2"></i>Alle Daten werden <strong>verschlüsselt</strong> übertragen und gespeichert</li>
+                        <li><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Automatische GDPR-Cleanup</strong> nach @PrivacySettings.Value.Retention.DeletedAccounts Tagen Inaktivität</li>
+                    </ul>
+                </div>
+            </section>
+
+            @if (PrivacySettings.Value.ShowLegalDisclaimer)
+            {
+                <div class="mt-5 pt-4 border-top">
+                    <p class="text-muted small">
+                        <strong>Hinweis:</strong> Diese Datenschutzerklärung ist ein Muster und muss an Ihre spezifischen
+                        Gegebenheiten angepasst werden. Wir empfehlen die Konsultation eines Rechtsanwalts oder Datenschutzbeauftragten.
+                    </p>
+ 
+                    @if (!string.IsNullOrEmpty(PrivacySettings.Value.CustomFooterText))
+                    {
+                        <p class="text-muted small">@PrivacySettings.Value.CustomFooterText</p>
+                    }
+ 
+                    <p class="text-muted small">
+                        <strong>Letzte Aktualisierung:</strong> @DateTime.Now.ToString("dd.MM.yyyy HH:mm") Uhr
+                    </p>
+                </div>
+            }
+        </div>
+    </div>
+</div>

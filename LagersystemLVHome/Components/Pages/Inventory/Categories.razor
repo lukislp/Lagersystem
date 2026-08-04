@@ -1,0 +1,310 @@
+@page "/categories"
+@inherits CancellableComponentBase
+@rendermode InteractiveServer
+@inject LagersystemLVHome.Application.Services.IInventoryService InventoryService
+@inject NavigationManager NavigationManager
+@inject I18nText I18nText
+
+<PageTitle>@T.Categories_PageTitle</PageTitle>
+
+<div class="page-header d-flex justify-content-between align-items-start">
+    <div>
+        <h1 class="page-title">@T.Categories_Title</h1>
+        <p class="page-subtitle">@T.Categories_Subtitle</p>
+    </div>
+    <button class="btn btn-primary" @onclick="OpenCreateModal">
+        <i class="bi bi-plus"></i> @T.Categories_NewCategory
+    </button>
+</div>
+
+<div class="row g-4">
+    @if (categories.Any())
+    {
+        @foreach (var category in categories)
+        {
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start justify-content-between">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="category-icon category-icon--card">
+                                    <CategoryIcon IconClass="@category.Icon" />
+                                </div>
+                                <div>
+                                    <h4 class="mb-1">@category.Name</h4>
+                                    <p class="text-muted mb-0">@category.Description</p>
+                                </div>
+                            </div>
+                            <div class="dropdown">
+                                <button class="btn btn-icon btn-secondary" data-bs-toggle="dropdown">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <button class="dropdown-item" @onclick="() => OpenEditModal(category)">
+                                            <i class="bi bi-pencil me-2"></i> @T.Categories_Edit
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button class="dropdown-item" @onclick="() => ToggleActive(category)">
+                                            <i class="bi @(category.IsActive ? "bi-eye-slash" : "bi-eye") me-2"></i>
+                                            @(category.IsActive ? T.Categories_Deactivate : T.Categories_Activate)
+                                        </button>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <button class="dropdown-item text-danger" @onclick="() => ConfirmDelete(category)">
+                                            <i class="bi bi-trash me-2"></i> @T.Categories_Delete
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+  
+                        <div class="mt-4 pt-3 border-top">
+                            <div class="d-flex justify-content-between align-items-center text-muted mb-3">
+                                <span><i class="bi bi-box me-1"></i> @(T.Categories_ProductCount != null ? string.Format(T.Categories_ProductCount, GetProductCount(category.Id)) : "")</span>
+                                <span class="@(category.IsActive ? "text-success" : "text-muted")">
+                                    <i class="bi @(category.IsActive ? "bi-check-circle" : "bi-x-circle") me-1"></i>
+                                    @(category.IsActive ? T.Categories_Active : T.Categories_Inactive)
+                                </span>
+                            </div>
+    
+                            <!-- Navigate to category detail page -->
+                            <button class="btn btn-outline-primary w-100" @onclick="() => NavigateToCategory(category.Id)">
+                                <i class="bi bi-eye me-2"></i> @T.Categories_ShowProducts
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <EmptyState IconClass="bi bi-tag"
+                                Title="@T.Categories_Empty_Title"
+                                Description="@T.Categories_Empty_Description"
+                                ShowAction="true"
+                                ActionText="@T.Categories_Empty_Action"
+                                ActionIcon="bi bi-plus"
+                                OnActionClick="OpenCreateModal" />
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Create/Edit Modal -->
+@if (showModal)
+{
+    <div class="modal-backdrop" @onclick="CloseModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3 class="modal-title">@(editingCategory?.Id > 0 ? T.Categories_ModalEdit : T.Categories_ModalCreate)</h3>
+                <button class="modal-close" @onclick="CloseModal">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">@T.Categories_Label_Name</label>
+                    <input type="text" class="form-control" @bind="editingCategory!.Name" placeholder="Kategoriename" />
+                </div>
+        
+                <div class="form-group">
+                    <label class="form-label">@T.Categories_Label_Icon</label>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="icon-preview mb-2">
+                                <i class="@editingCategory!.Icon"></i>
+                            </div>
+                            <small class="text-muted d-block text-center">@T.Categories_IconPreview</small>
+                        </div>
+                        <div class="col-md-8">
+                            <select class="form-select" @bind="editingCategory.Icon">
+                                <optgroup label="Beliebte Icons">
+                                    @foreach (var icon in LagersystemLVHome.Data.CategoryIcons.PopularIcons)
+                                    {
+                                        <option value="@icon.IconClass">@icon.Name</option>
+                                    }
+                                </optgroup>
+                                <optgroup label="Alle Icons">
+                                    @foreach (var icon in LagersystemLVHome.Data.CategoryIcons.GetAllIcons())
+                                    {
+                                        <option value="@icon.IconClass">@icon.Name</option>
+                                    }
+                                </optgroup>
+                            </select>
+                            <small class="text-muted">@T.Categories_IconHint</small>
+                        </div>
+                    </div>
+                </div>
+ 
+                <div class="form-group">
+                    <label class="form-label">@T.Categories_Label_Description</label>
+                    <textarea class="form-control" @bind="editingCategory.Description" rows="3" placeholder="Optionale Beschreibung..."></textarea>
+                </div>
+          
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="isActive" @bind="editingCategory.IsActive" />
+                    <label class="form-check-label" for="isActive">@T.Categories_IsActive</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseModal">@T.Categories_Cancel</button>
+                <button class="btn btn-primary" @onclick="SaveCategory" disabled="@string.IsNullOrWhiteSpace(editingCategory?.Name)">
+                    <i class="bi bi-check"></i> @T.Categories_Save
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (showDeleteModal)
+{
+    <div class="modal-backdrop" @onclick="() => showDeleteModal = false">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3 class="modal-title">@T.Categories_ConfirmDelete_Title</h3>
+                <button class="modal-close" @onclick="() => showDeleteModal = false">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                @if (GetProductCount(categoryToDelete?.Id ?? 0) > 0)
+                {
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        @(T.Categories_ConfirmDelete_HasProducts != null ? string.Format(T.Categories_ConfirmDelete_HasProducts, GetProductCount(categoryToDelete?.Id ?? 0)) : "")
+                    </div>
+                }
+                else
+                {
+                    <p>@T.Categories_ConfirmDelete_Desc <strong>@categoryToDelete?.Name</strong>?</p>
+                    <p class="text-muted">@T.Categories_ConfirmDelete_Warning</p>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="() => showDeleteModal = false">Abbrechen</button>
+                @if (GetProductCount(categoryToDelete?.Id ?? 0) == 0)
+                {
+                    <button class="btn btn-danger" @onclick="DeleteCategory">
+                        <i class="bi bi-trash"></i> Löschen
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private LagersystemLVHome.I18nText.App T = new();
+    private List<LagersystemLVHome.Domain.Models.Category> categories = new();
+    private List<LagersystemLVHome.Domain.Models.Product> allProducts = new();
+    
+    private bool showModal = false;
+    private LagersystemLVHome.Domain.Models.Category? editingCategory;
+ 
+    private bool showDeleteModal = false;
+    private LagersystemLVHome.Domain.Models.Category? categoryToDelete;
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        categories = (await InventoryService.GetAllCategoriesAsync()).ToList();
+        allProducts = (await InventoryService.GetAllProductsAsync()).ToList();
+    }
+
+    private int GetProductCount(int categoryId)
+    {
+        return allProducts.Count(p => p.CategoryId == categoryId);
+    }
+
+    private void OpenCreateModal()
+    {
+        editingCategory = new LagersystemLVHome.Domain.Models.Category
+        {
+            Icon = "bi-box", // Default Bootstrap Icon
+            IsActive = true
+        };
+        showModal = true;
+    }
+
+    private void OpenEditModal(LagersystemLVHome.Domain.Models.Category category)
+    {
+        // Create detached copy with all properties
+        editingCategory = new LagersystemLVHome.Domain.Models.Category
+        {
+            Id = category.Id,
+            Name = category.Name,
+            Icon = category.Icon,
+            Description = category.Description ?? string.Empty,
+            IsActive = category.IsActive,
+            WarehouseId = category.WarehouseId,  // Required
+            CreatedAt = category.CreatedAt          // Required
+        };
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        editingCategory = null;
+    }
+
+    private async Task SaveCategory()
+    {
+        if (editingCategory == null || string.IsNullOrWhiteSpace(editingCategory.Name)) return;
+     
+        if (editingCategory.Id > 0)
+        {
+            await InventoryService.UpdateCategoryAsync(editingCategory);
+        }
+        else
+        {
+            await InventoryService.CreateCategoryAsync(editingCategory);
+        }
+        
+        await LoadData();
+        CloseModal();
+    }
+
+    private async Task ToggleActive(LagersystemLVHome.Domain.Models.Category category)
+    {
+        category.IsActive = !category.IsActive;
+        await InventoryService.UpdateCategoryAsync(category);
+        await LoadData();
+    }
+
+    private void ConfirmDelete(LagersystemLVHome.Domain.Models.Category category)
+    {
+        categoryToDelete = category;
+        showDeleteModal = true;
+    }
+
+    private async Task DeleteCategory()
+    {
+        if (categoryToDelete != null)
+        {
+            await InventoryService.DeleteCategoryAsync(categoryToDelete.Id);
+            await LoadData();
+        }
+        showDeleteModal = false;
+        categoryToDelete = null;
+    }
+
+    private void NavigateToCategory(int categoryId)
+    {
+        NavigationManager.NavigateTo($"/category/{categoryId}");
+    }
+}

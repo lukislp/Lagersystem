@@ -1,0 +1,1256 @@
+@page "/admin/backups"
+@inherits CancellableComponentBase
+@rendermode InteractiveServer
+@using LagersystemLVHome.Application.Services
+@using LagersystemLVHome.Domain.Models
+@using Microsoft.AspNetCore.Authorization
+@inject IBackupManagementService BackupService
+@inject IToastService ToastService
+@inject ILogger<BackupManagement> Logger
+@inject I18nText I18nText
+@attribute [Authorize(Roles = "SuperAdmin")]
+
+<PageTitle>@T.BackupMgmt_Title - LagerSystem</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">
+                <i class="bi bi-hdd-stack text-primary me-2"></i>
+                @T.BackupMgmt_Title
+            </h1>
+            <p class="text-muted mb-0">@T.BackupMgmt_Subtitle</p>
+        </div>
+        
+        <div>
+            <button class="btn btn-success" @onclick="CreateBackupNow" disabled="@isCreatingBackup">
+                @if (isCreatingBackup)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                }
+                else
+                {
+                    <i class="bi bi-cloud-arrow-up me-2"></i>
+                }
+                @T.BackupMgmt_CreateNow
+            </button>
+        </div>
+    </div>
+
+    @if (loading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary"></div>
+        </div>
+    }
+    else
+    {
+        <!-- Backup status KPIs -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="text-muted mb-2">@T.BackupMgmt_KPI_LastBackup</h6>
+                                <h4 class="mb-0">@GetLastBackupTime()</h4>
+                                <small class="text-muted">@GetLastBackupProvider()</small>
+                            </div>
+                            <div class="bg-success bg-opacity-10 p-3 rounded">
+                                <i class="bi bi-check-circle text-success fs-4"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="text-muted mb-2">@T.BackupMgmt_KPI_ActiveProviders</h6>
+                                <h4 class="mb-0">@providers.Count(p => p.Enabled)</h4>
+                                <small class="text-muted">@string.Format(T.BackupMgmt_KPI_Of, providers.Count)</small>
+                            </div>
+                            <div class="bg-primary bg-opacity-10 p-3 rounded">
+                                <i class="bi bi-hdd-network text-primary fs-4"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="text-muted mb-2">@T.BackupMgmt_KPI_NextBackup</h6>
+                                <h4 class="mb-0">@GetNextBackupTime()</h4>
+                                <small class="text-muted">@string.Format(T.BackupMgmt_KPI_In, GetTimeUntilNextBackup())</small>
+                            </div>
+                            <div class="bg-info bg-opacity-10 p-3 rounded">
+                                <i class="bi bi-clock text-info fs-4"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="text-muted mb-2">@T.BackupMgmt_KPI_TotalSize</h6>
+                                <h4 class="mb-0">@GetTotalBackupSize()</h4>
+                                <small class="text-muted">@string.Format(T.BackupMgmt_KPI_Backups, history.Count)</small>
+                            </div>
+                            <div class="bg-warning bg-opacity-10 p-3 rounded">
+                                <i class="bi bi-hdd text-warning fs-4"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs mb-4" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link @(activeTab == "settings" ? "active" : "")" @onclick='() => activeTab = "settings"'>
+                    <i class="bi bi-gear me-2"></i>
+                    @T.BackupMgmt_Tab_Settings
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link @(activeTab == "providers" ? "active" : "")" @onclick='() => activeTab = "providers"'>
+                    <i class="bi bi-hdd-network me-2"></i>
+                    @T.BackupMgmt_Tab_Providers (@providers.Count)
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link @(activeTab == "history" ? "active" : "")" @onclick='() => activeTab = "history"'>
+                    <i class="bi bi-clock-history me-2"></i>
+                    @T.BackupMgmt_Tab_History (@history.Count)
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link @(activeTab == "keybackup" ? "active" : "")" @onclick='() => activeTab = "keybackup"'>
+                    <i class="bi bi-key me-2"></i>
+                    @T.BackupMgmt_Tab_KeyBackup
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        @if (activeTab == "settings")
+        {
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0">@T.BackupMgmt_Settings_Title</h5>
+                </div>
+                <div class="card-body">
+                    <EditForm Model="@settings" OnValidSubmit="SaveSettings">
+                        <DataAnnotationsValidator />
+  
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    <i class="bi bi-power me-1"></i>
+                                    @T.BackupMgmt_Settings_System
+                                </label>
+                                <div class="form-check form-switch">
+                                    <InputCheckbox class="form-check-input" @bind-Value="settings.Enabled" id="backupEnabled" />
+                                    <label class="form-check-label" for="backupEnabled">
+                                        @(settings.Enabled ? T.BackupMgmt_Settings_Enabled : T.BackupMgmt_Settings_Disabled)
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    <i class="bi bi-clock me-1"></i>
+                                    @T.BackupMgmt_Settings_Hour
+                                </label>
+                                <InputNumber class="form-control" @bind-Value="settings.BackupHour" min="0" max="23" />
+                                <small class="text-muted">@string.Format(T.BackupMgmt_Settings_HourHint, settings.BackupHour)</small>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label">
+                                    <i class="bi bi-calendar-check me-1"></i>
+                                    @T.BackupMgmt_Settings_Retention
+                                </label>
+                                <InputNumber class="form-control" @bind-Value="settings.RetentionDays" min="1" max="365" />
+                                <small class="text-muted">@T.BackupMgmt_Settings_RetentionHint</small>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label">
+                                    <i class="bi bi-calendar-week me-1"></i>
+                                    @T.BackupMgmt_Settings_Weekly
+                                </label>
+                                <InputNumber class="form-control" @bind-Value="settings.WeeklyBackups" min="1" max="52" />
+                                <small class="text-muted">@T.BackupMgmt_Settings_WeeklyHint</small>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label">
+                                    <i class="bi bi-calendar-month me-1"></i>
+                                    @T.BackupMgmt_Settings_Monthly
+                                </label>
+                                <InputNumber class="form-control" @bind-Value="settings.MonthlyBackups" min="1" max="120" />
+                                <small class="text-muted">@T.BackupMgmt_Settings_MonthlyHint</small>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <InputCheckbox class="form-check-input" @bind-Value="settings.CompressBackups" id="compress" />
+                                    <label class="form-check-label" for="compress">
+                                        <i class="bi bi-file-zip me-1"></i>
+                                        @T.BackupMgmt_Settings_Compress
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <InputCheckbox class="form-check-input" @bind-Value="settings.EncryptBackups" id="encrypt" />
+                                    <label class="form-check-label" for="encrypt">
+                                        <i class="bi bi-lock me-1"></i>
+                                        @T.BackupMgmt_Settings_Encrypt
+                                    </label>
+                                </div>
+                            </div>
+
+                            @if (settings.EncryptBackups)
+                            {
+                                <div class="col-12">
+                                    <label class="form-label">
+                                            <i class="bi bi-key me-1"></i>
+                                            @T.BackupMgmt_Settings_EncryptPwd
+                                        </label>
+                                        <InputText type="password" class="form-control" @bind-Value="settings.EncryptionPassword"
+                                                   placeholder="Passwort für Backup-Verschlüsselung eingeben" />
+                                    <small class="text-muted">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Leer lassen für <strong>unverschlüsselte</strong> Backups.
+                                        Mit Passwort werden Backups <strong>AES-256 verschlüsselt</strong>.
+                                    </small>
+                                </div>
+                            }
+
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <InputCheckbox class="form-check-input" @bind-Value="settings.VerifyBackups" id="verify" />
+                                    <label class="form-check-label" for="verify">
+                                        <i class="bi bi-check-circle me-1"></i>
+                                        @T.BackupMgmt_Settings_Verify
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <InputCheckbox class="form-check-input" @bind-Value="settings.EmailOnSuccess" id="emailSuccess" />
+                                    <label class="form-check-label" for="emailSuccess">
+                                        <i class="bi bi-envelope-check me-1"></i>
+                                        @T.BackupMgmt_Settings_EmailSuccess
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <InputCheckbox class="form-check-input" @bind-Value="settings.EmailOnFailure" id="emailFailure" />
+                                    <label class="form-check-label" for="emailFailure">
+                                        <i class="bi bi-envelope-exclamation me-1"></i>
+                                        @T.BackupMgmt_Settings_EmailFailure
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">
+                                    <i class="bi bi-envelope me-1"></i>
+                                    @T.BackupMgmt_Settings_EmailRecipients
+                                </label>
+                                <InputText class="form-control" @bind-Value="settings.EmailRecipients" placeholder="admin@example.com, backup@example.com" />
+                                <small class="text-muted">@T.BackupMgmt_Settings_EmailHint</small>
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary" disabled="@savingSettings">
+                                @if (savingSettings)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-save me-2"></i>
+                                }
+                                @T.BackupMgmt_Settings_Save
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        }
+        else if (activeTab == "providers")
+        {
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">@T.BackupMgmt_Providers_Title</h5>
+                    <button class="btn btn-primary btn-sm" @onclick="ShowAddProviderModal">
+                        <i class="bi bi-plus-circle me-1"></i>
+                        @T.BackupMgmt_Providers_Add
+                    </button>
+                </div>
+                <div class="card-body">
+                    @if (providers.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>@T.BackupMgmt_Providers_Status</th>
+                                        <th>@T.BackupMgmt_Providers_Name</th>
+                                        <th>@T.BackupMgmt_Providers_Type</th>
+                                        <th>@T.BackupMgmt_Providers_LastBackup</th>
+                                        <th>@T.BackupMgmt_Providers_Count</th>
+                                        <th>@T.BackupMgmt_Providers_Size</th>
+                                        <th>@T.BackupMgmt_Providers_Errors</th>
+                                        <th>@T.BackupMgmt_Providers_Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var provider in providers)
+                                    {
+                                        <tr>
+                                            <td>
+                                                @if (provider.Enabled)
+                                                {
+                                                    <span class="badge bg-success">
+                                                        <i class="bi bi-check-circle me-1"></i>
+                                                        @T.BackupMgmt_Providers_Active
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">
+                                                        <i class="bi bi-pause-circle me-1"></i>
+                                                        @T.BackupMgmt_Providers_Inactive
+                                                    </span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <strong>@provider.Name</strong>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-info">
+                                                    <i class="bi bi-@GetProviderIcon(provider.Type) me-1"></i>
+                                                    @provider.Type
+                                                </span>
+                                            </td>
+                                            <td>
+                                                @if (provider.LastBackupAt.HasValue)
+                                                {
+                                                    <span>@provider.LastBackupAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">@T.BackupMgmt_Providers_Never</span>
+                                                }
+                                            </td>
+                                            <td>@provider.TotalBackups</td>
+                                            <td>@FormatBytes(provider.TotalSizeBytes)</td>
+                                            <td>
+                                                @if (provider.FailedBackups > 0)
+                                                {
+                                                    <span class="badge bg-danger">@provider.FailedBackups</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">0</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" @onclick="() => TestProvider(provider.Id)" title="Testen">
+                                                        <i class="bi bi-plug"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-secondary" @onclick="() => EditProvider(provider)" title="Bearbeiten">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-danger" @onclick="() => DeleteProvider(provider.Id)" title="Löschen">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            @T.BackupMgmt_Providers_Empty
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        else if (activeTab == "history")
+        {
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0">@T.BackupMgmt_History_Title</h5>
+                </div>
+                <div class="card-body">
+                    @if (history.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>@T.BackupMgmt_History_Status</th>
+                                        <th>@T.BackupMgmt_History_Date</th>
+                                        <th>@T.BackupMgmt_History_Provider</th>
+                                        <th>@T.BackupMgmt_History_File</th>
+                                        <th>@T.BackupMgmt_History_Size</th>
+                                        <th>@T.BackupMgmt_History_Type</th>
+                                        <th>@T.BackupMgmt_History_Duration</th>
+                                        <th>@T.BackupMgmt_History_Validated</th>
+                                        <th>@T.BackupMgmt_History_Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in history)
+                                    {
+                                        <tr>
+                                            <td>
+                                                @if (item.Status == BackupStatus.Success)
+                                                {
+                                                    <span class="badge bg-success">
+                                                        <i class="bi bi-check-circle me-1"></i>
+                                                        @T.BackupMgmt_History_Success
+                                                    </span>
+                                                }
+                                                else if (item.Status == BackupStatus.Failed)
+                                                {
+                                                    <span class="badge bg-danger" title="@item.ErrorMessage">
+                                                        <i class="bi bi-x-circle me-1"></i>
+                                                        @T.BackupMgmt_History_Failed
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-warning">
+                                                        <i class="bi bi-hourglass me-1"></i>
+                                                        @T.BackupMgmt_History_Running
+                                                    </span>
+                                                }
+                                            </td>
+                                            <td>@item.BackupDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                            <td>@item.BackupProvider.Name</td>
+                                            <td>
+                                                <code>@item.FileName</code>
+                                                @if (item.IsEncrypted)
+                                                {
+                                                    <i class="bi bi-lock text-success ms-1" title="Verschlüsselt"></i>
+                                                }
+                                                @if (item.IsCompressed)
+                                                {
+                                                    <i class="bi bi-file-zip text-primary ms-1" title="Komprimiert"></i>
+                                                }
+                                            </td>
+                                            <td>@FormatBytes(item.SizeBytes)</td>
+                                            <td>
+                                                <span class="badge bg-secondary">
+                                                    @item.RetentionType
+                                                </span>
+                                            </td>
+                                            <td>@item.Duration.TotalSeconds.ToString("F1")s</td>
+                                            <td>
+                                                @if (item.IsVerified)
+                                                {
+                                                    <span class="badge bg-success" title="Validiert am @item.VerifiedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">
+                                                        <i class="bi bi-shield-check me-1"></i>
+                                                        @T.BackupMgmt_History_ValidatedBadge
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">
+                                                        <i class="bi bi-shield-exclamation me-1"></i>
+                                                        @T.BackupMgmt_History_NotValidated
+                                                    </span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    @if (!item.IsVerified && item.Status == BackupStatus.Success)
+                                                    {
+                                                        <button class="btn btn-outline-primary"
+                                                                @onclick="() => ValidateBackup(item.Id)"
+                                                                disabled="@(validatingBackupId == item.Id)"
+                                                                title="Backup validieren">
+                                                            @if (validatingBackupId == item.Id)
+                                                            {
+                                                                <span class="spinner-border spinner-border-sm"></span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <i class="bi bi-shield-check"></i>
+                                                            }
+                                                        </button>
+                                                    }
+                                                    @* Delete button *@
+                                                    <button class="btn btn-sm btn-outline-danger"
+                                                            @onclick="() => DeleteBackup(item.Id)"
+                                                            title="Backup löschen"
+                                                            disabled="@(deletingBackupId == item.Id)">
+                                                        @if (deletingBackupId == item.Id)
+                                                        {
+                                                            <span class="spinner-border spinner-border-sm"></span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <i class="bi bi-trash"></i>
+                                                        }
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            @T.BackupMgmt_History_Empty
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        else if (activeTab == "keybackup")
+        {
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0">
+                        <i class="bi bi-shield-lock me-2"></i>
+                        @T.BackupMgmt_KeyBackup_Title
+                    </h5>
+                    <small class="text-muted">
+                        @T.BackupMgmt_KeyBackup_Subtitle
+                    </small>
+                </div>
+                <div class="card-body">
+                    <EditForm Model="@keyBackupSettings" OnValidSubmit="SaveKeyBackupSettings">
+                        <div class="row g-3">
+                            <!-- Enable/Disable -->
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <InputCheckbox class="form-check-input"
+                                                   @bind-Value="keyBackupSettings.Enabled"
+                                                   id="keyBackupEnabled" />
+                                    <label class="form-check-label" for="keyBackupEnabled">
+                                        <i class="bi bi-power me-1"></i>
+                                        @T.BackupMgmt_KeyBackup_Enable
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Backup Provider Selection -->
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    <i class="bi bi-hdd me-1"></i>
+                                    @T.BackupMgmt_KeyBackup_Provider
+                                </label>
+                                <InputSelect class="form-select"
+                                             @bind-Value="keyBackupSettings.BackupProviderId">
+                                    <option value="">@T.BackupMgmt_KeyBackup_ProviderSelect</option>
+                                    @foreach (var provider in availableLocalProviders)
+                                    {
+                                        <option value="@provider.Id">
+                                            @provider.Name (@provider.Type)
+                                        </option>
+                                    }
+                                </InputSelect>
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    @T.BackupMgmt_KeyBackup_ProviderHint
+                                </small>
+                            </div>
+
+                            <!-- Backup Hour -->
+                            <div class="col-md-4">
+                                <label class="form-label">
+                                    <i class="bi bi-clock me-1"></i>
+                                    @T.BackupMgmt_KeyBackup_Hour
+                                </label>
+                                <InputNumber class="form-control"
+                                             @bind-Value="keyBackupSettings.BackupHour"
+                                             min="0" max="23" />
+                                <small class="text-muted">
+                                    @string.Format(T.BackupMgmt_KeyBackup_HourHint, keyBackupSettings.BackupHour)
+                                </small>
+                            </div>
+
+                            <!-- Retention -->
+                            <div class="col-md-4">
+                                <label class="form-label">
+                                    <i class="bi bi-calendar-check me-1"></i>
+                                    @T.BackupMgmt_KeyBackup_Retention
+                                </label>
+                                <InputNumber class="form-control"
+                                             @bind-Value="keyBackupSettings.RetentionDays"
+                                             min="7" max="365" />
+                            </div>
+
+                            <!-- Password Protection -->
+                            <div class="col-md-4">
+                                <div class="form-check mt-4">
+                                    <InputCheckbox class="form-check-input"
+                                                   @bind-Value="keyBackupSettings.RequirePassword"
+                                                   id="requirePassword" />
+                                    <label class="form-check-label" for="requirePassword">
+                                        <i class="bi bi-lock me-1"></i>
+                                        @T.BackupMgmt_KeyBackup_Password
+                                    </label>
+                                </div>
+                            </div>
+
+                            @if (keyBackupSettings.RequirePassword)
+                            {
+                                <div class="col-12">
+                                    <label class="form-label">
+                                            <i class="bi bi-key me-1"></i>
+                                            @T.BackupMgmt_KeyBackup_PasswordField
+                                        </label>
+                                        <InputText type="password"
+                                                   class="form-control"
+                                                   @bind-Value="keyBackupSettings.BackupPassword"
+                                                   placeholder="Sicheres Passwort eingeben" />
+                                        <small class="text-muted">
+                                            <i class="bi bi-shield-check me-1"></i>
+                                            @T.BackupMgmt_KeyBackup_PasswordHint
+                                        </small>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary" disabled="@savingKeyBackupSettings">
+                                @if (savingKeyBackupSettings)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-save me-2"></i>
+                                }
+                                @T.BackupMgmt_KeyBackup_Save
+                            </button>
+
+                            <button type="button"
+                                    class="btn btn-success ms-2"
+                                    @onclick="CreateKeyBackupNow"
+                                    disabled="@isCreatingKeyBackup">
+                                @if (isCreatingKeyBackup)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-shield-check me-2"></i>
+                                }
+                                @T.BackupMgmt_KeyBackup_CreateNow
+                            </button>
+                        </div>
+                    </EditForm>
+
+                    <!-- Backup History -->
+                    <hr class="my-4" />
+                    <h6 class="mb-3">
+                        <i class="bi bi-clock-history me-2"></i>
+                        @T.BackupMgmt_KeyBackup_History
+                    </h6>
+
+                    @if (keyBackupHistory.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Status</th>
+                                        <th>@T.BackupMgmt_KeyBackup_HistoryDate</th>
+                                        <th>@T.BackupMgmt_KeyBackup_HistoryFile</th>
+                                        <th>@T.BackupMgmt_KeyBackup_HistoryProvider</th>
+                                        <th>@T.BackupMgmt_KeyBackup_HistoryKeys</th>
+                                        <th>@T.BackupMgmt_KeyBackup_HistorySize</th>
+                                        <th>@T.BackupMgmt_KeyBackup_HistoryEncrypted</th>
+                                        <th>@T.BackupMgmt_KeyBackup_HistoryActions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in keyBackupHistory)
+                                    {
+                                        <tr>
+                                            <td>
+                                                @if (item.Status == BackupStatus.Success)
+                                                {
+                                                    <span class="badge bg-success">
+                                                        <i class="bi bi-check-circle me-1"></i>
+                                                        @T.BackupMgmt_History_Success
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-danger">
+                                                        <i class="bi bi-x-circle me-1"></i>
+                                                        @T.BackupMgmt_History_Failed
+                                                    </span>
+                                                }
+                                            </td>
+                                            <td>@item.BackupDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                            <td><code>@item.FileName</code></td>
+                                            <td>
+                                                <span class="badge bg-info">
+                                                    <i class="bi bi-hdd me-1"></i>
+                                                    @item.BackupProvider.Name
+                                                </span>
+                                            </td>
+                                            <td>@string.Format(T.BackupMgmt_KeyBackup_ProviderCount, item.ProviderCount)</td>
+                                            <td>@FormatBytes(item.SizeBytes)</td>
+                                            <td>
+                                                @if (item.IsEncrypted)
+                                                {
+                                                    <i class="bi bi-lock text-success" title="Verschlüsselt"></i>
+                                                }
+                                                else
+                                                {
+                                                    <i class="bi bi-unlock text-muted" title="Nicht verschlüsselt"></i>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary"
+                                                            @onclick="() => RestoreKeysFromBackup(item.Id)"
+                                                            title="Wiederherstellen">
+                                                        <i class="bi bi-arrow-clockwise"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-danger"
+                                                            @onclick="() => DeleteKeyBackup(item.Id)"
+                                                            title="Löschen">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            @T.BackupMgmt_KeyBackup_Empty
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>
+
+<!-- Provider Modal -->
+@if (showProviderModal)
+{
+    <LagersystemLVHome.Components.Shared.BackupProviderModal Provider="@selectedProvider"
+                                                             IsEditMode="@isEditMode"
+                                                             OnSave="@HandleProviderSave"
+                                                             OnCancel="@(() => showProviderModal = false)" />
+}
+
+@code {
+    private bool loading = true;
+    private bool savingSettings = false;
+    private bool isCreatingBackup = false;
+    private string activeTab = "settings";
+    
+    private bool showProviderModal = false;
+    private bool isEditMode = false;
+    private BackupProvider selectedProvider = new();
+    private int? validatingBackupId = null;
+    private int? deletingBackupId = null; // NEU
+
+    private BackupSettings settings = new();
+    private List<BackupProvider> providers = new();
+    private List<BackupHistory> history = new();
+
+    // Key-Backup Variables
+    private LagersystemLVHome.Domain.Models.KeyBackupSettings keyBackupSettings = new();
+    private List<LagersystemLVHome.Domain.Models.KeyBackupHistory> keyBackupHistory = new();
+    private List<BackupProvider> availableLocalProviders = new();
+    private bool savingKeyBackupSettings = false;
+    private bool isCreatingKeyBackup = false;
+
+    [Inject] private IKeyBackupService KeyBackupService { get; set; } = default!;
+    [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
+
+    private LagersystemLVHome.I18nText.App T = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        loading = true;
+        
+        try
+        {
+            settings = await BackupService.GetSettingsAsync();
+            providers = await BackupService.GetProvidersAsync();
+            history = await BackupService.GetHistoryAsync();
+
+            // Load Key-Backup settings
+            keyBackupSettings = await KeyBackupService.GetSettingsAsync();
+            keyBackupHistory = await KeyBackupService.GetHistoryAsync();
+            availableLocalProviders = await KeyBackupService.GetAvailableLocalProvidersAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading backup data");
+            ToastService.ShowError($"Error loading data: {ex.Message}");
+      
+            // Fallback auf leere Listen
+            if (settings == null)
+            {
+                settings = new BackupSettings
+                {
+                    Enabled = true,
+                    BackupHour = 2,
+                    RetentionDays = 30,
+                    CompressBackups = true,
+                    EncryptBackups = true
+                };
+            }
+            if (providers == null) providers = new List<BackupProvider>();
+            if (history == null) history = new List<BackupHistory>();
+            if (keyBackupHistory == null) keyBackupHistory = new List<KeyBackupHistory>();
+            if (availableLocalProviders == null) availableLocalProviders = new List<BackupProvider>();
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task SaveSettings()
+    {
+        savingSettings = true;
+        
+        try
+        {
+            await BackupService.UpdateSettingsAsync(settings);
+            ToastService.ShowSuccess("Settings saved");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving settings");
+            ToastService.ShowError("Error saving");
+        }
+        finally
+        {
+            savingSettings = false;
+        }
+    }
+
+    private async Task CreateBackupNow()
+    {
+        isCreatingBackup = true;
+ 
+        try
+        {
+            var result = await BackupService.CreateBackupAsync(CancellationToken.None);
+        
+            if (result.Success)
+            {
+                var message = $"Backup erfolgreich erstellt: {result.FileName}";
+         
+                // Zeige Validierungs-Status
+                if (result.ValidatedBackups > 0)
+                {
+                    message += $" | {result.ValidatedBackups} validiert";
+                }
+                if (result.FailedValidations > 0)
+                {
+                    message += $" | {result.FailedValidations} Validierung(en) fehlgeschlagen";
+                }
+    
+                ToastService.ShowSuccess(message);
+                await LoadDataAsync();
+            }
+            else
+            {
+                ToastService.ShowError($"Backup failed: {result.ErrorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error creating backup");
+            ToastService.ShowError("Error creating the backup");
+        }
+        finally
+        {
+            isCreatingBackup = false;
+        }
+    }
+
+    private async Task TestProvider(int providerId)
+    {
+        try
+        {
+            var success = await BackupService.TestProviderAsync(providerId);
+            
+            if (success)
+            {
+                ToastService.ShowSuccess("Provider test successful");
+            }
+            else
+            {
+                ToastService.ShowError("Provider test failed");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error testing provider");
+            ToastService.ShowError("Error testing the provider");
+        }
+    }
+
+    private void ShowAddProviderModal()
+    {
+        selectedProvider = new BackupProvider { Enabled = true };
+        isEditMode = false;
+        showProviderModal = true;
+    }
+
+    private void EditProvider(BackupProvider provider)
+    {
+        selectedProvider = provider;
+        isEditMode = true;
+        showProviderModal = true;
+    }
+
+    private async Task HandleProviderSave()
+    {
+        try
+        {
+            if (isEditMode)
+            {
+                await BackupService.UpdateProviderAsync(selectedProvider);
+                ToastService.ShowSuccess("Provider updated");
+            }
+            else
+            {
+                await BackupService.AddProviderAsync(selectedProvider);
+                ToastService.ShowSuccess("Provider added");
+            }
+          
+            showProviderModal = false;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving provider");
+            ToastService.ShowError("Error saving");
+        }
+    }
+
+    private async Task DeleteProvider(int id)
+    {
+        if (await JSRuntime.InvokeAsync<bool>("confirm", T.BackupManagement_ProviderDeleteConfirm ?? "Provider wirklich löschen?"))
+        {
+            await BackupService.DeleteProviderAsync(id);
+            ToastService.ShowSuccess("Provider deleted");
+            await LoadDataAsync();
+        }
+    }
+
+    private async Task ValidateBackup(int historyId)
+    {
+        validatingBackupId = historyId;
+        
+        try
+        {
+            var success = await BackupService.ValidateBackupAsync(historyId);
+         
+            if (success)
+            {
+                ToastService.ShowSuccess("Backup validated successfully!");
+                await LoadDataAsync();
+            }
+            else
+            {
+                ToastService.ShowError("Backup validation failed!");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Backup validation failed");
+            ToastService.ShowError($"Error: {ex.Message}");
+        }
+        finally
+        {
+            validatingBackupId = null;
+        }
+    }
+ 
+    // Delete backup
+    private async Task DeleteBackup(int historyId)
+    {
+        if (!await JSRuntime.InvokeAsync<bool>("confirm", T.BackupManagement_DeleteConfirm ?? "Backup wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."))
+        {
+            return;
+        }
+        
+        deletingBackupId = historyId;
+  
+        try
+        {
+            await BackupService.DeleteBackupAsync(historyId);
+            ToastService.ShowSuccess("Backup deleted successfully");
+            await LoadDataAsync(); // Reload data
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error deleting backup {HistoryId}", historyId);
+            ToastService.ShowError($"Error deleting: {ex.Message}");
+        }
+        finally
+        {
+            deletingBackupId = null;
+        }
+    }
+
+    // Helper Methods
+    private string GetLastBackupTime()
+    {
+        var lastBackup = history.Where(h => h.Status == BackupStatus.Success)
+        .OrderByDescending(h => h.BackupDate)
+        .FirstOrDefault();
+  
+        return lastBackup?.BackupDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "Noch nie";
+    }
+
+    private string GetLastBackupProvider()
+    {
+        var lastBackup = history.Where(h => h.Status == BackupStatus.Success)
+.OrderByDescending(h => h.BackupDate)
+.FirstOrDefault();
+        
+        return lastBackup?.BackupProvider.Name ?? "";
+    }
+
+    private string GetNextBackupTime()
+    {
+        var now = DateTime.Now;
+        var nextBackup = DateTime.Today.AddHours(settings.BackupHour);
+    
+        if (now >= nextBackup)
+        {
+            nextBackup = nextBackup.AddDays(1);
+        }
+     
+        return nextBackup.ToString("dd.MM.yyyy HH:mm");
+    }
+
+    private string GetTimeUntilNextBackup()
+    {
+        var now = DateTime.Now;
+        var nextBackup = DateTime.Today.AddHours(settings.BackupHour);
+        
+        if (now >= nextBackup)
+        {
+            nextBackup = nextBackup.AddDays(1);
+        }
+   
+        var timeSpan = nextBackup - now;
+        
+        if (timeSpan.TotalHours < 1)
+            return $"{(int)timeSpan.TotalMinutes} Minuten";
+        if (timeSpan.TotalDays < 1)
+            return $"{(int)timeSpan.TotalHours} Stunden";
+        return $"{(int)timeSpan.TotalDays} Tagen";
+    }
+
+    private string GetTotalBackupSize()
+    {
+        var totalBytes = providers.Sum(p => p.TotalSizeBytes);
+        return FormatBytes(totalBytes);
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        if (bytes == 0) return "0 B";
+        
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        int order = 0;
+        double size = bytes;
+        
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+        
+        return $"{size:F2} {sizes[order]}";
+    }
+
+    private string GetProviderIcon(BackupProviderType type)
+    {
+        return type switch
+        {
+            BackupProviderType.Local => "folder",
+            BackupProviderType.AzureBlob => "cloud",
+            BackupProviderType.AWSS3 => "cloud-upload",
+            BackupProviderType.NetworkShare => "hdd-network",
+            BackupProviderType.FTP => "server",
+            BackupProviderType.SFTP => "shield-lock",
+            _ => "hdd"
+        };
+    }
+
+    // Key-Backup Methods
+    private async Task SaveKeyBackupSettings()
+    {
+        savingKeyBackupSettings = true;
+    
+        try
+        {
+            await KeyBackupService.UpdateSettingsAsync(keyBackupSettings);
+            ToastService.ShowSuccess("Key backup settings saved");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving key backup settings");
+            ToastService.ShowError("Error saving");
+        }
+        finally
+        {
+            savingKeyBackupSettings = false;
+        }
+    }
+    
+    private async Task CreateKeyBackupNow()
+    {
+        isCreatingKeyBackup = true;
+    
+        try
+        {
+            var result = await KeyBackupService.CreateKeyBackupAsync();
+  
+            if (result.Success)
+            {
+                ToastService.ShowSuccess($"Key backup successful: {result.FileName}");
+                await LoadDataAsync();
+            }
+            else
+            {
+                ToastService.ShowError($"Key backup failed: {result.ErrorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error creating key backup");
+            ToastService.ShowError("Error creating the key backup");
+        }
+        finally
+        {
+            isCreatingKeyBackup = false;
+        }
+    }
+    
+    private async Task RestoreKeysFromBackup(int historyId)
+    {
+        string? password = null;
+
+        // If encrypted, prompt for password
+        var backup = keyBackupHistory.FirstOrDefault(h => h.Id == historyId);
+        if (backup?.IsEncrypted == true)
+        {
+            password = await JSRuntime.InvokeAsync<string>("prompt",
+        "Backup-Passwort eingeben:");
+      
+            if (string.IsNullOrEmpty(password))
+            {
+                return;
+            }
+        }
+        
+        if (!await JSRuntime.InvokeAsync<bool>("confirm",
+                "Keys wirklich wiederherstellen? Aktuelle Keys werden überschrieben!"))
+        {
+            return;
+        }
+     
+        try
+        {
+            var success = await KeyBackupService.RestoreKeysFromBackupAsync(historyId, password);
+     
+            if (success)
+            {
+                ToastService.ShowSuccess("Keys restored successfully");
+                await LoadDataAsync();
+            }
+            else
+            {
+                ToastService.ShowError("Key restore failed");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error restoring keys");
+            ToastService.ShowError("Error during restore");
+        }
+    }
+    
+    private async Task DeleteKeyBackup(int historyId)
+    {
+        if (!await JSRuntime.InvokeAsync<bool>("confirm",
+                    "Key-Backup wirklich löschen?"))
+        {
+            return;
+        }
+        
+        try
+        {
+            await KeyBackupService.DeleteKeyBackupAsync(historyId);
+            ToastService.ShowSuccess("Key backup deleted");
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error deleting key backup");
+            ToastService.ShowError("Error deleting");
+        }
+    }
+}
+

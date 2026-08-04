@@ -1,0 +1,243 @@
+@inject ILogger<SessionStatusMonitor> Logger
+@inject ISessionManagementService SessionService
+@inject IAuthService AuthService
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+@code {
+    private PeriodicTimer? _periodicTimer;
+    private Task? _checkTask;
+    private CancellationTokenSource? _cancellationTokenSource;
+    private string? _sessionId;
+    private int _userId;
+    private bool _isTerminated;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Logger.LogInformation("SessionStatusMonitor: OnInitializedAsync started");
+
+            // Get the current user
+            var currentUser = await AuthService.GetCurrentUserAsync();
+            if (currentUser == null)
+            {
+                Logger.LogWarning("SessionStatusMonitor: No current user found - monitor will not start");
+                return;
+            }
+
+            _userId = currentUser.Id;
+            Logger.LogInformation("SessionStatusMonitor: Current user found - UserId: {UserId}, Username: {Username}",
+            _userId, currentUser.Username);
+
+            // Get the session id
+            _sessionId = await AuthService.GetCurrentSessionIdAsync();
+        
+            if (string.IsNullOrEmpty(_sessionId))
+            {
+                Logger.LogWarning("SessionStatusMonitor: No session ID available for user {UserId} ({Username})",
+                    _userId, currentUser.Username);
+                return;
+            }
+
+            Logger.LogInformation("SessionStatusMonitor: Session ID found - {SessionId}", _sessionId);
+            Logger.LogInformation("SessionStatusMonitor: Starting periodic timer with 5 second interval");
+         
+            // Start PeriodicTimer (better for async callbacks)
+            _cancellationTokenSource = new CancellationTokenSource();
+            _periodicTimer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        
+            // Start background task
+            _checkTask = RunPeriodicChecksAsync(_cancellationTokenSource.Token);
+   
+            Logger.LogInformation("SessionStatusMonitor: Periodic timer started successfully for user {UserId}, session {SessionId}",
+            _userId, _sessionId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "SessionStatusMonitor: Fatal error during initialization");
+        }
+    }
+
+    private async Task RunPeriodicChecksAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            Logger.LogInformation("SessionStatusMonitor: Periodic check loop started");
+            
+            while (!cancellationToken.IsCancellationRequested && !_isTerminated && _periodicTimer != null)
+            {
+                try
+                {
+                    // Wait until the next tick (5 seconds)
+                    await _periodicTimer.WaitForNextTickAsync(cancellationToken);
+     
+                    // Run the check
+                    await CheckSessionAsync();
+                }
+                catch (OperationCanceledException)
+                {
+                    Logger.LogInformation("SessionStatusMonitor: Periodic check cancelled");
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "SessionStatusMonitor: Error in periodic check loop");
+                }
+            }
+      
+            Logger.LogInformation("SessionStatusMonitor: Periodic check loop ended");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "SessionStatusMonitor: Fatal error in periodic check loop");
+        }
+    }
+
+    private async Task CheckSessionAsync()
+    {
+        if (_isTerminated)
+        {
+            Logger.LogDebug("SessionStatusMonitor: Session already terminated, skipping check");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(_sessionId))
+        {
+            Logger.LogWarning("SessionStatusMonitor: SessionId is null/empty, cannot check");
+            return;
+        }
+
+        try
+        {
+            Logger.LogInformation("SessionStatusMonitor: Checking session status for {SessionId} (User: {UserId})",
+                        _sessionId, _userId);
+
+            // Check whether the session still exists and is active in the database
+            var session = await SessionService.GetSessionAsync(_sessionId);
+
+            if (session == null)
+            {
+                Logger.LogWarning("SessionStatusMonitor: Session {SessionId} not found in database - initiating logout",
+                    _sessionId);
+                await TerminateSessionAsync("Session not found in database");
+                return;
+            }
+
+            if (!session.IsActive)
+            {
+                Logger.LogWarning("SessionStatusMonitor: Session {SessionId} is no longer active (IsActive=false) - initiating logout",
+                _sessionId);
+                Logger.LogInformation("   EndTime: {EndTime}, EndReason: {EndReason}",
+                            session.EndTime, session.EndReason);
+                await TerminateSessionAsync($"Session inactive: {session.EndReason}");
+                return;
+            }
+
+            // Session is active - everything OK
+            Logger.LogInformation("SessionStatusMonitor: Session {SessionId} is active - continuing monitoring",
+            _sessionId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "SessionStatusMonitor: Error checking session status for {SessionId}",
+        _sessionId);
+        }
+    }
+
+    private async Task TerminateSessionAsync(string reason)
+    {
+        if (_isTerminated)
+        {
+            Logger.LogDebug("SessionStatusMonitor: Already terminated, skipping");
+            return;
+        }
+
+        _isTerminated = true;
+
+        try
+        {
+            Logger.LogWarning("SessionStatusMonitor: Terminating session {SessionId} for user {UserId}",
+        _sessionId, _userId);
+            Logger.LogInformation("   Reason: {Reason}", reason);
+
+            // Stoppe Timer
+            _cancellationTokenSource?.Cancel();
+            _periodicTimer?.Dispose();
+            _periodicTimer = null;
+            Logger.LogInformation("SessionStatusMonitor: Timer stopped");
+
+            // Perform logout
+            Logger.LogInformation("SessionStatusMonitor: Calling AuthService.LogoutAsync()");
+            await AuthService.LogoutAsync();
+            Logger.LogInformation("SessionStatusMonitor: Logout completed");
+
+            // Redirect to /logout (will automatically forward to /login)
+            await InvokeAsync(async () =>
+            {
+                try
+                {
+                    Logger.LogInformation("SessionStatusMonitor: Initiating redirect to /logout");
+      
+                    // Direct redirect to /logout without alert
+                    await JSRuntime.InvokeVoidAsync("appHelper.redirect", "/logout?reason=session-terminated");
+    
+                    Logger.LogInformation("SessionStatusMonitor: Redirect initiated successfully");
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "SessionStatusMonitor: Error during redirect");
+    
+                    // Fallback: redirect directly to /login without parameters
+                    try
+                    {
+                        Logger.LogInformation("SessionStatusMonitor: Trying fallback redirect to /login");
+                        await JSRuntime.InvokeVoidAsync("appHelper.redirect", "/login");
+                    }
+                    catch (Exception fallbackEx)
+                    {
+                        Logger.LogError(fallbackEx, "SessionStatusMonitor: Fallback redirect also failed");
+                    }
+                }
+            });
+
+            Logger.LogInformation("SessionStatusMonitor: Session termination completed for user {UserId}", _userId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "SessionStatusMonitor: Fatal error during session termination");
+        }
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            if (_periodicTimer != null || _cancellationTokenSource != null)
+            {
+                Logger.LogInformation("SessionStatusMonitor: Disposing timer for session {SessionId}", _sessionId);
+        
+                _cancellationTokenSource?.Cancel();
+                _cancellationTokenSource?.Dispose();
+                _cancellationTokenSource = null;
+                
+                _periodicTimer?.Dispose();
+                _periodicTimer = null;
+                
+                // Wait for task completion (with timeout)
+                if (_checkTask != null && !_checkTask.IsCompleted)
+                {
+                    try
+                    {
+                        _checkTask.Wait(TimeSpan.FromSeconds(2));
+                    }
+                    catch { }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "SessionStatusMonitor: Error during disposal");
+        }
+    }
+}

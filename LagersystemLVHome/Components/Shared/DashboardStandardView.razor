@@ -1,0 +1,285 @@
+@using ApexCharts
+@using LagersystemLVHome.Domain.Models
+@inject I18nText I18nText
+
+<!-- Standard Dashboard View Component -->
+<div>
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+        <KpiCard Icon="bi-box-seam"
+                 Title="@T.Dashboard_KPI_Products"
+                 Value="@DashboardData.TotalProducts.ToString("N0")"
+                 Color="primary" />
+
+        <KpiCard Icon="bi-currency-dollar"
+                 Title="@T.Dashboard_KPI_StockValue"
+                 Value="@DashboardData.TotalStockValue.ToString("C")"
+                 Color="success" />
+
+        <KpiCard Icon="bi-exclamation-triangle"
+                 Title="@T.Dashboard_KPI_LowStock"
+                 Value="@DashboardData.LowStockCount.ToString("N0")"
+                 Color="danger"
+                 Clickable="true"
+                 OnClick="OnNavigateToLowStock" />
+
+        <KpiCard Icon="bi-grid-3x3-gap"
+                 Title="@T.Dashboard_KPI_Categories"
+                 Value="@DashboardData.TotalCategories.ToString("N0")"
+                 Color="info" />
+    </div>
+
+    <!-- Secondary KPIs -->
+    <div class="secondary-kpis">
+        <div class="stat-card">
+            <i class="bi bi-building"></i>
+            <div>
+                <strong>@DashboardData.TotalWarehouses</strong>
+                <span>@T.Dashboard_Stat_Warehouses</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <i class="bi bi-geo-alt"></i>
+            <div>
+                <strong>@DashboardData.TotalStorageLocations</strong>
+                <span>@T.Dashboard_Stat_StorageLocations</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <i class="bi bi-boxes"></i>
+            <div>
+                <strong>@DashboardData.TotalStockQuantity.ToString("N0")</strong>
+                <span>@T.Dashboard_Stat_Units</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <i class="bi bi-calculator"></i>
+            <div>
+                <strong>@DashboardData.AverageProductValue.ToString("C")</strong>
+                <span>→ @T.Dashboard_Stat_ValuePerProduct</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-graph-up"></i> @T.Dashboard_Chart_Movements</h5>
+                </div>
+                <div class="card-body">
+                    @if (DashboardData?.StockTrends != null && DashboardData.StockTrends.Any())
+                    {
+                        <ApexChart TItem="StockTrendData" Title="@ChartTitle">
+                            <ApexPointSeries TItem="StockTrendData"
+                                             Items="@DashboardData.StockTrends"
+                                             Name="@T.Dashboard_Chart_StockIn"
+                                             SeriesType="SeriesType.Line"
+                                             XValue="@(e => e.Date.ToString("dd.MM"))"
+                                             YValue="@(e => (decimal)e.StockIn)" />
+                            <ApexPointSeries TItem="StockTrendData"
+                                             Items="@DashboardData.StockTrends"
+                                             Name="@T.Dashboard_Chart_StockOut"
+                                             SeriesType="SeriesType.Line"
+                                             XValue="@(e => e.Date.ToString("dd.MM"))"
+                                             YValue="@(e => (decimal)e.StockOut)" />
+                        </ApexChart>
+                    }
+                    else
+                    {
+                        <div class="no-data">
+                            <i class="bi bi-inbox"></i>
+                            <p>@string.Format(T.Dashboard_Chart_NoMovements, SelectedPeriod)</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-pie-chart"></i> @T.Dashboard_Chart_CategoryValue</h5>
+                </div>
+                <div class="card-body">
+                    @if (DashboardData.CategoryValues.Any())
+                    {
+                        <ApexChart TItem="CategoryValueData" Title="@T.Dashboard_Chart_TotalValue">
+                            <ApexPointSeries TItem="CategoryValueData"
+                                             Items="DashboardData.CategoryValues"
+                                             SeriesType="SeriesType.Donut"
+                                             Name="@T.Dashboard_Warehouse_Value"
+                                                              XValue="@(e => e.CategoryName)"
+                                             YValue="@(e => e.TotalValue)"
+                                             OrderByDescending="@(e => e.Y)" />
+                        </ApexChart>
+                    }
+                    else
+                    {
+                        <div class="no-data">
+                            <i class="bi bi-inbox"></i>
+                            <p>@T.Dashboard_Chart_NoData</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Movers -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-fire"></i> @T.Dashboard_Chart_TopMovers</h5>
+                </div>
+                <div class="card-body">
+                    @if (DashboardData.TopMovers.Any())
+                    {
+                        <ApexChart TItem="TopMoverData">
+                            <ApexPointSeries TItem="TopMoverData"
+                                             Items="DashboardData.TopMovers"
+                                             Name="@T.Dashboard_Chart_Movements"
+                                                              SeriesType="SeriesType.Bar"
+                                             XValue="@(e => e.ProductName.Length > 30 ? e.ProductName.Substring(0, 30) + "..." : e.ProductName)"
+                                             YValue="@(e => (decimal)e.MovementCount)"
+                                             OrderByDescending="@(e => e.Y)" />
+                        </ApexChart>
+                    }
+                    else
+                    {
+                        <div class="no-data">
+                            <i class="bi bi-inbox"></i>
+                            <p>@T.Dashboard_Chart_Movements30d</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Warehouse Distribution -->
+    @if (DashboardData.WarehouseDistribution.Any())
+    {
+        <div class="row g-4 mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-building"></i> @T.Dashboard_Warehouse_Distribution</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            @foreach (var warehouse in DashboardData.WarehouseDistribution)
+                            {
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="card border">
+                                        <div class="card-body">
+                                            <h6 class="card-title">@warehouse.WarehouseName</h6>
+                                            <div class="mt-3">
+                                                <div class="d-flex justify-content-between mb-2">
+                                                    <span><i class="bi bi-box-seam"></i> @T.Dashboard_Warehouse_Products</span>
+                                                    <strong>@warehouse.ProductCount</strong>
+                                                </div>
+                                                <div class="d-flex justify-content-between mb-2">
+                                                    <span><i class="bi bi-geo-alt"></i> @T.Dashboard_Warehouse_Slots</span>
+                                                    <strong>@warehouse.StorageLocationCount</strong>
+                                                </div>
+                                                <div class="d-flex justify-content-between">
+                                                    <span><i class="bi bi-currency-dollar"></i> @T.Dashboard_Warehouse_Value</span>
+                                                    <strong class="text-success">@warehouse.TotalValue.ToString("C")</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Recent Activity -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> @T.Dashboard_Recent_Movements</h5>
+                </div>
+                <div class="card-body">
+                    @if (DashboardData.RecentMovements.Any())
+                    {
+                        @foreach (var movement in DashboardData.RecentMovements.Take(10))
+                        {
+                            <div class="timeline-item">
+                                <span class="timeline-badge @GetMovementClass(movement)">
+                                    <i class="bi @GetMovementIcon(movement)"></i>
+                                </span>
+                                <div class="timeline-content">
+                                    <div class="timeline-header">
+                                        <strong>@movement.Product.Name</strong>
+                                        <span class="badge bg-secondary">@movement.Product.Category?.Name</span>
+                                    </div>
+                                    <div class="timeline-details">
+                                        <span class="@GetMovementTextClass(movement)">
+                                            @GetMovementTypeText(movement): @Math.Abs(movement.QuantityChange) @T.Dashboard_Stat_Units
+                                        </span>
+                                        @if (!string.IsNullOrEmpty(movement.Notes))
+                                        {
+                                            <span class="text-muted">→ @movement.Notes</span>
+                                        }
+                                    </div>
+                                    <small class="text-muted">
+                                        <i class="bi bi-calendar"></i> @movement.Timestamp.ToString("dd.MM.yyyy HH:mm")
+                                    </small>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="no-data">
+                            <i class="bi bi-inbox"></i>
+                            <p>@T.Dashboard_Recent_NoMovements</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public DashboardData DashboardData { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public int SelectedPeriod { get; set; }
+
+    [Parameter, EditorRequired]
+    public string ChartTitle { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public Action OnNavigateToLowStock { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Func<StockMovement, string> GetMovementClass { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Func<StockMovement, string> GetMovementIcon { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Func<StockMovement, string> GetMovementTextClass { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Func<StockMovement, string> GetMovementTypeText { get; set; } = null!;
+
+    private LagersystemLVHome.I18nText.App T = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+    }
+}

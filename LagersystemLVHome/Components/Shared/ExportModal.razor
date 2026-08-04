@@ -1,0 +1,243 @@
+@using LagersystemLVHome.Domain.Models
+@using LagersystemLVHome.Components.Pages
+@inject I18nText I18nText
+
+<!-- Export options modal -->
+@if (ShowModal)
+{
+    <div class="modal-backdrop" @onclick="OnClose">
+        <div class="modal-content export-modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="bi bi-download"></i>
+                    @T.ExportModal_Title
+                </h3>
+                <button class="modal-close" @onclick="OnClose">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <p class="text-muted mb-4">
+                    @T.ExportModal_Subtitle
+                </p>
+
+                <!-- Export Format Selection -->
+                <div class="export-format-grid">
+                    <!-- JSON Format -->
+                    <div class="export-format-card @(selectedExportFormat == ExportFormat.JSON ? "selected" : "")"
+                         @onclick="() => SelectExportFormat(ExportFormat.JSON)">
+                        <div class="format-icon json">
+                            <i class="bi bi-code-square"></i>
+                        </div>
+                        <h5>JSON</h5>
+                        <p class="format-description">
+                            @T.ExportModal_JSON_Desc
+                        </p>
+                        <div class="format-features">
+                            <span class="badge bg-info">@(T.ExportModal_FullExport ?? "Vollständig")</span>
+                            <span class="badge bg-secondary">@(T.ExportModal_MachineReadable ?? "Maschinenlesbar")</span>
+                        </div>
+                    </div>
+
+                    <!-- CSV Format -->
+                    <div class="export-format-card @(selectedExportFormat == ExportFormat.CSV ? "selected" : "")"
+                         @onclick="() => SelectExportFormat(ExportFormat.CSV)">
+                        <div class="format-icon csv">
+                            <i class="bi bi-filetype-csv"></i>
+                        </div>
+                        <h5>CSV</h5>
+                        <p class="format-description">
+                            @T.ExportModal_CSV_Desc
+                        </p>
+                        <div class="format-features">
+                            <span class="badge bg-success">@(T.ExportModal_Compact ?? "Kompakt")</span>
+                            <span class="badge bg-secondary">@(T.ExportModal_Universal ?? "Universal")</span>
+                        </div>
+                    </div>
+
+                    <!-- Excel Format -->
+                    <div class="export-format-card @(selectedExportFormat == ExportFormat.Excel ? "selected" : "")"
+                         @onclick="() => SelectExportFormat(ExportFormat.Excel)">
+                        <div class="format-icon excel">
+                            <i class="bi bi-file-earmark-excel"></i>
+                        </div>
+                        <h5>Excel</h5>
+                        <p class="format-description">
+                            @T.ExportModal_Excel_Desc
+                        </p>
+                        <div class="format-features">
+                            <span class="badge bg-success">@(T.ExportModal_Formatted ?? "Formatiert")</span>
+                            <span class="badge bg-primary">@(T.ExportModal_Popular ?? "Beliebt")</span>
+                        </div>
+                    </div>
+
+                    <!-- PDF Format -->
+                    <div class="export-format-card @(selectedExportFormat == ExportFormat.PDF ? "selected" : "")"
+                         @onclick="() => SelectExportFormat(ExportFormat.PDF)">
+                        <div class="format-icon pdf">
+                            <i class="bi bi-file-earmark-pdf"></i>
+                        </div>
+                        <h5>PDF</h5>
+                        <p class="format-description">
+                            @T.ExportModal_PDF_Desc
+                        </p>
+                        <div class="format-features">
+                            <span class="badge bg-danger">@(T.ExportModal_Visual ?? "Visuell")</span>
+                            <span class="badge bg-warning">@(T.ExportModal_Report ?? "Report")</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export Options -->
+                @if (selectedExportFormat != ExportFormat.None)
+                {
+                    <div class="export-options mt-4">
+                        <h6 class="mb-3">@T.ExportModal_Options</h6>
+        
+                        <!-- Include charts (PDF only) -->
+                        @if (selectedExportFormat == ExportFormat.PDF)
+                        {
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="includeCharts" @bind="exportOptions.IncludeCharts">
+                                    <label class="form-check-label" for="includeCharts">
+                                        <i class="bi bi-bar-chart"></i> @T.ExportModal_IncludeCharts
+                                    </label>
+                                </div>
+                            }
+
+                            <!-- Include Analytics (Enhanced View) -->
+                            @if (DashboardView == Dashboard.DashboardView.Enhanced)
+                            {
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="includeAnalytics" @bind="exportOptions.IncludeAnalytics" disabled>
+                                        <label class="form-check-label" for="includeAnalytics">
+                                            <i class="bi bi-graph-up-arrow"></i> @T.ExportModal_IncludeAnalytics
+                                        </label>
+                                    </div>
+                                }
+
+                                <!-- Include Movement History -->
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="includeMovements" @bind="exportOptions.IncludeMovements">
+                                        <label class="form-check-label" for="includeMovements">
+                                            <i class="bi bi-clock-history"></i> @(T.ExportModal_IncludeMovements ?? "Bewegungshistorie einschließen")
+                                        </label>
+                                    </div>
+
+                                    <!-- Time Period Info -->
+                                    <div class="alert alert-info mt-3 mb-0">
+                                        <i class="bi bi-info-circle me-2"></i>
+                                        <strong>Zeitraum:</strong> @GetPeriodDescription()
+                                        @if (DashboardView == Dashboard.DashboardView.Enhanced)
+                                        {
+                                            <text><br /></text>
+                                            <text><strong>Ansicht:</strong> Analytics-Dashboard</text>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" @onclick="OnClose">
+                                @T.PriceModal_Cancel
+                            </button>
+                            <button class="btn btn-primary"
+                                    @onclick="ConfirmExport"
+                                    disabled="@(selectedExportFormat == ExportFormat.None || isExporting)">
+                                @if (isExporting)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    <span>@(T.ExportModal_Exporting ?? "Exportiere...")</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-download me-2"></i>
+                                    <span>Exportieren (@GetFormatName())</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+
+
+@code {
+    [Parameter] public bool ShowModal { get; set; }
+    [Parameter] public DashboardData? DashboardData { get; set; }
+    [Parameter] public Dashboard.DashboardView DashboardView { get; set; }
+    [Parameter] public int SelectedPeriod { get; set; }
+    [Parameter] public EventCallback<(ExportFormat, ExportOptions)> OnExport { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private ExportFormat selectedExportFormat = ExportFormat.None;
+    private ExportOptions exportOptions = new();
+    private bool isExporting = false;
+
+    private LagersystemLVHome.I18nText.App T = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+    }
+
+    public enum ExportFormat
+    {
+        None,
+        JSON,
+        CSV,
+        Excel,
+        PDF
+    }
+
+    public class ExportOptions
+    {
+        public bool IncludeCharts { get; set; } = true;
+        public bool IncludeAnalytics { get; set; } = true;
+        public bool IncludeMovements { get; set; } = false;
+    }
+
+    private void SelectExportFormat(ExportFormat format)
+    {
+        selectedExportFormat = format;
+    }
+
+    private async Task ConfirmExport()
+    {
+        if (selectedExportFormat == ExportFormat.None) return;
+
+        isExporting = true;
+        StateHasChanged();
+
+        await OnExport.InvokeAsync((selectedExportFormat, exportOptions));
+
+        isExporting = false;
+        selectedExportFormat = ExportFormat.None;
+        exportOptions = new();
+    }
+
+    private string GetPeriodDescription()
+    {
+        return SelectedPeriod switch
+        {
+            7 => "Letzte 7 Tage",
+            30 => "Letzte 30 Tage",
+            90 => "Letzte 90 Tage",
+            365 => "Letztes Jahr",
+            _ => $"Letzte {SelectedPeriod} Tage"
+        };
+    }
+
+    private string GetFormatName()
+    {
+        return selectedExportFormat switch
+        {
+            ExportFormat.JSON => "JSON",
+            ExportFormat.CSV => "CSV",
+            ExportFormat.Excel => "Excel",
+            ExportFormat.PDF => "PDF",
+            _ => ""
+        };
+    }
+}

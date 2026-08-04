@@ -1,0 +1,105 @@
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@typeparam TItem
+@inject I18nText I18nText
+
+<div class="virtualized-list" style="@Style">
+    <Virtualize Items="@Items"
+                Context="item"
+                ItemSize="@ItemSize"
+                OverscanCount="@OverscanCount">
+        <ItemContent>
+            @ItemTemplate(item)
+        </ItemContent>
+        <Placeholder>
+            <div class="virtualized-placeholder">
+                @if (PlaceholderTemplate != null)
+                {
+                    @PlaceholderTemplate
+                }
+                else
+                {
+                    <div class="skeleton-loader">
+                        <div class="skeleton-line"></div>
+                        <div class="skeleton-line short"></div>
+                    </div>
+                }
+            </div>
+        </Placeholder>
+        <EmptyContent>
+            @if (EmptyTemplate != null)
+            {
+                @EmptyTemplate
+            }
+            else
+            {
+                <div class="empty-state">
+                    <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.5;"></i>
+                    <p>@(T.VirtualizedList_Empty ?? "Keine Einträge vorhanden")</p>
+                </div>
+            }
+        </EmptyContent>
+    </Virtualize>
+</div>
+
+@code {
+    private LagersystemLVHome.I18nText.App T = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+    }
+
+    /// <summary>
+    /// Die anzuzeigenden Items
+    /// </summary>
+    [Parameter, EditorRequired]
+    public ICollection<TItem>? Items { get; set; }
+
+    /// <summary>
+    /// Template for each item
+    /// </summary>
+    [Parameter, EditorRequired]
+    public RenderFragment<TItem>? ItemTemplate { get; set; }
+
+    /// <summary>
+    /// Template for the placeholder while loading
+    /// </summary>
+    [Parameter]
+    public RenderFragment? PlaceholderTemplate { get; set; }
+
+    /// <summary>
+    /// Template for an empty list
+    /// </summary>
+    [Parameter]
+    public RenderFragment? EmptyTemplate { get; set; }
+
+    /// <summary>
+    /// Height of each item in pixels (important for performance!)
+    /// </summary>
+    [Parameter]
+    public float ItemSize { get; set; } = 80f;
+
+    /// <summary>
+    /// Number of items pre-loaded outside the visible area
+    /// </summary>
+    [Parameter]
+    public int OverscanCount { get; set; } = 3;
+
+    /// <summary>
+    /// Container height (e.g. "500px", "80vh")
+    /// </summary>
+    [Parameter]
+    public string Height { get; set; } = "600px";
+
+    /// <summary>
+    /// Additional CSS styles
+    /// </summary>
+    [Parameter]
+    public string? Style { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        // Combine height with custom styles
+        Style = $"height: {Height}; overflow-y: auto; {Style}";
+    }
+}

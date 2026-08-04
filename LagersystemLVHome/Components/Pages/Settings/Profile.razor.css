@@ -1,0 +1,145 @@
+.profile-avatar {
+  font-size: 6rem;
+  color: var(--primary-color);
+}
+
+.info-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e2e8f0;
+  word-break: break-word;
+}
+
+  .info-item:last-child {
+    border-bottom: none;
+  }
+
+.info-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.info-value {
+  color: var(--text-primary);
+  text-align: right;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Modal Styles */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1040;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modal-dialog-centered {
+  margin: 1.75rem auto;
+  max-width: calc(100vw - 2rem);
+}
+
+/* Prevent horizontal scrolling */
+.row {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.col-lg-4, .col-lg-8, .col-md-6, .col-md-12 {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.card {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.card-body {
+  overflow-x: auto;
+}
+
+code, pre {
+  max-width: 100%;
+  overflow-x: auto;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.container-fluid, .row {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* responsive fixes for mobile */
+@media (max-width: 768px) {
+  .page-header {
+    padding: 1rem;
+  }
+
+  .card-body {
+    padding: 1rem;
+  }
+
+  .info-item {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .info-label {
+    min-width: auto;
+    text-align: left;
+  }
+
+  .info-value {
+    text-align: left;
+    padding-left: 0.5rem;
+  }
+
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .font-monospace {
+    font-size: 0.75rem !important;
+  }
+
+  .btn:not(.btn-sm) {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+
+  .modal-dialog {
+    margin: 0.5rem;
+    max-width: calc(100% - 1rem);
+  }
+
+  .modal-content {
+    max-width: 100%;
+  }
+}

@@ -1,0 +1,156 @@
+@page "/login/magic"
+@inherits CancellableComponentBase
+@using LagersystemLVHome.Domain.Models
+@layout EmptyLayout
+@rendermode InteractiveServer
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject ILogger<MagicLinkLogin> Logger
+@inject I18nText I18nText
+
+<PageTitle>@T.MagicLink_PageTitle</PageTitle>
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <div class="login-icon">
+                <i class="bi bi-link-45deg"></i>
+            </div>
+            <h1>@T.MagicLink_Heading</h1>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="loading-state">
+                <div class="spinner"></div>
+                <p>@T.MagicLink_ValidatingTitle</p>
+            </div>
+        }
+        else if (isSuccess)
+        {
+            <div class="success-state">
+                <div class="success-icon">
+                    <i class="bi bi-check-lg"></i>
+                </div>
+                <h2>@T.MagicLink_SuccessTitle</h2>
+                <p>@T.MagicLink_SuccessDesc</p>
+            </div>
+        }
+        else
+        {
+            <div class="error-state">
+                <div class="error-icon">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+                <h2>@errorTitle</h2>
+                <p>@errorMessage</p>
+            </div>
+      
+            <div class="action-buttons">
+                <a href="/login" class="btn-back">
+                    <i class="bi bi-arrow-left"></i>
+                    @T.MagicLink_BackToLogin
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? Token { get; set; }
+
+    private bool isLoading = true;
+    private bool isSuccess = false;
+    private string errorTitle = string.Empty;
+    private string errorMessage = string.Empty;
+    private LagersystemLVHome.I18nText.App T = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+            errorTitle = T.MagicLink_ErrorTitle;
+            errorMessage = T.MagicLink_ErrorDesc;
+            await ValidateMagicLink();
+        }
+    }
+
+    private async Task ValidateMagicLink()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(Token))
+            {
+                errorTitle = T.MagicLink_NoTokenTitle;
+                errorMessage = T.MagicLink_NoTokenDesc;
+                isLoading = false;
+                StateHasChanged();
+                return;
+            }
+
+            Logger.LogInformation("Validating magic link token");
+
+            // Validate token and log user in
+            var loginResult = await AuthService.LoginWithMagicLinkAsync(Token);
+
+            if (loginResult.IsFailure)
+            {
+                (errorTitle, errorMessage) = loginResult.ErrorCode switch
+                {
+                    LoginFailures.MagicLinkInvalid =>
+                        (T.MagicLink_InvalidExpiredTitle, T.MagicLink_InvalidExpiredDesc),
+                    LoginFailures.GdprConsentRequired or LoginFailures.GranularConsentRequired =>
+                        (T.MagicLink_ConsentRequiredTitle, T.MagicLink_ConsentRequiredDesc),
+                    LoginFailures.IpDenied =>
+                        (T.MagicLink_IpDeniedTitle, T.MagicLink_IpDeniedDesc),
+                    LoginFailures.PasswordlessUnavailable =>
+                        (T.MagicLink_DisabledTitle, T.MagicLink_DisabledDesc),
+                    _ =>
+                        (T.MagicLink_FailedTitle, T.MagicLink_FailedDesc)
+                };
+                isLoading = false;
+                StateHasChanged();
+                return;
+            }
+
+            var user = loginResult.Value!;
+
+            Logger.LogInformation("Magic link login successful for user {UserId}", user.Id);
+
+            // Set session cookie
+            try
+            {
+                var sessionId = await AuthService.GetCurrentSessionIdAsync();
+                if (!string.IsNullOrEmpty(sessionId))
+                {
+                    await JSRuntime.InvokeVoidAsync("cookieHelper.setCookie", "LagerSystem.SessionId", sessionId, 7);
+                    Logger.LogInformation("Session cookie set for magic link login: {SessionId}", sessionId);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Failed to set session cookie for magic link login");
+            }
+
+            isSuccess = true;
+            isLoading = false;
+            StateHasChanged();
+
+            // Brief delay for visual feedback, then redirect
+            await Task.Delay(1500);
+            NavigationManager.NavigateTo("/", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error validating magic link");
+            errorTitle = T.Common_Error;
+            errorMessage = T.MagicLink_UnexpectedError;
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}

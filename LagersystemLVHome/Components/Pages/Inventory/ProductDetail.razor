@@ -1,0 +1,402 @@
+@page "/products/{ProductId:int}"
+@inherits CancellableComponentBase
+@rendermode InteractiveServer
+@inject LagersystemLVHome.Application.Services.IInventoryService InventoryService
+@inject LagersystemLVHome.Application.Services.ILocationQueryService LocationQueryService
+@inject NavigationManager NavigationManager
+@inject I18nText I18nText
+@using Microsoft.EntityFrameworkCore
+
+<PageTitle>@(product?.Name ?? T.ProductDetail_Info_Title) - LagerSystem</PageTitle>
+
+@if (product != null)
+{
+    <div class="page-header d-flex justify-content-between align-items-start">
+        <div class="d-flex align-items-center gap-3">
+            @if (!string.IsNullOrEmpty(product.ThumbnailUrl))
+            {
+                <img src="@product.ImageUrl" alt="@product.Name" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px;" />
+            }
+            else
+            {
+                <div style="font-size: 3rem;">
+                    <CategoryIcon IconClass="@(product.Category?.Icon ?? "bi-box")" />
+                </div>
+            }
+            <div>
+                <h1 class="page-title">@product.Name</h1>
+                <p class="page-subtitle">
+                    @product.Category?.Name
+                    @if (!string.IsNullOrEmpty(product.Description))
+                    {
+                        <span> € @product.Description</span>
+                    }
+                </p>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/products" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> @T.ProductDetail_Back
+            </a>
+            <a href="/products" class="btn btn-primary" @onclick="@(() => NavigateToEdit())">
+                <i class="bi bi-pencil"></i> @T.ProductDetail_Edit
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid mb-4">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi bi-stack"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@T.ProductDetail_Stats_TotalStock</h3>
+                <p class="stat-value">@product.Quantity</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon @(product.Quantity <= product.MinQuantity ? "warning" : "success")">
+                <i class="bi bi-box"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@T.ProductDetail_Stats_MinStock</h3>
+                <p class="stat-value">@product.MinQuantity</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-currency-euro"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@T.ProductDetail_Stats_Price</h3>
+                <p class="stat-value">@product.Price.ToString("C")</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon info">
+                <i class="bi bi-geo-alt"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@T.ProductDetail_Stats_Storage</h3>
+                <p class="stat-value">@storageLocations.Count</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Info -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">@T.ProductDetail_Info_Title</h3>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <tbody>
+                            <tr>
+                                <th style="width: 150px;">@T.ProductDetail_Info_Barcode</th>
+                                <td><code>@product.Barcode</code></td>
+                            </tr>
+                            <tr>
+                                <th>@T.ProductDetail_Info_Category</th>
+                                <td>
+                                    <CategoryIcon IconClass="@(product.Category?.Icon ?? "bi-box")" />
+                                    @product.Category?.Name
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>@T.ProductDetail_Info_Created</th>
+                                <td>@product.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                            </tr>
+                            <tr>
+                                <th>@T.ProductDetail_Info_Updated</th>
+                                <td>@product.UpdatedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                            </tr>
+                            @if (product.ExpiryDate.HasValue)
+                            {
+                                <tr>
+                                    <th>@T.ProductDetail_Info_ExpiryDate</th>
+                                    <td>
+                                        @product.ExpiryDate.Value.ToString("dd.MM.yyyy")
+                                        @{
+                                            var daysUntilExpiry = (product.ExpiryDate.Value - DateTime.UtcNow).Days;
+                                            if (daysUntilExpiry < 0)
+                                            {
+                                                <span class="badge bg-danger ms-2">@T.ProductDetail_Expiry_Expired (@(-daysUntilExpiry)d)</span>
+                                            }
+                                            else if (daysUntilExpiry <= 7)
+                                            {
+                                                <span class="badge bg-warning ms-2">@daysUntilExpiry @T.ProductDetail_Expiry_Days</span>
+                                            }
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Image -->
+        @if (!string.IsNullOrEmpty(product.ImageUrl))
+        {
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">@T.ProductDetail_Image_Title</h3>
+                    </div>
+                    <div class="card-body text-center">
+                        <img src="@product.ImageUrl" alt="@product.Name" class="img-fluid" style="max-height: 300px; border-radius: 8px;" />
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Storage Locations -->
+    @if (storageLocations.Any())
+    {
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">@T.ProductDetail_Storage_Title</h3>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>@T.ProductDetail_Storage_Code</th>
+                                <th>@T.ProductDetail_Storage_Room</th>
+                                <th>@T.ProductDetail_Storage_Position</th>
+                                <th>@T.ProductDetail_Storage_Quantity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var psl in storageLocations)
+                            {
+                                <tr>
+                                    <td data-label="Code">
+                                        <a href="/storage/@psl.StorageLocationId" class="text-decoration-none">
+                                            <code class="text-primary">@psl.StorageLocation.Code</code>
+                                        </a>
+                                    </td>
+                                    <td data-label="Raum">
+                                        @if (!string.IsNullOrEmpty(psl.StorageLocation.Room))
+                                        {
+                                            var roomId = GetRoomId(psl.StorageLocation.Room);
+                                            if (roomId.HasValue)
+                                            {
+                                                <a href="/rooms/@roomId/products" class="text-decoration-none text-primary">
+                                                    @psl.StorageLocation.Room
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted" title="Raum nicht in Datenbank gefunden">@psl.StorageLocation.Room</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">@T.ProductDetail_Storage_NoRoom</span>
+                                        }
+                                    </td>
+                                    <td data-label="Position">
+                                        @T.ProductDetail_Storage_Aisle @psl.StorageLocation.Aisle,
+                                        @T.ProductDetail_Storage_Rack @psl.StorageLocation.Rack,
+                                        @T.ProductDetail_Storage_Shelf @psl.StorageLocation.Shelf
+                                    </td>
+                                    <td data-label="Menge"><strong>@psl.Quantity @T.ProductDetail_Storage_Unit</strong></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Batches -->
+    @if (batches.Any())
+    {
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">@T.ProductDetail_Batch_Title</h3>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>@T.ProductDetail_Batch_Number</th>
+                                <th>@T.ProductDetail_Batch_Qty</th>
+                                <th>@T.ProductDetail_Batch_MHD</th>
+                                <th>@T.ProductDetail_Batch_Status</th>
+                                <th>@T.ProductDetail_Batch_Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var batch in batches)
+                            {
+                                <tr class="@(batch.IsExpired ? "table-danger" : batch.IsExpiringSoon ? "table-warning" : "")">
+                                    <td data-label="Chargen-Nr."><code>@batch.BatchNumber</code></td>
+                                    <td data-label="Menge"><strong>@batch.Quantity @T.ProductDetail_Batch_Unit</strong></td>
+                                    <td data-label="MHD">@batch.ExpiryDate?.ToString("dd.MM.yyyy")</td>
+                                    <td data-label="Status">
+                                        @if (batch.ExpiryDate.HasValue)
+                                        {
+                                            var days = (batch.ExpiryDate.Value - DateTime.UtcNow).Days;
+                                            if (days < 0)
+                                            {
+                                                <span class="badge bg-danger">@T.ProductDetail_Batch_Expired (@(-days)d)</span>
+                                            }
+                                            else if (days <= 7)
+                                            {
+                                                <span class="badge bg-warning">@days @T.ProductDetail_Batch_Days</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-success">@days @T.ProductDetail_Batch_Days</span>
+                                            }
+                                        }
+                                    </td>
+                                    <td data-label="Notizen">@batch.Notes</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Recent Movements -->
+    @if (recentMovements.Any())
+    {
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">@T.ProductDetail_Movement_Title</h3>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>@T.ProductDetail_Movement_Date</th>
+                                <th>@T.ProductDetail_Movement_Type</th>
+                                <th>@T.ProductDetail_Movement_Change</th>
+                                <th>@T.ProductDetail_Movement_Note</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var movement in recentMovements)
+                            {
+                                <tr>
+                                    <td data-label="Datum">@movement.Timestamp.ToString("dd.MM.yyyy HH:mm")</td>
+                                    <td data-label="Typ">
+                                        <span class="badge bg-@(IsInboundMovement(movement.Type) ? "success" : "warning")">
+                                            @(IsInboundMovement(movement.Type) ? T.ProductDetail_Movement_In : T.ProductDetail_Movement_Out)
+                                        </span>
+                                    </td>
+                                    <td data-label="änderung">
+                                        <strong class="@(movement.QuantityChange > 0 ? "text-success" : "text-danger")">
+                                            @(movement.QuantityChange > 0 ? "+" : "")@movement.QuantityChange
+                                        </strong>
+                                    </td>
+                                    <td data-label="Notiz">@movement.Notes</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+}
+else
+{
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        @T.ProductDetail_NotFound
+        <a href="/products">Zurück zur übersicht</a>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int ProductId { get; set; }
+
+    private LagersystemLVHome.I18nText.App T = new();
+    private LagersystemLVHome.Domain.Models.Product? product;
+    private List<LagersystemLVHome.Domain.Models.ProductStorageLocation> storageLocations = new();
+    private List<LagersystemLVHome.Domain.Models.ProductBatch> batches = new();
+    private List<LagersystemLVHome.Domain.Models.StockMovement> recentMovements = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        product = await InventoryService.GetProductByIdAsync(ProductId);
+
+        if (product != null)
+        {
+            // Load storage locations (Room is a string, not an object!)
+            storageLocations = (await InventoryService.GetActiveStorageLocationsForProductAsync(ProductId)).ToList();
+
+            // Load batches
+            batches = (await InventoryService.GetActiveBatchesForProductAsync(ProductId)).ToList();
+
+            // Load recent movements
+            recentMovements = (await InventoryService.GetMovementsByProductAsync(ProductId))
+                .OrderByDescending(sm => sm.Timestamp)
+                .Take(10)
+                .ToList();
+
+            // Load room IDs for navigation
+            await LoadRoomIdsAsync();
+        }
+    }
+
+    // Helper: load room ID by room name
+    private Dictionary<string, int> roomNameToIdMap = new();
+
+    private async Task LoadRoomIdsAsync()
+    {
+        var roomNames = storageLocations
+            .Where(sl => !string.IsNullOrEmpty(sl.StorageLocation.Room))
+            .Select(sl => sl.StorageLocation.Room!)
+            .Distinct()
+            .ToList();
+
+        if (roomNames.Count > 0)
+        {
+            roomNameToIdMap = await LocationQueryService.GetRoomIdsByNameAsync(roomNames);
+        }
+    }
+
+    private int? GetRoomId(string? roomName)
+    {
+        if (string.IsNullOrEmpty(roomName))
+            return null;
+
+        return roomNameToIdMap.TryGetValue(roomName, out var roomId) ? roomId : null;
+    }
+
+    private void NavigateToEdit()
+    {
+        // Navigate to products page and open edit modal
+        NavigationManager.NavigateTo($"/products?edit={ProductId}");
+    }
+
+    private bool IsInboundMovement(MovementType type)
+    {
+        return type == MovementType.Initial
+|| type == MovementType.ManualAdd
+    || type == MovementType.ScanAdd;
+    }
+}

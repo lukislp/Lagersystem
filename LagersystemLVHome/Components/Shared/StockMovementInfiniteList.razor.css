@@ -1,0 +1,233 @@
+/* ========================================
+   Stock Movement Infinite List Styles
+   ======================================== */
+
+.movement-row {
+  display: grid;
+  grid-template-columns: 50px 2fr 100px 150px 150px 1fr;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #dee2e6;
+  transition: all 0.2s ease;
+}
+
+  .movement-row:hover {
+    background-color: #f8f9fa;
+    transform: translateX(2px);
+  }
+
+/* ========================================
+   Movement Types (In/Out)
+   ======================================== */
+
+.movement-in {
+  border-left: 4px solid #198754;
+  background: linear-gradient(to right, rgba(25, 135, 84, 0.05) 0%, transparent 100px);
+}
+
+.movement-out {
+  border-left: 4px solid #dc3545;
+  background: linear-gradient(to right, rgba(220, 53, 69, 0.05) 0%, transparent 100px);
+}
+
+/* ========================================
+   Movement Icon
+   ======================================== */
+
+.movement-icon {
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.movement-in .movement-icon {
+  color: #198754;
+}
+
+.movement-out .movement-icon {
+  color: #dc3545;
+}
+
+/* ========================================
+   Product Info
+   ======================================== */
+
+.movement-product {
+  display: flex;
+  align-items: center;
+}
+
+.product-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.product-icon-small {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /*background: #f8f9fa;*/
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  flex-shrink: 0;
+  color: #212529;
+}
+
+.product-name {
+  font-weight: 600;
+  color: #212529;
+}
+
+.product-barcode {
+  font-size: 0.75rem;
+  color: #6c757d;
+  font-family: monospace;
+}
+
+/* ========================================
+   Movement Quantity
+   ======================================== */
+
+.movement-quantity {
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+  .movement-quantity.positive {
+    color: #198754;
+  }
+
+  .movement-quantity.negative {
+    color: #dc3545;
+  }
+
+/* ========================================
+   Movement Type Badge
+   ======================================== */
+
+.movement-type {
+  display: flex;
+  justify-content: center;
+}
+
+  .movement-type .badge {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.65rem;
+  }
+
+/* ========================================
+   Timestamp
+   ======================================== */
+
+.movement-timestamp {
+  text-align: center;
+  font-size: 0.875rem;
+}
+
+  .movement-timestamp small {
+    display: block;
+    margin-top: 0.25rem;
+  }
+
+/* ========================================
+   Notes
+   ======================================== */
+
+.movement-notes {
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+  .movement-notes small {
+    display: block;
+    margin-top: 0.25rem;
+  }
+
+/* ========================================
+   Animation
+   ======================================== */
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.movement-row {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* ========================================
+   Responsive Design
+   ======================================== */
+
+@media (max-width: 1200px) {
+  .movement-row {
+    grid-template-columns: 50px 2fr 100px 150px 1fr;
+  }
+
+  .movement-type {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .movement-row {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+
+  .movement-icon {
+    display: none;
+  }
+
+  .movement-quantity,
+  .movement-timestamp {
+    text-align: left;
+  }
+
+  .movement-notes {
+    font-size: 0.75rem;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .movement-row {
+    border-color: #495057;
+  }
+
+    .movement-row:hover {
+      background-color: #343a40;
+    }
+
+  .movement-in {
+    background: linear-gradient(to right, rgba(25, 135, 84, 0.1) 0%, transparent 100px);
+  }
+
+  .movement-out {
+    background: linear-gradient(to right, rgba(220, 53, 69, 0.1) 0%, transparent 100px);
+  }
+
+  .product-icon-small {
+    background: #343a40;
+    color: #f8f9fa;
+  }
+
+  .product-name {
+    color: #f8f9fa;
+  }
+}

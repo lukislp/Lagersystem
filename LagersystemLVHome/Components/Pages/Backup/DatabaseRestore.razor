@@ -1,0 +1,552 @@
+@page "/admin/database-restore"
+@rendermode InteractiveServer
+@using LagersystemLVHome.Application.Services
+@using Microsoft.AspNetCore.Authorization
+@implements IDisposable
+@inject IDatabaseRestoreService RestoreService
+@inject NavigationManager Navigation
+@inject ILogger<DatabaseRestore> Logger
+@inject I18nText I18nText
+@attribute [Authorize(Roles = "SuperAdmin")]
+
+<PageTitle>@T.DbRestore_Title - LagerSystem</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">
+                <i class="bi bi-arrow-clockwise text-danger me-2"></i>
+                @T.DbRestore_Title
+            </h1>
+            <p class="text-muted mb-0">
+                @T.DbRestore_Subtitle
+            </p>
+        </div>
+        
+        <button class="btn btn-secondary" @onclick="GoBack">
+            <i class="bi bi-arrow-left me-1"></i>
+            @T.DbRestore_Back
+        </button>
+    </div>
+
+    <!-- Warning -->
+    <div class="alert alert-danger d-flex align-items-start">
+        <i class="bi bi-exclamation-triangle-fill fs-3 me-3"></i>
+        <div>
+            <h5 class="alert-heading mb-2"><i class="bi bi-exclamation-triangle-fill me-2"></i>WARNUNG: Kritische Aktion!</h5>
+            <ul class="mb-0">
+                <li><strong>Alle aktuellen Daten werden überschrieben</strong></li>
+                <li>Ein automatisches Sicherheits-Backup wird erstellt</li>
+                <li>Diese Aktion kann nicht rückgängig gemacht werden</li>
+                <li>Nur für SuperAdmins verfügbar</li>
+            </ul>
+        </div>
+    </div>
+
+    @if (currentDbInfo == null)
+    {
+        <!-- Loading -->
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <div class="spinner-border text-primary"></div>
+                <p class="mt-3">@T.DbRestore_LoadingDb</p>
+            </div>
+        </div>
+    }
+    else if (restoreComplete)
+    {
+        <!-- SUCCESS -->
+        <div class="card border-success">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-check-circle-fill text-success restore-success-icon"></i>
+                <h3 class="mt-3 mb-2">@T.DbRestore_Success</h3>
+                <p class="text-muted mb-4">
+                    @T.DbRestore_AutoLogout
+                </p>
+         
+                <div class="alert alert-info">
+                    <strong>@T.DbRestore_Stats</strong>
+                    <ul class="mb-0 mt-2">
+                        <li>@restoreResult?.TablesRestored Tabellen wiederhergestellt</li>
+                        <li>@restoreResult?.RecordsRestored Datensätze wiederhergestellt</li>
+                        <li>Dauer: @restoreResult?.Duration.TotalSeconds.ToString("F1")s</li>
+                    </ul>
+                </div>
+      
+                <div class="alert alert-warning mt-3">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>@T.DbRestore_Important</strong>
+                </div>
+        
+                <div class="spinner-border text-primary mt-3"></div>
+                <p class="text-muted mt-2">@T.DbRestore_LoggingOut</p>
+            </div>
+        </div>
+    }
+    else if (showConfirmation)
+    {
+        <!-- CONFIRMATION -->
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Wiederherstellung Bestätigen
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h6 class="text-danger">@T.DbRestore_CurrentDb</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>@T.DbRestore_Provider</strong> @currentDbInfo.Provider</li>
+                            <li><strong>@T.DbRestore_Products</strong> @currentDbInfo.ProductCount</li>
+                            <li><strong>@T.DbRestore_Categories</strong> @currentDbInfo.CategoryCount</li>
+                            <li><strong>@T.DbRestore_Users</strong> @currentDbInfo.UserCount</li>
+                            <li><strong>@T.DbRestore_Warehouses</strong> @currentDbInfo.WarehouseCount</li>
+                            <li><strong>Größe:</strong> @FormatBytes(currentDbInfo.SizeBytes)</li>
+                        </ul>
+                    </div>
+            
+                    <div class="col-md-6">
+                        <h6 class="text-success">@T.DbRestore_BackupDb</h6>
+                        @if (backupInfo != null)
+                        {
+                            <ul class="list-unstyled">
+                                <li><strong>@T.DbRestore_File</strong> @selectedFile?.Name</li>
+                                <li><strong>@T.DbRestore_Provider</strong> @backupInfo.Provider</li>
+                                <li><strong>@T.DbRestore_Products</strong> @backupInfo.ProductCount</li>
+                                <li><strong>@T.DbRestore_Categories</strong> @backupInfo.CategoryCount</li>
+                                <li><strong>@T.DbRestore_Users</strong> @backupInfo.UserCount</li>
+                                <li><strong>@T.DbRestore_Warehouses</strong> @backupInfo.WarehouseCount</li>
+                                <li><strong>@T.DbRestore_Created</strong> @backupInfo.CreatedAt.ToString("dd.MM.yyyy HH:mm")</li>
+                            </ul>
+                        }
+                    </div>
+                </div>
+
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="confirmCheckbox" @bind="confirmUnderstood" />
+                    <label class="form-check-label fw-bold" for="confirmCheckbox">
+                        Ich verstehe, dass alle aktuellen Daten unwiderruflich überschrieben werden.
+                    </label>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2">
+                    <button class="btn btn-secondary" @onclick="CancelRestore">
+                        <i class="bi bi-x me-1"></i>
+                        Abbrechen
+                    </button>
+                    <button class="btn btn-danger" @onclick="StartRestore" disabled="@(!confirmUnderstood)">
+                        <i class="bi bi-arrow-clockwise me-1"></i>
+                        Jetzt Wiederherstellen
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+    else if (isRestoring)
+    {
+        <!-- PROGRESS -->
+        <div class="card">
+            <div class="card-body">
+                <h5 class="mb-4">@T.DbRestore_Running</h5>
+    
+                <div class="progress mb-3 restore-progress-bar">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated"
+                         role="progressbar"
+                         style="width: @(restoreProgress?.Percentage ?? 0)%">
+                        @(restoreProgress?.Percentage ?? 0)%
+
+
+         
+                    </div>
+                </div>
+        
+                <div class="text-center">
+                    <h6 class="text-muted">@restoreProgress?.CurrentStep</h6>
+                    <p class="small">Schritt @((int)(restoreProgress?.Step ?? 0) + 1) von 8</p>
+                </div>
+
+                @if (!string.IsNullOrEmpty(restoreProgress?.CurrentStep))
+                {
+                    <div class="alert alert-info mt-3">
+                        <small>
+                            <strong>@T.DbRestore_CurrentStep</strong><br />
+                            @restoreProgress.CurrentStep
+                        </small>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- UPLOAD -->
+        <div class="row">
+            <div class="col-lg-8 mx-auto">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-cloud-upload me-2"></i>
+                            @T.DbRestore_UploadTitle
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Current DB Info -->
+                        <div class="alert alert-secondary">
+                            <h6>@T.DbRestore_CurrentDbLabel</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <small>
+                                        <strong>@T.DbRestore_Provider</strong> @currentDbInfo.Provider<br />
+                                        <strong>@T.DbRestore_Products</strong> @currentDbInfo.ProductCount<br />
+                                        <strong>@T.DbRestore_Categories</strong> @currentDbInfo.CategoryCount
+                                    </small>
+                                </div>
+                                <div class="col-md-6">
+                                    <small>
+                                        <strong>@T.DbRestore_Users</strong> @currentDbInfo.UserCount<br />
+                                        <strong>@T.DbRestore_Warehouses</strong> @currentDbInfo.WarehouseCount<br />
+                                        <strong>Größe:</strong> @FormatBytes(currentDbInfo.SizeBytes)
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- File Upload -->
+                        @if (selectedFile == null)
+                        {
+                            <div class="upload-area @(isDragOver ? "drag-over" : "")"
+                                 @ondragover="HandleDragOver"
+                                 @ondragover:preventDefault
+                                 @ondragleave="HandleDragLeave"
+                                 @ondrop="HandleDrop"
+                                 @ondrop:preventDefault>
+                                <i class="bi bi-cloud-upload upload-icon"></i>
+                                <h4>@T.DbRestore_UploadTitle</h4>
+                                <p class="text-muted">@T.DbRestore_UploadHint</p>
+                                <InputFile OnChange="HandleFileSelected" accept=".zip" class="d-none" id="fileInput" />
+                                <label for="fileInput" class="btn btn-primary">
+                                    <i class="bi bi-folder2-open me-1"></i>
+                                    Datei auswählen
+                                </label>
+                            </div>
+                        }
+                        else
+                        {
+                            <!-- File Selected -->
+                            <div class="file-preview">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-file-zip fs-1 text-primary me-3"></i>
+                                        <div>
+                                            <h6 class="mb-0">@selectedFile.Name</h6>
+                                            <small class="text-muted">@FormatBytes(selectedFile.Size)</small>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="ClearFile">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Encryption Check -->
+                            @if (isCheckingEncryption)
+                            {
+                                <div class="text-center my-3">
+                                    <div class="spinner-border spinner-border-sm me-2"></div>
+                                    <span>@T.DbRestore_CheckingEncryption</span>
+                                </div>
+                            }
+                            else if (isEncrypted)
+                            {
+                                <div class="alert alert-warning mt-3">
+                                    <i class="bi bi-lock-fill me-2"></i>
+                                    <strong>@T.DbRestore_EncryptedBackup</strong>
+                                </div>
+          
+                                <div class="form-group">
+                                    <label class="form-label">@T.DbRestore_EnterPassword</label>
+                                    <input type="password" class="form-control" @bind="password" placeholder="••••••••" />
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-success mt-3">
+                                    <i class="bi bi-check-circle me-2"></i>
+                                    Backup ist nicht verschlüsselt
+                                </div>
+                            }
+
+                            <!-- Error Message -->
+                            @if (!string.IsNullOrEmpty(errorMessage))
+                            {
+                                <div class="alert alert-danger mt-3">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                    @errorMessage
+                                </div>
+                            }
+
+                            <!-- Action Buttons -->
+                            <div class="d-flex justify-content-end gap-2 mt-4">
+                                <button class="btn btn-secondary" @onclick="ClearFile">
+                                    <i class="bi bi-x me-1"></i>
+                                    Abbrechen
+                                </button>
+                                <button class="btn btn-danger"
+                                        @onclick="ValidateAndShowConfirmation"
+                                        disabled="@(isCheckingEncryption || (isEncrypted && string.IsNullOrEmpty(password)))">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>
+                                    Weiter zur Bestätigung
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+
+@code {
+    private DatabaseInfo? currentDbInfo;
+    private RestoreBackupInfo? backupInfo;
+    private RestoreResult? restoreResult;
+    
+    private IBrowserFile? selectedFile;
+    private MemoryStream? uploadedFileStream; // Cached Stream
+    private bool isEncrypted = false;
+    private bool isCheckingEncryption = false;
+    private string? password;
+    private string? errorMessage;
+    
+    private bool isDragOver = false;
+    private bool showConfirmation = false;
+    private bool confirmUnderstood = false;
+    private bool isRestoring = false;
+    private bool restoreComplete = false;
+    private RestoreProgress? restoreProgress;
+
+    private LagersystemLVHome.I18nText.App T = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+        try
+        {
+            currentDbInfo = await RestoreService.GetCurrentDatabaseInfoAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not load database info");
+            errorMessage = "Fehler beim Laden der Datenbank-Informationen";
+        }
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        errorMessage = null;
+        
+        // Copy stream to memory immediately
+        await CopyFileToMemoryAsync();
+        
+        await CheckEncryption();
+    }
+
+    // Copy browser file stream to memory stream
+    private async Task CopyFileToMemoryAsync()
+    {
+        if (selectedFile == null) return;
+
+        try
+        {
+            // Dispose old stream if present
+            uploadedFileStream?.Dispose();
+            uploadedFileStream = null;
+
+            // Copy browser file stream to memory stream
+            uploadedFileStream = new MemoryStream();
+            using var browserStream = selectedFile.OpenReadStream(maxAllowedSize: 500_000_000); // 500 MB max
+            await browserStream.CopyToAsync(uploadedFileStream);
+            uploadedFileStream.Position = 0; // Reset for reuse
+ 
+            Logger.LogInformation("File uploaded to memory: {Size} bytes", uploadedFileStream.Length);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error copying file to memory");
+            errorMessage = $"Fehler beim Hochladen: {ex.Message}";
+            uploadedFileStream?.Dispose();
+            uploadedFileStream = null;
+        }
+    }
+
+    private void HandleDragOver()
+    {
+        isDragOver = true;
+    }
+
+    private void HandleDragLeave()
+    {
+        isDragOver = false;
+    }
+
+    private async Task HandleDrop(DragEventArgs e)
+    {
+        isDragOver = false;
+        // File handling is done via InputFileChangeEventArgs
+    }
+
+    private async Task CheckEncryption()
+    {
+        if (uploadedFileStream == null) return;
+
+        isCheckingEncryption = true;
+        errorMessage = null;
+
+        try
+        {
+            // Use cached memory stream
+            uploadedFileStream.Position = 0; // Reset
+            isEncrypted = await RestoreService.IsBackupEncryptedAsync(uploadedFileStream);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error checking encryption");
+            errorMessage = string.Format(T.DatabaseRestore_EncryptError ?? "Fehler beim Prüfen der Verschlüsselung: {0}", ex.Message);
+        }
+        finally
+        {
+            isCheckingEncryption = false;
+        }
+    }
+
+    private async Task ValidateAndShowConfirmation()
+    {
+        if (uploadedFileStream == null) return;
+
+        errorMessage = null;
+
+        try
+        {
+            // Use cached memory stream
+            uploadedFileStream.Position = 0; // Reset
+            var validation = await RestoreService.ValidateBackupAsync(uploadedFileStream);
+
+            if (!validation.IsValid)
+            {
+                errorMessage = validation.ErrorMessage;
+                return;
+            }
+
+            // Load backup info
+            uploadedFileStream.Position = 0; // Reset
+            backupInfo = await RestoreService.GetBackupInfoAsync(uploadedFileStream, password);
+
+            // Show confirmation
+            showConfirmation = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Validation failed");
+            errorMessage = $"Validierung fehlgeschlagen: {ex.Message}";
+        }
+    }
+
+    private async Task StartRestore()
+    {
+        if (uploadedFileStream == null) return;
+
+        isRestoring = true;
+        showConfirmation = false;
+        errorMessage = null;
+
+        try
+        {
+            // Use cached memory stream
+            uploadedFileStream.Position = 0; // Reset
+
+            var progress = new Progress<RestoreProgress>(p =>
+                    {
+                        restoreProgress = p;
+                        InvokeAsync(StateHasChanged);
+                    });
+
+            restoreResult = await RestoreService.RestoreFromBackupAsync(uploadedFileStream, password, progress);
+
+            if (restoreResult.Success)
+            {
+                restoreComplete = true;
+      
+                // Auto logout after 2 seconds
+                await Task.Delay(2000);
+                Navigation.NavigateTo("/logout", forceLoad: true);
+            }
+            else
+            {
+                errorMessage = restoreResult.ErrorMessage;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Restore failed");
+            errorMessage = $"Wiederherstellung fehlgeschlagen: {ex.Message}";
+        }
+        finally
+        {
+            isRestoring = false;
+        }
+    }
+
+    private void CancelRestore()
+    {
+        showConfirmation = false;
+        confirmUnderstood = false;
+    }
+
+    private void ClearFile()
+    {
+        selectedFile = null;
+        // Dispose memory stream
+        uploadedFileStream?.Dispose();
+        uploadedFileStream = null;
+        isEncrypted = false;
+        password = null;
+        errorMessage = null;
+        showConfirmation = false;
+        confirmUnderstood = false;
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/admin/backup");
+    }
+
+    private void ReloadPage()
+    {
+        Navigation.NavigateTo("/", forceLoad: true);
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        double len = bytes;
+        int order = 0;
+   
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len /= 1024;
+        }
+
+        return $"{len:0.##} {sizes[order]}";
+    }
+
+    // Cleanup on component dispose
+    public void Dispose()
+    {
+        uploadedFileStream?.Dispose();
+    }
+}

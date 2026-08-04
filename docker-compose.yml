@@ -1,0 +1,50 @@
+# Local development compose stack: app + PostgreSQL.
+# Use `docker compose up --build`. Adjust env vars before running in production.
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lagersystem
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme-local-only}
+      POSTGRES_DB: lagersystem
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lagersystem -d lagersystem"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "5000"
+      DatabaseSettings__Provider: PostgreSQL
+      DatabaseSettings__ConnectionString: "Host=db;Port=5432;Database=lagersystem;Username=lagersystem;Password=${POSTGRES_PASSWORD:-changeme-local-only}"
+    ports:
+      - "5000:5000"
+    volumes:
+      - app-keys:/app/keys
+      - app-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+volumes:
+  db-data:
+  app-keys:
+  app-data:

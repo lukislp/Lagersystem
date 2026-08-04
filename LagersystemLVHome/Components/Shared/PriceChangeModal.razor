@@ -1,0 +1,218 @@
+@using LagersystemLVHome.Domain.Models
+@inject IPriceHistoryService PriceHistoryService
+@inject IAuthService _authService
+@inject ILogger<PriceChangeModal> Logger
+@inject I18nText I18nText
+
+@if (IsVisible)
+{
+    <div class="modal-backdrop" @onclick="CloseModal">
+        <div class="modal-content price-modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="bi bi-tag"></i>
+                    @(IsNewProduct ? T.PriceModal_SetPrice : T.PriceModal_ChangePrice)
+                </h3>
+                <button class="modal-close" @onclick="CloseModal">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                @if (!IsNewProduct && CurrentPrice.HasValue)
+                {
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>@T.PriceModal_CurrentPrice</strong> @CurrentPrice.Value.ToString("C")
+                    </div>
+                }
+
+                <div class="form-group">
+                    <label class="form-label">
+                        @(IsNewProduct ? T.PriceModal_PriceRequired : T.PriceModal_NewPrice)
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text">€</span>
+                        <input type="number"
+                               class="form-control @(newPrice <= 0 ? "is-invalid" : "")"
+                               @bind="newPrice"
+                               @bind:event="oninput"
+                               step="0.01"
+                               min="0.01"
+                               placeholder="0,00"
+                               autofocus />
+                    </div>
+                    @if (newPrice <= 0)
+                    {
+                        <small class="text-danger">
+                            <i class="bi bi-exclamation-circle"></i> @T.PriceModal_PriceMustBePositive
+                        </small>
+                    }
+                </div>
+
+                @if (!IsNewProduct && CurrentPrice.HasValue && newPrice > 0)
+                {
+                    var change = newPrice - CurrentPrice.Value;
+                    var changePercent = (change / CurrentPrice.Value) * 100;
+ 
+                    <div class="price-change-preview @(change >= 0 ? "price-up" : "price-down")">
+                        <div class="change-icon">
+                            <i class="bi bi-@(change >= 0 ? "arrow-up" : "arrow-down")-circle"></i>
+                        </div>
+                        <div class="change-details">
+                            <div class="change-amount">@change.ToString("+0.00;-0.00") €</div>
+                            <div class="change-percent">@changePercent.ToString("+0.0;-0.0")%</div>
+                        </div>
+                    </div>
+                }
+
+                @if (!IsNewProduct)
+                {
+                    <div class="form-group">
+                        <label class="form-label">@T.PriceModal_Reason</label>
+                        <select class="form-select" @bind="selectedReason">
+                            <option value="">@T.PriceModal_Reason_Select</option>
+                            <option value="Marktpreis">@T.PriceModal_Reason_Market</option>
+                            <option value="Aktion">@T.PriceModal_Reason_Sale</option>
+                            <option value="Einkaufspreis">@T.PriceModal_Reason_Purchase</option>
+                            <option value="Wettbewerb">@T.PriceModal_Reason_Competition</option>
+                            <option value="Sonstiges">@T.PriceModal_Reason_Other</option>
+                        </select>
+                    </div>
+
+                    @if (selectedReason == "Sonstiges")
+                    {
+                        <div class="form-group">
+                            <label class="form-label">@T.PriceModal_Reason_Please</label>
+                            <input type="text"
+                                   class="form-control"
+                                   @bind="customReason"
+                                   placeholder="@T.PriceModal_Reason_Placeholder" />
+                        </div>
+                    }
+
+                    <div class="form-group">
+                        <label class="form-label">@T.PriceModal_Notes</label>
+                        <textarea class="form-control"
+                                  @bind="notes"
+                                  rows="2"
+                                  placeholder="@T.PriceModal_Notes_Placeholder"></textarea>
+                    </div>
+                }
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseModal">
+                    @T.PriceModal_Cancel
+                </button>
+                <button class="btn btn-primary"
+                        @onclick="SavePrice"
+                        disabled="@(newPrice <= 0 || isSaving)">
+                    @if (isSaving)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                    }
+                    <i class="bi bi-check"></i>
+                    @(IsNewProduct ? T.PriceModal_Save : T.PriceModal_Change)
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public bool IsNewProduct { get; set; }
+    [Parameter] public int? ProductId { get; set; }
+    [Parameter] public decimal? CurrentPrice { get; set; }
+    [Parameter] public EventCallback<decimal> OnPriceChanged { get; set; }
+    [Parameter] public EventCallback OnClosed { get; set; }
+
+    private decimal newPrice = 0;
+    private string selectedReason = string.Empty;
+    private string customReason = string.Empty;
+    private string notes = string.Empty;
+    private bool isSaving = false;
+
+    private LagersystemLVHome.I18nText.App T = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (IsVisible && CurrentPrice.HasValue && newPrice == 0)
+        {
+            newPrice = CurrentPrice.Value;
+        }
+    }
+
+    private async Task SavePrice()
+    {
+        if (newPrice <= 0)
+        {
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            if (!IsNewProduct && ProductId.HasValue && CurrentPrice.HasValue)
+            {
+                // Price change for an existing product
+                var reason = selectedReason == "Sonstiges" && !string.IsNullOrWhiteSpace(customReason)
+                ? customReason
+        : selectedReason;
+
+                var reasonText = string.IsNullOrWhiteSpace(reason)
+                        ? T.PriceModal_ChangeViaScanner
+                        : reason;
+
+                var currentUser = await _authService.GetCurrentUserAsync();
+
+                await PriceHistoryService.UpdatePriceAutomaticAsync(
+                ProductId.Value,
+            currentUser?.WarehouseId ?? 1,
+            CurrentPrice.Value,
+                    newPrice,
+                    "EUR",
+                        currentUser?.Username
+                );
+
+                Logger.LogInformation("Price changed for product {ProductId}: {OldPrice} → {NewPrice}",
+                ProductId, CurrentPrice, newPrice);
+            }
+
+            // Callback with the new price
+            await OnPriceChanged.InvokeAsync(newPrice);
+            await CloseModal();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving price");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task CloseModal()
+    {
+        IsVisible = false;
+        ResetForm();
+        await OnClosed.InvokeAsync();
+    }
+
+    private void ResetForm()
+    {
+        newPrice = 0;
+        selectedReason = string.Empty;
+        customReason = string.Empty;
+        notes = string.Empty;
+    }
+}

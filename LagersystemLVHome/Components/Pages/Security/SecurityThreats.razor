@@ -1,0 +1,687 @@
+@page "/admin/security-threats"
+@using LagersystemLVHome.Application.Services
+@using LagersystemLVHome.Infrastructure.ML.Services
+@using LagersystemLVHome.Data
+@using LagersystemLVHome.Domain.Models
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "SuperAdmin")]
+@inject IRateLimitService RateLimitService
+@inject ISecurityAlertService SecurityAlertService
+@inject ISecurityRiskService SecurityRiskService
+@inject IAdminQueryService AdminQueryService
+@inject ILogger<SecurityThreats> Logger
+@rendermode InteractiveServer
+@implements IDisposable
+@inject I18nText I18nText
+
+<PageTitle>@T.SecurityThreats_Title - LagerSystem</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">
+                <i class="bi bi-shield-exclamation text-danger me-2"></i>
+                Security Threat Dashboard
+                <!-- Live indicator -->
+                <span class="badge bg-success ms-2 pulse-badge">
+                    <i class="bi bi-broadcast me-1"></i>
+                    LIVE (Auto-Refresh: 5s)
+                </span>
+            </h1>
+            <p class="text-muted mb-0">
+                @(T.SecurityThreats_Subtitle ?? "Echtzeit-Überwachung von Sicherheitsbedrohungen")
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" @onclick="RefreshData" disabled="@loading">
+                <i class="bi bi-arrow-clockwise me-2"></i>
+                @(T.SecurityThreats_Refresh ?? "Aktualisieren")
+            </button>
+            <a href="/admin/rate-limits" class="btn btn-outline-secondary">
+                <i class="bi bi-speedometer2 me-2"></i>
+                Rate Limit Dashboard
+            </a>
+        </div>
+    </div>
+
+    @if (loading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-muted">@T.SecurityThreats_Loading</p>
+        </div>
+    }
+    else
+    {
+        <!-- Global system risk score -->
+        <div class="row g-3 mb-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-1">
+                                    <i class="bi bi-shield-check me-2"></i>
+                                    Global System Risk
+                                </h5>
+                                <p class="text-muted mb-0">@T.SecurityThreats_OverallRisk</p>
+                            </div>
+                            <div class="text-end">
+                                <div class="risk-score @GetRiskScoreClass(globalRiskScore)">
+                                    @globalRiskScore.ToString("F0")
+                                </div>
+                                <div class="risk-level-badge mt-2">
+                                    <span class="badge @GetRiskBadgeClass(globalRiskScore)">
+                                        @GetRiskLevel(globalRiskScore)
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Threat Overview Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="threat-card @(burstDetection?.IsBurstAttack == true ? "threat-active" : "threat-safe")">
+                    <div class="threat-icon">
+                        <i class="bi bi-fire"></i>
+                    </div>
+                    <div class="threat-details">
+                        <h6>@T.SecurityThreats_BurstAttacks</h6>
+                        <div class="threat-status">
+                            @if (burstDetection?.IsBurstAttack == true)
+                            {
+                                <span class="badge bg-danger">@T.SecurityThreats_Active</span>
+                                <div class="mt-2">
+                                    <small>@burstDetection.RequestsInBurst Requests in @burstDetection.BurstDuration.TotalSeconds.ToString("F1")s</small>
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">@T.SecurityThreats_Safe</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="threat-card @(bruteForceDetection?.IsBruteForce == true ? "threat-active" : "threat-safe")">
+                    <div class="threat-icon">
+                        <i class="bi bi-shield-lock"></i>
+                    </div>
+                    <div class="threat-details">
+                        <h6>@T.SecurityThreats_BruteForce</h6>
+                        <div class="threat-status">
+                            @if (bruteForceDetection?.IsBruteForce == true)
+                            {
+                                <span class="badge bg-danger">@T.SecurityThreats_Active</span>
+                                <div class="mt-2">
+                                    <small>@bruteForceDetection.FailedAttempts fehlgeschlagene Versuche</small>
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">@T.SecurityThreats_Safe</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="threat-card @(ddosDetection?.IsDDoSPattern == true ? "threat-active" : "threat-safe")">
+                    <div class="threat-icon">
+                        <i class="bi bi-tsunami"></i>
+                    </div>
+                    <div class="threat-details">
+                        <h6>@T.SecurityThreats_DDoS</h6>
+                        <div class="threat-status">
+                            @if (ddosDetection?.IsDDoSPattern == true)
+                            {
+                                <span class="badge bg-danger">@T.SecurityThreats_Active</span>
+                                <div class="mt-2">
+                                    <small>@ddosDetection.UniqueIPsInvolved IPs, @ddosDetection.TotalRequests Requests</small>
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">@T.SecurityThreats_Safe</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="threat-card @(slowRateDetection?.IsSlowRateAttack == true ? "threat-active" : "threat-safe")">
+                    <div class="threat-icon">
+                        <i class="bi bi-hourglass-split"></i>
+                    </div>
+                    <div class="threat-details">
+                        <h6>@T.SecurityThreats_SlowRate</h6>
+                        <div class="threat-status">
+                            @if (slowRateDetection?.IsSlowRateAttack == true)
+                            {
+                                <span class="badge bg-warning">@T.SecurityThreats_Active</span>
+                                <div class="mt-2">
+                                    <small>@string.Format(T.SecurityThreats_SuspiciousIPs_Count ?? "{0} verdächtige IPs", slowRateDetection.SuspiciousPatternCount)</small>
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">@T.SecurityThreats_Safe</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Threats Details -->
+        @if (HasActiveThreats())
+        {
+            <div class="alert alert-danger mb-4">
+                <h5 class="alert-heading">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    @(T.SecurityThreats_ActiveThreatsAlert ?? "Aktive Bedrohungen erkannt!")
+                </h5>
+                <p class="mb-0">@string.Format(T.SecurityThreats_ActiveThreatsDesc ?? "Es wurden {0} aktive Bedrohung(en) erkannt. Überprüfen Sie die Details unten.", ActiveThreatCount)</p>
+            </div>
+
+            <!-- Burst Attack Details -->
+            @if (burstDetection?.IsBurstAttack == true)
+            {
+                <div class="threat-detail-card mb-4">
+                    <div class="threat-detail-header bg-danger text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-fire me-2"></i>
+                            @(T.SecurityThreats_BurstAttackHeader ?? "Burst Attack - Kritisch")
+                        </h5>
+                    </div>
+                    <div class="threat-detail-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <strong>@T.SecurityThreats_Attackers</strong><br>
+                                <code>@burstDetection.Identifier</code>
+                            </div>
+                            <div class="col-md-3">
+                                <strong>@T.SecurityThreats_Requests</strong><br>
+                                @burstDetection.RequestsInBurst in @burstDetection.BurstDuration.TotalSeconds.ToString("F1")s
+                            </div>
+                            <div class="col-md-3">
+                                <strong>@T.SecurityThreats_Rate</strong><br>
+                                @burstDetection.RequestsPerSecond.ToString("F1") req/s
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-sm btn-danger" @onclick="() => SendBurstAlert()">
+                                    <i class="bi bi-envelope me-1"></i>
+                                    @(T.SecurityThreats_SendAlert ?? "Alert senden")
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Brute-Force Details -->
+            @if (bruteForceDetection?.IsBruteForce == true)
+            {
+                <div class="threat-detail-card mb-4">
+                    <div class="threat-detail-header bg-warning text-dark">
+                        <h5 class="mb-0">
+                            <i class="bi bi-shield-lock me-2"></i>
+                            @(T.SecurityThreats_BruteForceHeader ?? "Brute-Force Attack - Hoch")
+                        </h5>
+                    </div>
+                    <div class="threat-detail-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <strong>@T.SecurityThreats_Attackers</strong><br>
+                                <code>@bruteForceDetection.Identifier</code>
+                            </div>
+                            <div class="col-md-3">
+                                <strong>@T.SecurityThreats_FailedAttempts</strong><br>
+                                @bruteForceDetection.FailedAttempts
+                            </div>
+                            <div class="col-md-3">
+                                <strong>@T.SecurityThreats_Period</strong><br>
+                                @bruteForceDetection.AttackDuration.TotalMinutes.ToString("F1") Minuten
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-sm btn-warning" @onclick="() => SendBruteForceAlert()">
+                                    <i class="bi bi-envelope me-1"></i>
+                                    @(T.SecurityThreats_SendAlert ?? "Alert senden")
+                                </button>
+                            </div>
+                        </div>
+                        @if (bruteForceDetection.TargetedEndpoints.Any())
+                        {
+                            <div class="mt-3">
+                                <strong>@T.SecurityThreats_TargetEndpoints</strong>
+                                <div class="d-flex gap-2 flex-wrap mt-2">
+                                    @foreach (var endpoint in bruteForceDetection.TargetedEndpoints)
+                                    {
+                                        <span class="badge bg-secondary">@endpoint</span>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- DDoS Details -->
+            @if (ddosDetection?.IsDDoSPattern == true)
+            {
+                <div class="threat-detail-card mb-4">
+                    <div class="threat-detail-header bg-danger text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-tsunami me-2"></i>
+                            @(T.SecurityThreats_DDoSHeader ?? "DDoS Pattern - Kritisch")
+                        </h5>
+                    </div>
+                    <div class="threat-detail-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <strong>@T.SecurityThreats_UniqueIPs</strong><br>
+                                @ddosDetection.UniqueIPsInvolved
+                            </div>
+                            <div class="col-md-3">
+                                <strong>@T.SecurityThreats_TotalRequests</strong><br>
+                                @ddosDetection.TotalRequests
+                            </div>
+                            <div class="col-md-3">
+                                <strong>@T.SecurityThreats_RequestsPerIP</strong><br>
+                                @ddosDetection.AverageRequestsPerIP.ToString("F1")
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-sm btn-danger" @onclick="() => SendDDoSAlert()">
+                                    <i class="bi bi-envelope me-1"></i>
+                                    @(T.SecurityThreats_SendAlert ?? "Alert senden")
+                                </button>
+                            </div>
+                        </div>
+                        @if (ddosDetection.SuspiciousIPs.Any())
+                        {
+                            <div class="mt-3">
+                                <strong>@T.SecurityThreats_TopOffenders</strong>
+                                <div class="d-flex gap-2 flex-wrap mt-2">
+                                    @foreach (var ip in ddosDetection.SuspiciousIPs.Take(10))
+                                    {
+                                        <span class="badge bg-dark">@ip</span>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- Slow-Rate Details -->
+            @if (slowRateDetection?.IsSlowRateAttack == true)
+            {
+                <div class="threat-detail-card mb-4">
+                    <div class="threat-detail-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-hourglass-split me-2"></i>
+                            @(T.SecurityThreats_SlowRateHeader ?? "Slow-Rate Attack Pattern - Mittel")
+                        </h5>
+                    </div>
+                    <div class="threat-detail-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <strong>@T.SecurityThreats_SuspiciousIPs</strong><br>
+                                @slowRateDetection.SuspiciousPatternCount
+                            </div>
+                            <div class="col-md-3">
+                                <strong>@T.SecurityThreats_Pattern</strong><br>
+                                @(T.SecurityThreats_PatternConstant ?? "Konstante Aktivität über 24h")
+                            </div>
+                            <div class="col-md-3">
+                                <strong>@T.SecurityThreats_Status</strong><br>
+                                @(T.SecurityThreats_CoordinatedAttack ?? "Koordinierter Angriff möglich")
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-sm btn-info" @onclick="() => SendSlowRateAlert()">
+                                    <i class="bi bi-envelope me-1"></i>
+                                    @(T.SecurityThreats_SendAlert ?? "Alert senden")
+                                </button>
+                            </div>
+                        </div>
+                        @if (slowRateDetection.ConsistentOffenders.Any())
+                        {
+                            <div class="mt-3">
+                                <strong>@T.SecurityThreats_OffenderIPs</strong>
+                                <div class="d-flex gap-2 flex-wrap mt-2">
+                                    @foreach (var ip in slowRateDetection.ConsistentOffenders.Take(10))
+                                    {
+                                        <span class="badge bg-secondary">@ip</span>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="alert alert-success">
+                <h5 class="alert-heading">
+                    <i class="bi bi-shield-check me-2"></i>
+                    @(T.SecurityThreats_AllSafe ?? "Alle Systeme sicher")
+                </h5>
+                <p class="mb-0">@T.SecurityThreats_NoThreats</p>
+            </div>
+        }
+
+        <!-- SuperAdmin Info -->
+        <div class="card border-0 shadow-sm mt-4">
+            <div class="card-header bg-transparent">
+                <h5 class="mb-0">
+                    <i class="bi bi-info-circle text-primary me-2"></i>
+                    @(T.SecurityThreats_Notifications ?? "Benachrichtigungen")
+                </h5>
+            </div>
+            <div class="card-body">
+                @if (!string.IsNullOrEmpty(superAdminEmail))
+                {
+                    <p class="mb-2">
+                        <strong>SuperAdmin:</strong> @superAdminEmail
+                    </p>
+                    <p class="text-muted mb-0">
+                        <i class="bi bi-envelope me-1"></i>
+                        @(T.SecurityThreats_AlertsAutoSent ?? "Alerts werden automatisch per Email und Browser-Benachrichtigung gesendet.")
+                    </p>
+                }
+                else
+                {
+                    <div class="alert alert-warning mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        @(T.SecurityThreats_NoSuperAdmin ?? "Kein SuperAdmin gefunden. Benachrichtigungen können nicht gesendet werden.")
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+
+
+
+@code {
+    private bool loading = false; // only true on initial load
+    private bool isInitialLoad = true;
+    private string? superAdminEmail;
+    private double globalRiskScore = 0;
+    private System.Threading.Timer? _refreshTimer;
+    private bool _disposed = false;
+
+    // Previous values for change detection
+    private int _previousActiveThreats = 0;
+    private double _previousGlobalRisk = 0;
+    private bool _previousBurstActive = false;
+    private bool _previousBruteForceActive = false;
+    private bool _previousDDoSActive = false;
+    private bool _previousSlowRateActive = false;
+
+    private BurstAttackDetection? burstDetection;
+    private BruteForceDetection? bruteForceDetection;
+    private DDoSDetection? ddosDetection;
+    private SlowRateAttackDetection? slowRateDetection;
+
+    private LagersystemLVHome.I18nText.App T = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+        await LoadSuperAdmin();
+        await RefreshData();
+        StartAutoRefresh();
+    }
+
+    // Smart Auto-Refresh
+    private void StartAutoRefresh()
+    {
+        if (_disposed || _refreshTimer != null) return;
+    
+        _refreshTimer = new System.Threading.Timer(async _ =>
+            {
+                await InvokeAsync(async () =>
+        {
+            if (_disposed) return;
+            await RefreshDataSilent();
+        });
+            }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+    
+        Logger.LogInformation("Security Threats: Smart Auto-Refresh aktiviert (5s Intervall)");
+    }
+
+    // Silent refresh with change detection
+    private async Task RefreshDataSilent()
+    {
+        try
+        {
+            // Load fresh data
+            var newGlobalRisk = await SecurityRiskService.CalculateGlobalSystemRiskAsync();
+            var newDDoS = RateLimitService.DetectDDoS(TimeSpan.FromMinutes(5));
+            var newSlowRate = RateLimitService.DetectSlowRateAttack();
+   
+            var recentRequests = RateLimitService.GetRecentRequests(500);
+            BurstAttackDetection? newBurst = null;
+            BruteForceDetection? newBruteForce = null;
+            
+            if (recentRequests.Any())
+            {
+                var identifiers = recentRequests.Select(r => r.Identifier).Distinct().Take(10);
+            
+                foreach (var id in identifiers)
+                {
+                    var burst = RateLimitService.DetectBurstAttack(id);
+                    if (burst.IsBurstAttack)
+                    {
+                        newBurst = burst;
+                        break;
+                    }
+                }
+          
+                foreach (var id in identifiers)
+                {
+                    var brute = RateLimitService.DetectBruteForce(id);
+                    if (brute.IsBruteForce)
+                    {
+                        newBruteForce = brute;
+                        break;
+                    }
+                }
+            }
+         
+            // CHANGE DETECTION
+            var newActiveThreats =
+                        (newBurst?.IsBurstAttack == true ? 1 : 0) +
+            (newBruteForce?.IsBruteForce == true ? 1 : 0) +
+                (newDDoS?.IsDDoSPattern == true ? 1 : 0) +
+            (newSlowRate?.IsSlowRateAttack == true ? 1 : 0);
+   
+            if (newActiveThreats != _previousActiveThreats ||
+            Math.Abs(newGlobalRisk - _previousGlobalRisk) > 0.1 ||
+            (newBurst?.IsBurstAttack == true) != _previousBurstActive ||
+        (newBruteForce?.IsBruteForce == true) != _previousBruteForceActive ||
+        (newDDoS?.IsDDoSPattern == true) != _previousDDoSActive ||
+            (newSlowRate?.IsSlowRateAttack == true) != _previousSlowRateActive)
+            {
+                // Update data
+                globalRiskScore = newGlobalRisk;
+                burstDetection = newBurst;
+                bruteForceDetection = newBruteForce;
+                ddosDetection = newDDoS;
+                slowRateDetection = newSlowRate;
+            
+                // Update previous values
+                _previousActiveThreats = newActiveThreats;
+                _previousGlobalRisk = newGlobalRisk;
+                _previousBurstActive = newBurst?.IsBurstAttack == true;
+                _previousBruteForceActive = newBruteForce?.IsBruteForce == true;
+                _previousDDoSActive = newDDoS?.IsDDoSPattern == true;
+                _previousSlowRateActive = newSlowRate?.IsSlowRateAttack == true;
+     
+                Logger.LogInformation("Security Threats: Changes detected - Active: {Count}, Risk: {Risk:F0}",
+        newActiveThreats, newGlobalRisk);
+        
+                StateHasChanged();
+            }
+            else
+            {
+                Logger.LogDebug("✓ Security Threats: No changes - skipping UI update");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error in silent refresh (Security Threats)");
+        }
+    }
+
+    // Manual refresh (with spinner)
+    private async Task RefreshData()
+    {
+        if (isInitialLoad)
+        {
+            loading = true;
+            StateHasChanged();
+        }
+
+        try
+        {
+            await RefreshDataSilent();
+        }
+        finally
+        {
+            loading = false;
+            isInitialLoad = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadSuperAdmin()
+    {
+        try
+        {
+            superAdminEmail = await AdminQueryService.GetSuperAdminEmailAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load SuperAdmin");
+            superAdminEmail = null;
+        }
+    }
+
+    // Helper Methods
+    private string GetRiskScoreClass(double score)
+    {
+        return score switch
+        {
+            >= 75 => "risk-critical",
+            >= 50 => "risk-high",
+            >= 25 => "risk-medium",
+            _ => "risk-low"
+        };
+    }
+
+    private string GetRiskBadgeClass(double score)
+    {
+        return score switch
+        {
+            >= 75 => "bg-danger",
+            >= 50 => "bg-warning",
+            >= 25 => "bg-info",
+            _ => "bg-success"
+        };
+    }
+
+    private string GetRiskLevel(double score)
+    {
+        return score switch
+        {
+            >= 75 => "🔴 CRITICAL",
+            >= 50 => "🟠 HIGH",
+            >= 25 => "🟡 MEDIUM",
+            _ => "SICHER"
+        };
+    }
+
+    private bool HasActiveThreats()
+    {
+        return (burstDetection?.IsBurstAttack == true) ||
+                (bruteForceDetection?.IsBruteForce == true) ||
+        (ddosDetection?.IsDDoSPattern == true) ||
+                (slowRateDetection?.IsSlowRateAttack == true);
+    }
+
+    private int ActiveThreatCount
+    {
+        get
+        {
+            int count = 0;
+            if (burstDetection?.IsBurstAttack == true) count++;
+            if (bruteForceDetection?.IsBruteForce == true) count++;
+            if (ddosDetection?.IsDDoSPattern == true) count++;
+            if (slowRateDetection?.IsSlowRateAttack == true) count++;
+            return count;
+        }
+    }
+
+    private async Task SendBurstAlert()
+    {
+        if (burstDetection != null)
+        {
+            await SecurityAlertService.SendBurstAttackAlertAsync(burstDetection);
+            Logger.LogInformation("Burst attack alert sent manually");
+        }
+    }
+
+    private async Task SendBruteForceAlert()
+    {
+        if (bruteForceDetection != null)
+        {
+            await SecurityAlertService.SendBruteForceAlertAsync(bruteForceDetection);
+            Logger.LogInformation("Brute-force alert sent manually");
+        }
+    }
+
+    private async Task SendDDoSAlert()
+    {
+        if (ddosDetection != null)
+        {
+            await SecurityAlertService.SendDDoSAlertAsync(ddosDetection);
+            Logger.LogInformation("DDoS alert sent manually");
+        }
+    }
+
+    private async Task SendSlowRateAlert()
+    {
+        if (slowRateDetection != null)
+        {
+            await SecurityAlertService.SendSlowRateAlertAsync(slowRateDetection);
+            Logger.LogInformation("Slow-rate alert sent manually");
+        }
+    }
+
+    // Dispose
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        
+        _refreshTimer?.Dispose();
+        _refreshTimer = null;
+        
+        Logger.LogInformation("Security Threats: Auto-refresh disabled");
+    }
+}

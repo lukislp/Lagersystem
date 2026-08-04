@@ -1,0 +1,285 @@
+@page "/admin"
+@inherits CancellableComponentBase
+@using LagersystemLVHome.Data
+@using LagersystemLVHome.Domain.Models
+@using Microsoft.EntityFrameworkCore
+@rendermode InteractiveServer
+@inject IAuthService AuthService
+@inject IAdminQueryService AdminQueryService
+@inject NavigationManager NavigationManager
+@inject I18nText I18nText
+
+<PageTitle>@T.Admin_PageTitle</PageTitle>
+
+<div class="page-header">
+    <h1 class="page-title">@T.Admin_Title</h1>
+    <p class="page-subtitle">@T.Admin_Subtitle</p>
+</div>
+
+@if (currentUser == null)
+{
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        @T.Admin_NotAdmin
+    </div>
+}
+else
+{
+    <div class="row g-4">
+        <!-- System Stats -->
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon text-primary">
+                    <i class="bi bi-people"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>@T.Admin_Stats_Users</h3>
+                    <p class="stat-value">@stats.TotalUsers</p>
+                    @if (stats.PendingUsers > 0)
+                    {
+                        <span class="badge bg-warning">@(T.Admin_Stats_Pending != null ? string.Format(T.Admin_Stats_Pending, stats.PendingUsers) : "")</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon text-success">
+                    <i class="bi bi-building"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>@T.Admin_Stats_Warehouses</h3>
+                    <p class="stat-value">@stats.TotalWarehouses</p>
+                    <small class="text-muted">@(T.Admin_Stats_Active != null ? string.Format(T.Admin_Stats_Active, stats.ActiveWarehouses) : "")</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon text-info">
+                    <i class="bi bi-box-seam"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>@T.Admin_Stats_Products</h3>
+                    <p class="stat-value">@stats.TotalProducts</p>
+                    <small class="text-muted">@T.Admin_Stats_AllWarehouses</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon text-warning">
+                    <i class="bi bi-arrow-left-right"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>@T.Admin_Stats_Movements</h3>
+                    <p class="stat-value">@stats.TotalMovements</p>
+                    <small class="text-muted">@T.Admin_Stats_Total</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="row g-4 mt-4">
+        <div class="col-12">
+            <h2 class="mb-3">@T.Admin_QuickLinks</h2>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <a href="/admin/users" class="quick-link-card">
+                <div class="quick-link-icon">
+                    <i class="bi bi-people"></i>
+                </div>
+                <div class="quick-link-content">
+                    <h4>@T.Admin_Link_Users</h4>
+                    <p>@T.Admin_Link_Users_Desc</p>
+                    @if (stats.PendingUsers > 0)
+                    {
+                        <span class="badge bg-warning">@(T.Admin_Stats_Pending != null ? string.Format(T.Admin_Stats_Pending, stats.PendingUsers) : "")</span>
+                    }
+                </div>
+                <div class="quick-link-arrow">
+                    <i class="bi bi-arrow-right"></i>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <a href="/admin/warehouses" class="quick-link-card">
+                <div class="quick-link-icon">
+                    <i class="bi bi-building"></i>
+                </div>
+                <div class="quick-link-content">
+                    <h4>@T.Admin_Link_Warehouses</h4>
+                    <p>@T.Admin_Link_Warehouses_Desc</p>
+                </div>
+                <div class="quick-link-arrow">
+                    <i class="bi bi-arrow-right"></i>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <a href="/categories" class="quick-link-card">
+                <div class="quick-link-icon">
+                    <i class="bi bi-tags"></i>
+                </div>
+                <div class="quick-link-content">
+                    <h4>@T.Admin_Link_Categories</h4>
+                    <p>@T.Admin_Link_Categories_Desc</p>
+                </div>
+                <div class="quick-link-arrow">
+                    <i class="bi bi-arrow-right"></i>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <a href="/storage-overview" class="quick-link-card">
+                <div class="quick-link-icon">
+                    <i class="bi bi-geo-alt"></i>
+                </div>
+                <div class="quick-link-content">
+                    <h4>@T.Admin_Link_Storage</h4>
+                    <p>@T.Admin_Link_Storage_Desc</p>
+                </div>
+                <div class="quick-link-arrow">
+                    <i class="bi bi-arrow-right"></i>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <a href="/products" class="quick-link-card">
+                <div class="quick-link-icon">
+                    <i class="bi bi-box"></i>
+                </div>
+                <div class="quick-link-content">
+                    <h4>@T.Admin_Link_Products</h4>
+                    <p>@T.Admin_Link_Products_Desc</p>
+                </div>
+                <div class="quick-link-arrow">
+                    <i class="bi bi-arrow-right"></i>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <a href="/movements" class="quick-link-card">
+                <div class="quick-link-icon">
+                    <i class="bi bi-clock-history"></i>
+                </div>
+                <div class="quick-link-content">
+                    <h4>@T.Admin_Link_Movements</h4>
+                    <p>@T.Admin_Link_Movements_Desc</p>
+                </div>
+                <div class="quick-link-arrow">
+                    <i class="bi bi-arrow-right"></i>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- System Information -->
+    <div class="row g-4 mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">@T.Admin_SysInfo</h3>
+                </div>
+                <div class="card-body">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">@T.Admin_SysInfo_LoggedIn</span>
+                            <span class="info-value">@currentUser.DisplayName (@currentUser.Username)</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">@T.Admin_SysInfo_Role</span>
+                            <span class="info-value">
+                                <span class="badge bg-@GetRoleBadgeClass(currentUser.Role)">
+                                    @GetRoleDisplayName(currentUser.Role)
+                                </span>
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">@T.Admin_SysInfo_Warehouse</span>
+                            <span class="info-value">@currentUser.Warehouse?.Name (@currentUser.Warehouse?.Code)</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">@T.Admin_SysInfo_Version</span>
+                            <span class="info-value">LagerSystem v1.0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+@code {
+    private LagersystemLVHome.I18nText.App T = new();
+    private User? currentUser;
+    private AdminStats stats = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+        currentUser = await AuthService.GetCurrentUserAsync();
+
+        if (currentUser?.Role < UserRole.Admin)
+        {
+            NavigationManager.NavigateTo("/");
+            return;
+        }
+
+        await LoadStats();
+    }
+
+    private async Task LoadStats()
+    {
+        var warehouseId = currentUser?.WarehouseId ?? 0;
+        var dashboard = await AdminQueryService.GetDashboardStatsAsync(warehouseId);
+
+        stats.TotalUsers = dashboard.TotalUsers;
+        stats.PendingUsers = dashboard.PendingUsers;
+        stats.TotalWarehouses = dashboard.TotalWarehouses;
+        stats.ActiveWarehouses = dashboard.ActiveWarehouses;
+        stats.TotalProducts = dashboard.TotalProducts;
+        stats.TotalMovements = dashboard.TotalMovements;
+    }
+
+    private string GetRoleBadgeClass(UserRole role)
+    {
+        return role switch
+        {
+            UserRole.SuperAdmin => "danger",
+            UserRole.Admin => "warning",
+            UserRole.Manager => "info",
+            _ => "secondary"
+        };
+    }
+
+    private string GetRoleDisplayName(UserRole role)
+    {
+        return role switch
+        {
+            UserRole.SuperAdmin => "Super Admin",
+            UserRole.Admin => "Administrator",
+            UserRole.Manager => "Manager",
+            _ => "Benutzer"
+        };
+    }
+
+    private class AdminStats
+    {
+        public int TotalUsers { get; set; }
+        public int PendingUsers { get; set; }
+        public int TotalWarehouses { get; set; }
+        public int ActiveWarehouses { get; set; }
+        public int TotalProducts { get; set; }
+        public int TotalMovements { get; set; }
+    }
+}

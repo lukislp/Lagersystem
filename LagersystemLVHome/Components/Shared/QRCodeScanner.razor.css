@@ -1,0 +1,122 @@
+.qrcode-scanner-container {
+  width: 100%;
+}
+
+.qr-scanner-viewport {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  border-radius: 8px;
+  border: 2px solid #198754;
+  overflow: hidden;
+  background: #000;
+}
+
+.qr-reader {
+  width: 100% !important;
+  border: none !important;
+}
+
+  .qr-reader video {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 500px !important;
+    display: block !important;
+  }
+
+/* QR-Code Overlay */
+.qr-scan-overlay {
+  position: absolute;
+  top: 20%;
+  left: 15%;
+  right: 15%;
+  bottom: 20%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.qr-corner {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border: 4px solid #00ff00;
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.6);
+}
+
+  .qr-corner.qr-top-left {
+    top: 0;
+    left: 0;
+    border-right: none;
+    border-bottom: none;
+  }
+
+  .qr-corner.qr-top-right {
+    top: 0;
+    right: 0;
+    border-left: none;
+    border-bottom: none;
+  }
+
+  .qr-corner.qr-bottom-left {
+    bottom: 0;
+    left: 0;
+    border-right: none;
+    border-top: none;
+  }
+
+  .qr-corner.qr-bottom-right {
+    bottom: 0;
+    right: 0;
+    border-left: none;
+    border-top: none;
+  }
+
+.qr-scan-text {
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #00ff00;
+  font-weight: bold;
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.8);
+  white-space: nowrap;
+}
+
+@keyframes blink {
+  0%, 50%, 100% {
+    opacity: 1;
+  }
+
+  25%, 75% {
+    opacity: 0.3;
+  }
+}
+
+.blink {
+  animation: blink 2s infinite;
+}
+
+.scan-result {
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Hide html5-qrcode default UI elements */
+.qr-reader :deep(div[id*="dashboard_section"]) {
+  display: none !important;
+}
+
+#@readerId {
+  border: none !important;
+}

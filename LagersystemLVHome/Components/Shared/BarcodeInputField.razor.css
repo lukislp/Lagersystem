@@ -1,0 +1,19 @@
+.barcode-input-group {
+  width: 100%;
+}
+
+  .barcode-input-group .input-group {
+    display: flex;
+  }
+
+  .barcode-input-group .form-control {
+    flex: 1;
+  }
+
+  .barcode-input-group .btn-outline-secondary {
+    border-color: var(--bs-border-color);
+  }
+
+    .barcode-input-group .btn-outline-secondary:hover {
+      background-color: var(--bs-secondary-bg);
+    }

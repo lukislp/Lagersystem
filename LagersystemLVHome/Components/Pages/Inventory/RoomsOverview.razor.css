@@ -1,0 +1,49 @@
+.room-detail-card {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+  .room-detail-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    border-color: var(--primary-color);
+  }
+
+.room-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.room-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+  .room-stat-item i {
+    font-size: 1.5rem;
+  }
+
+.stat-number {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--dark-bg);
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--secondary-color);
+  line-height: 1;
+}
+
+.stat-icon.info {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}

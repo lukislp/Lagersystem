@@ -1,0 +1,473 @@
+@page "/export-import"
+@inherits CancellableComponentBase
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject IExportService ExportService
+@inject IImportService ImportService
+@inject IAuthService AuthService
+@inject IAuditService AuditService
+@inject IJSRuntime JSRuntime
+@inject IToastService ToastService
+@inject I18nText I18nText
+@rendermode InteractiveServer
+
+<PageTitle>@T.Reports_ExportImport_PageTitle</PageTitle>
+
+<div class="page-header">
+    <h1 class="page-title">
+        <i class="bi bi-arrow-down-up me-2"></i>
+        @T.ExportImport_Title_Full
+    </h1>
+</div>
+
+<div class="row">
+    <!-- Export Section -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-download me-2"></i>
+                    @T.ExportImport_Export_Title
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">@T.ExportImport_Export_Desc</p>
+           
+                <div class="export-options">
+                    <h6>Produkte</h6>
+                    <div class="btn-group mb-3" role="group">
+                        <button class="btn btn-primary" @onclick="@(() => ExportProducts("csv"))">
+                            <i class="bi bi-filetype-csv me-1"></i> CSV
+                        </button>
+                        <button class="btn btn-success" @onclick="@(() => ExportProducts("excel"))">
+                            <i class="bi bi-file-earmark-excel me-1"></i> Excel
+                        </button>
+                    </div>
+
+                    <h6>Kategorien</h6>
+                    <div class="btn-group mb-3" role="group">
+                        <button class="btn btn-primary" @onclick="@(() => ExportCategories("csv"))">
+                            <i class="bi bi-filetype-csv me-1"></i> CSV
+                        </button>
+                        <button class="btn btn-success" @onclick="@(() => ExportCategories("excel"))">
+                            <i class="bi bi-file-earmark-excel me-1"></i> Excel
+                        </button>
+                    </div>
+
+                    <h6>Lagerplätze</h6>
+                    <div class="btn-group mb-3" role="group">
+                        <button class="btn btn-primary" @onclick="@(() => ExportStorageLocations("csv"))">
+                            <i class="bi bi-filetype-csv me-1"></i> CSV
+                        </button>
+                        <button class="btn btn-success" @onclick="@(() => ExportStorageLocations("excel"))">
+                            <i class="bi bi-file-earmark-excel me-1"></i> Excel
+                        </button>
+                    </div>
+
+                    <h6>Berichte</h6>
+                    <div class="btn-group mb-3" role="group">
+                        <button class="btn btn-success" @onclick="ExportInventoryReport">
+                            <i class="bi bi-file-earmark-pdf me-1"></i> Inventarbericht
+                        </button>
+                    </div>
+        
+                    <div class="mb-3">
+                        <label class="form-label">Bewegungen (Zeitraum)</label>
+                        <div class="row g-2">
+                            <div class="col">
+                                <input type="date" class="form-control" @bind="movementsFrom" />
+                            </div>
+                            <div class="col">
+                                <input type="date" class="form-control" @bind="movementsTo" />
+                            </div>
+                        </div>
+                        <button class="btn btn-primary mt-2" @onclick="@(() => ExportMovements("csv"))">
+                            <i class="bi bi-filetype-csv me-1"></i> Bewegungen CSV
+                        </button>
+                        <button class="btn btn-success mt-2" @onclick="ExportMovementsReport">
+                            <i class="bi bi-file-earmark-pdf me-1"></i> Bewegungsberichte
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Section -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-upload me-2"></i>
+                    Import
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Importieren Sie Daten aus CSV oder Excel-Dateien</p>
+     
+                <div class="import-section mb-4">
+                    <h6>Produkte importieren</h6>
+                    <p class="small text-muted">Format: Name,Beschreibung,Barcode,Kategorie,Menge,Mindestbestand</p>
+                    <InputFile OnChange="HandleProductsFileUpload"
+                               class="form-control"
+                               accept=".csv,.xlsx" />
+                </div>
+
+                <div class="import-section mb-4">
+                    <h6>Kategorien importieren</h6>
+                    <p class="small text-muted">Format: Name,Icon</p>
+                    <InputFile OnChange="HandleCategoriesFileUpload"
+                               class="form-control"
+                               accept=".csv,.xlsx" />
+                </div>
+
+                @if (importResult != null)
+                {
+                    <div class="alert @(importResult.HasErrors ? "alert-warning" : "alert-success")">
+                        <h6>Import-Ergebnis:</h6>
+                        <p class="mb-1">✅ Erfolgreich: @importResult.SuccessCount</p>
+                        <p class="mb-1">❌ Fehlgeschlagen: @importResult.FailedCount</p>
+            
+                        @if (importResult.Errors.Any())
+                        {
+                            <hr />
+                            <strong>Fehler:</strong>
+                            <ul class="mb-0">
+                                @foreach (var error in importResult.Errors.Take(10))
+                                {
+                                    <li>@error</li>
+                                }
+                                @if (importResult.Errors.Count > 10)
+                                {
+                                    <li><em>...und @(importResult.Errors.Count - 10) weitere</em></li>
+                                }
+                            </ul>
+                        }
+           
+                        @if (importResult.Warnings.Any())
+                        {
+                            <hr />
+                            <strong>Warnungen:</strong>
+                            <ul class="mb-0">
+                                @foreach (var warning in importResult.Warnings.Take(5))
+                                {
+                                    <li>@warning</li>
+                                }
+                                @if (importResult.Warnings.Count > 5)
+                                {
+                                    <li><em>...und @(importResult.Warnings.Count - 5) weitere</em></li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                }
+
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Hinweis:</strong> Beim Import werden nur neue Einträge erstellt. Bestehende Einträge werden nicht überschrieben.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (isProcessing)
+{
+    <div class="processing-overlay">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-3">@processingMessage</p>
+    </div>
+}
+
+@code {
+    private LagersystemLVHome.I18nText.App T = new();
+    private DateTime? movementsFrom = DateTime.Now.AddMonths(-1);
+    private DateTime? movementsTo = DateTime.Now;
+    private ImportResult? importResult;
+    private bool isProcessing;
+    private string processingMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+    }
+
+    private async Task ExportProducts(string format)
+    {
+        isProcessing = true;
+        processingMessage = "Exportiere Produkte...";
+        StateHasChanged();
+
+        try
+        {
+            var warehouseId = AuthService.GetCurrentWarehouseId();
+            byte[] data;
+            string filename;
+            string contentType;
+
+            if (format == "csv")
+            {
+                var csv = await ExportService.ExportProductsToCsvAsync(warehouseId);
+                data = System.Text.Encoding.UTF8.GetBytes(csv);
+                filename = $"Produkte_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+                contentType = "text/csv";
+            }
+            else // excel
+            {
+                data = await ExportService.ExportProductsToExcelAsync(warehouseId);
+                filename = $"Produkte_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+                contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            }
+
+            await DownloadFile(data, filename, contentType);
+            ToastService.ShowSuccess("Export successful!");
+            await AuditService.LogExportAsync(format, "Products", 0);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error during export: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task ExportCategories(string format)
+    {
+        isProcessing = true;
+        processingMessage = "Exportiere Kategorien...";
+        StateHasChanged();
+
+        try
+        {
+            var warehouseId = AuthService.GetCurrentWarehouseId();
+            byte[] data;
+            string filename;
+            string contentType;
+
+            if (format == "csv")
+            {
+                var csv = await ExportService.ExportCategoriesToCsvAsync(warehouseId);
+                data = System.Text.Encoding.UTF8.GetBytes(csv);
+                filename = $"Kategorien_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+                contentType = "text/csv";
+            }
+            else // excel
+            {
+                data = await ExportService.ExportCategoriesToExcelAsync(warehouseId);
+                filename = $"Kategorien_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+                contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            }
+
+            await DownloadFile(data, filename, contentType);
+            ToastService.ShowSuccess("Export successful!");
+            await AuditService.LogExportAsync(format, "Categories", 0);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error during export: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task ExportMovements(string format)
+    {
+        isProcessing = true;
+        processingMessage = "Exportiere Bewegungen...";
+        StateHasChanged();
+
+        try
+        {
+            var warehouseId = AuthService.GetCurrentWarehouseId();
+            var csv = await ExportService.ExportMovementsToCsvAsync(warehouseId, movementsFrom, movementsTo);
+            var data = System.Text.Encoding.UTF8.GetBytes(csv);
+            var filename = $"Bewegungen_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            await DownloadFile(data, filename, "text/csv");
+            ToastService.ShowSuccess("Export successful!");
+            await AuditService.LogExportAsync("csv", "Movements", 0);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error during export: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task ExportStorageLocations()
+    {
+        await ExportStorageLocations("csv");
+    }
+
+    private async Task ExportStorageLocations(string format)
+    {
+        isProcessing = true;
+        processingMessage = "Exportiere Lagerplätze...";
+        StateHasChanged();
+
+        try
+        {
+            var warehouseId = AuthService.GetCurrentWarehouseId();
+            byte[] data;
+            string filename;
+            string contentType;
+
+            if (format == "csv")
+            {
+                var csv = await ExportService.ExportProductsToCsvAsync(warehouseId);
+                data = System.Text.Encoding.UTF8.GetBytes(csv);
+                filename = $"Lagerplaetze_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+                contentType = "text/csv";
+            }
+            else // excel
+            {
+                data = await ExportService.ExportStorageLocationsToExcelAsync(warehouseId);
+                filename = $"Lagerplaetze_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+                contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            }
+
+            await DownloadFile(data, filename, contentType);
+            ToastService.ShowSuccess("Export successful!");
+            await AuditService.LogExportAsync(format, "StorageLocations", 0);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error during export: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task ExportInventoryReport()
+    {
+        isProcessing = true;
+        processingMessage = "Erstelle Inventarbericht...";
+        StateHasChanged();
+
+        try
+        {
+            var warehouseId = AuthService.GetCurrentWarehouseId();
+            var data = await ExportService.GenerateInventoryReportPdfAsync(warehouseId);
+            var filename = $"Inventarbericht_{DateTime.Now:yyyyMMdd_HHmmss}.html";
+            await DownloadFile(data, filename, "text/html");
+            ToastService.ShowSuccess("Report created!");
+            await AuditService.LogExportAsync("pdf", "InventoryReport", 0);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error during creation: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task ExportMovementsReport()
+    {
+        isProcessing = true;
+        processingMessage = "Erstelle Bewegungsbericht...";
+        StateHasChanged();
+
+        try
+        {
+            var warehouseId = AuthService.GetCurrentWarehouseId();
+            var data = await ExportService.GenerateStockMovementReportPdfAsync(
+                    warehouseId,
+            movementsFrom ?? DateTime.Now.AddMonths(-1),
+                movementsTo ?? DateTime.Now);
+            var filename = $"Bewegungsbericht_{DateTime.Now:yyyyMMdd_HHmmss}.html";
+            await DownloadFile(data, filename, "text/html");
+            ToastService.ShowSuccess("Report created!");
+            await AuditService.LogExportAsync("pdf", "MovementsReport", 0);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error during creation: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task HandleFileUpload(InputFileChangeEventArgs e, string type)
+    {
+        isProcessing = true;
+        processingMessage = $"Importiere {type}...";
+        importResult = null;
+        StateHasChanged();
+
+        try
+        {
+            var file = e.File;
+            var warehouseId = AuthService.GetCurrentWarehouseId();
+            var user = await AuthService.GetCurrentUserAsync();
+
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10 MB
+
+            // Check file extension
+            var isExcel = file.Name.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase);
+
+            if (type == "products")
+            {
+                if (isExcel)
+                    importResult = await ImportService.ImportProductsFromExcelAsync(stream, warehouseId, user.Id);
+                else
+                    importResult = await ImportService.ImportProductsFromCsvAsync(stream, warehouseId, user.Id);
+            }
+            else if (type == "categories")
+            {
+                if (isExcel)
+                    importResult = await ImportService.ImportCategoriesFromExcelAsync(stream, warehouseId, user.Id);
+                else
+                    importResult = await ImportService.ImportCategoriesFromCsvAsync(stream, warehouseId, user.Id);
+            }
+
+            if (importResult.SuccessCount > 0)
+            {
+                ToastService.ShowSuccess($"{importResult.SuccessCount} entries imported successfully!");
+                await AuditService.LogImportAsync(
+                    file.Name.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ? "xlsx" : "csv",
+                    type,
+                    importResult.SuccessCount + importResult.FailedCount,
+                    importResult.SuccessCount,
+                    importResult.FailedCount);
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error during import: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task HandleProductsFileUpload(InputFileChangeEventArgs e)
+    {
+        await HandleFileUpload(e, "products");
+    }
+
+    private async Task HandleCategoriesFileUpload(InputFileChangeEventArgs e)
+    {
+        await HandleFileUpload(e, "categories");
+    }
+
+    private async Task DownloadFile(byte[] data, string filename, string contentType)
+    {
+        var base64 = Convert.ToBase64String(data);
+        await JSRuntime.InvokeVoidAsync("downloadFile", base64, filename, contentType);
+    }
+}

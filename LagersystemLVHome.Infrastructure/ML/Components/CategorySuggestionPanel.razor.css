@@ -1,0 +1,39 @@
+    .category-suggestion-panel {
+        margin: 1rem 0;
+    }
+
+    .suggestion-card {
+        padding: 0.75rem;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .suggestion-card:hover {
+        border-color: #0d6efd;
+        background-color: #f8f9fa;
+        transform: translateX(4px);
+    }
+
+    .suggestion-card.selected {
+        border-color: #198754;
+        background-color: #d1e7dd;
+    }
+
+    .suggestion-icon {
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+    }
+
+    .alert-sm {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }

@@ -1,0 +1,234 @@
+/* ========================================
+    Product Virtualized List Styles
+    ======================================== */
+
+/* Column headers - compact like the storage locations overview */
+.product-header {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 200px;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: #f8f9fa !important;
+  border-bottom: 1px solid #dee2e6;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #6c757d !important;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+  .product-header .product-cell {
+    padding: 0;
+  }
+
+.product-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 200px;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  background: #ffffff !important; /* Erzwinge hellen Hintergrund */
+  border-bottom: 1px solid #e5e7eb;
+  transition: background-color 0.2s ease;
+}
+
+  .product-row:hover {
+    background-color: #f9fafb !important; /* Erzwinge hellen Hover */
+  }
+
+.product-cell {
+  padding: 0.5rem;
+}
+
+/* ========================================
+Product Info Column
+    ======================================== */
+
+.product-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.product-thumbnail {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 0.25rem;
+  flex-shrink: 0;
+}
+
+.product-icon {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6 !important; /* Erzwinge hellen Icon-Hintergrund */
+  border-radius: 0.25rem;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  color: #6b7280; /* Dark icon colour for contrast */
+}
+
+.product-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.product-name {
+  font-weight: 600;
+  color: #1f2937 !important; /* Erzwinge dunklen Text */
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.product-description {
+  font-size: 0.875rem;
+  color: #6b7280 !important; /* Erzwinge grauen Text */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ========================================
+    Stock Badges
+    ======================================== */
+
+.stock-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.25rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+  .stock-badge.ok {
+    background-color: #d1e7dd;
+    color: #0f5132;
+  }
+
+  .stock-badge.low {
+    background-color: #fff3cd;
+    color: #856404;
+  }
+
+  .stock-badge.critical {
+    background-color: #f8d7da;
+    color: #842029;
+  }
+
+/* ========================================
+    Product Actions
+    ======================================== */
+
+.product-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.btn-icon {
+  padding: 0.375rem;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ========================================
+Skeleton Loader
+======================================== */
+
+.skeleton-row {
+  padding: 1rem;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-image {
+  width: 50px;
+  height: 50px;
+  background: linear-gradient( 90deg, rgba(0, 0, 0, 0.06) 25%, rgba(0, 0, 0, 0.15) 50%, rgba(0, 0, 0, 0.06) 75% );
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+  border-radius: 0.25rem;
+}
+
+.skeleton-text {
+  height: 1rem;
+  background: linear-gradient( 90deg, rgba(0, 0, 0, 0.06) 25%, rgba(0, 0, 0, 0.15) 50%, rgba(0, 0, 0, 0.06) 75% );
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+  border-radius: 0.25rem;
+}
+
+  .skeleton-text.short {
+    width: 60%;
+  }
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ========================================
+Responsive Design
+    ======================================== */
+
+@media (max-width: 1200px) {
+  .product-header,
+  .product-row {
+    grid-template-columns: 2fr 1fr 1fr 1fr 150px;
+  }
+
+    /* Hide less important columns on smaller screens */
+    .product-header .product-cell:nth-child(4),
+    .product-row .product-cell:nth-child(4), /* Storage cells */
+    .product-header .product-cell:nth-child(6),
+    .product-row .product-cell:nth-child(6) { /* Preis-History */
+      display: none;
+    }
+}
+
+@media (max-width: 768px) {
+  /* Hide header on mobile */
+  .product-header {
+    display: none;
+  }
+
+  .product-row {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .product-cell {
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    padding: 0.5rem 0;
+  }
+
+    .product-cell:last-child {
+      border-bottom: none;
+    }
+
+  .product-actions {
+    justify-content: flex-start;
+  }
+}

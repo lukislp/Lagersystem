@@ -1,0 +1,164 @@
+@using LagersystemLVHome.Infrastructure.ML.Services
+@using LagersystemLVHome.Infrastructure.ML.Models
+@inject ICategoryPredictionService CategoryService
+
+<div class="category-suggestion-panel">
+    @if (IsLoading)
+    {
+        <div class="text-center py-3">
+            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                <span class="visually-hidden">Analysiere...</span>
+            </div>
+            <small class="d-block mt-2">KI analysiert Produkt...</small>
+        </div>
+    }
+    else if (Suggestions != null && Suggestions.Any())
+    {
+        <div class="alert alert-info mb-3">
+            <div class="d-flex align-items-center mb-2">
+                <i class="bi bi-robot me-2"></i>
+                <strong>KI-Kategorievorschl&#228;ge</strong>
+            </div>
+            <small>Basierend auf Produktname und Beschreibung</small>
+        </div>
+
+        @foreach (var suggestion in Suggestions.Take(3))
+        {
+            <div class="suggestion-card @(suggestion == SelectedSuggestion ? "selected" : "")"
+                @onclick="() => SelectSuggestion(suggestion)">
+                <div class="d-flex align-items-center">
+                    <div class="suggestion-icon me-3">
+                        <i class="@suggestion.CategoryIcon fs-3"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong>@suggestion.CategoryName</strong>
+                            <span class="badge @GetConfidenceBadge(suggestion.Confidence)">
+                                @suggestion.Confidence.ToString("F0")%
+                            </span>
+                        </div>
+                        @if (suggestion.Reasons.Any())
+                        {
+                            <small class="text-muted d-block">@suggestion.Reasons.First()</small>
+                        }
+                        <div class="progress mt-2" style="height: 4px;">
+                            <div class="progress-bar @GetConfidenceColor(suggestion.Confidence)"
+                                role="progressbar"
+                                style="width: @suggestion.Confidence%">
+                            </div>
+                        </div>
+                    </div>
+                    @if (suggestion == SelectedSuggestion)
+                    {
+                        <i class="bi bi-check-circle-fill text-success ms-2"></i>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(SuccessMessage))
+        {
+            <div class="alert alert-success alert-sm mt-3 mb-0">
+                <i class="bi bi-check-circle me-1"></i> @SuccessMessage
+            </div>
+        }
+    }
+    else if (!string.IsNullOrEmpty(ProductName))
+    {
+        <div class="alert alert-warning mb-0">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <strong>Keine Vorschl&#228;ge</strong>
+            <p class="mb-0 small">Das KI-Modell konnte keine passende Kategorie finden.</p>
+        </div>
+    }
+</div>
+
+
+@code {
+    [Parameter]
+    public string? ProductName { get; set; }
+
+    [Parameter]
+    public string? Description { get; set; }
+
+    [Parameter]
+    public string? Barcode { get; set; }
+
+    [Parameter]
+    public EventCallback<CategorySuggestion> OnCategorySelected { get; set; }
+
+    [Parameter]
+    public bool AutoLoad { get; set; } = true;
+
+    private List<CategorySuggestion>? Suggestions { get; set; }
+    private CategorySuggestion? SelectedSuggestion { get; set; }
+    private bool IsLoading { get; set; }
+    private string? SuccessMessage { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (AutoLoad && !string.IsNullOrWhiteSpace(ProductName) && ProductName.Length > 3)
+        {
+            await LoadSuggestionsAsync();
+        }
+    }
+
+    public async Task LoadSuggestionsAsync()
+    {
+        if (string.IsNullOrWhiteSpace(ProductName))
+            return;
+
+        try
+        {
+            IsLoading = true;
+            SuccessMessage = null;
+            SelectedSuggestion = null;
+
+            var result = await CategoryService.SuggestCategoriesAsync(ProductName, Description, Barcode);
+            Suggestions = result.Suggestions;
+        }
+        catch
+        {
+            Suggestions = null;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task SelectSuggestion(CategorySuggestion suggestion)
+    {
+        SelectedSuggestion = suggestion;
+        SuccessMessage = $"Kategorie '{suggestion.CategoryName}' ausgew\u00e4hlt";
+
+        if (OnCategorySelected.HasDelegate)
+        {
+            await OnCategorySelected.InvokeAsync(suggestion);
+        }
+    }
+
+    private string GetConfidenceBadge(double confidence)
+    {
+        if (confidence >= 80) return "bg-success";
+        if (confidence >= 60) return "bg-primary";
+        if (confidence >= 40) return "bg-warning";
+        return "bg-secondary";
+    }
+
+    private string GetConfidenceColor(double confidence)
+    {
+        if (confidence >= 80) return "bg-success";
+        if (confidence >= 60) return "bg-primary";
+        if (confidence >= 40) return "bg-warning";
+        return "bg-secondary";
+    }
+
+    public CategorySuggestion? GetSelectedSuggestion() => SelectedSuggestion;
+
+    public void ClearSelection()
+    {
+        SelectedSuggestion = null;
+        SuccessMessage = null;
+    }
+}

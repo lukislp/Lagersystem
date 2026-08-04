@@ -1,0 +1,417 @@
+@page "/gamification"
+@inherits CancellableComponentBase
+@rendermode InteractiveServer
+@using LagersystemLVHome.Application.Services
+@using LagersystemLVHome.Domain.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject IGamificationService GamificationService
+@inject IAuthService AuthService
+@inject ILogger<Gamification> Logger
+@inject I18nText I18nText
+
+<PageTitle>@T.Gamification_PageTitle</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="page-header mb-4">
+        <h1 class="page-title">
+            <i class="bi bi-trophy text-warning me-2"></i>@T.Gamification_Title
+        </h1>
+        <p class="page-subtitle">@T.Gamification_Subtitle</p>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">@T.Gamification_Loading</span>
+            </div>
+        </div>
+    }
+    else if (profile == null)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>@T.Gamification_LoadError
+        </div>
+    }
+    else
+    {
+        <!-- Level & XP Banner -->
+        <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, var(--primary-color), #7c3aed); color: white;">
+            <div class="card-body p-4">
+                <div class="row align-items-center">
+                    <div class="col-md-2 text-center">
+                        <div class="level-badge">
+                            <span class="level-number">@profile.Level</span>
+                            <span class="level-label">LEVEL</span>
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <h3 class="mb-1">@GetLevelTitle(profile.Level)</h3>
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="small opacity-75">@profile.XPInCurrentLevel / @profile.XPForNextLevel XP</span>
+                        </div>
+                        <div class="progress" style="height: 12px; background: rgba(255,255,255,0.2); border-radius: 6px;">
+                            <div class="progress-bar bg-warning" role="progressbar"
+                                 style="width: @(profile.XPForNextLevel > 0 ? (int)(100.0 * profile.XPInCurrentLevel / profile.XPForNextLevel) : 0)%; border-radius: 6px;">
+                            </div>
+                        </div>
+                        <small class="opacity-75 mt-1 d-block">
+                            @(T.Gamification_XPUntilNext != null ? string.Format(T.Gamification_XPUntilNext, profile.XPForNextLevel - profile.XPInCurrentLevel, profile.Level + 1) : "")
+                        </small>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="d-flex flex-column align-items-center">
+                            <span class="display-5 fw-bold">@profile.TotalXP.ToString("N0")</span>
+                            <span class="small opacity-75">@T.Gamification_TotalXP</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Streak & Quick Stats -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body text-center">
+                        <div class="mb-2">
+                            <i class="bi bi-fire text-danger" style="font-size: 2rem;"></i>
+                        </div>
+                        <h2 class="mb-0 fw-bold">@streak.CurrentStreak</h2>
+                        <small class="text-muted">@T.Gamification_DayStreak</small>
+                        @if (streak.IsActiveToday)
+                        {
+                            <div class="mt-1">
+                                <span class="badge bg-success"><i class="bi bi-check-circle"></i> @T.Gamification_ActiveToday</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="mt-1">
+                                <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle"></i> @T.Gamification_NotActiveToday</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body text-center">
+                        <div class="mb-2">
+                            <i class="bi bi-calendar-check text-primary" style="font-size: 2rem;"></i>
+                        </div>
+                        <h2 class="mb-0 fw-bold">@streak.TotalActiveDays</h2>
+                        <small class="text-muted">@T.Gamification_TotalActiveDays</small>
+                        <div class="mt-1">
+                            <small class="text-muted">@T.Gamification_LongestStreak <strong>@streak.LongestStreak</strong> @T.Gamification_Days</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body text-center">
+                        <div class="mb-2">
+                            <i class="bi bi-arrow-left-right text-success" style="font-size: 2rem;"></i>
+                        </div>
+                        <h2 class="mb-0 fw-bold">@profile.MonthlyMovements</h2>
+                        <small class="text-muted">@T.Gamification_MonthlyMovements</small>
+                        <div class="mt-1">
+                            <small class="text-muted">@T.Gamification_WeeklyMovements <strong>@profile.WeeklyMovements</strong></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body text-center">
+                        <div class="mb-2">
+                            <i class="bi bi-qr-code-scan text-info" style="font-size: 2rem;"></i>
+                        </div>
+                        <h2 class="mb-0 fw-bold">@profile.TotalScans</h2>
+                        <small class="text-muted">@T.Gamification_TotalScans</small>
+                        <div class="mt-1">
+                            <small class="text-muted">@T.Gamification_ProductsCreated <strong>@profile.ProductsCreated</strong></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- XP breakdown -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-transparent border-0">
+                        <h5 class="mb-0"><i class="bi bi-bar-chart me-2 text-primary"></i>@T.Gamification_XPBreakdown</h5>
+                    </div>
+                    <div class="card-body">
+                        @{
+                            var xpItems = new (string Label, string Icon, int Count, int XPPer, string Color)[]
+                            {
+                                ("Lagerbewegungen", "bi-box-arrow-in-right", profile.TotalMovements, 10, "primary"),
+                                ("Barcode-Scans", "bi-qr-code-scan", profile.TotalScans, 15, "info"),
+                                ("Produkte erstellt", "bi-plus-circle", profile.ProductsCreated, 25, "success"),
+                                ("Produkte aktualisiert", "bi-pencil", profile.ProductsUpdated, 5, "secondary"),
+                                ("Kategorien erstellt", "bi-tags", profile.CategoriesCreated, 20, "warning"),
+                                ("Lagerorte erstellt", "bi-grid-3x3-gap", profile.StorageLocationsCreated, 15, "primary"),
+                                ("Räume erstellt", "bi-door-open", profile.RoomsCreated, 30, "success"),
+                                ("Imports", "bi-cloud-upload", profile.ImportsCompleted, 50, "danger"),
+                                ("Exports", "bi-cloud-download", profile.ExportsCompleted, 10, "info"),
+                                ("Logins", "bi-door-open", profile.TotalLogins, 5, "secondary"),
+                                ("Aktive Tage", "bi-calendar-check", profile.TotalActiveDays, 20, "warning"),
+                                ("Längster Streak", "bi-fire", profile.LongestStreak, 10, "danger"),
+                            };
+                            var maxXP = xpItems.Max(x => x.Count * x.XPPer);
+                        }
+                        @foreach (var item in xpItems)
+                        {
+                            var itemXP = item.Count * item.XPPer;
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>
+                                        <i class="bi @item.Icon me-1 text-@item.Color"></i>
+                                        @item.Label
+                                        <small class="text-muted">(@item.Count × @item.XPPer XP)</small>
+                                    </span>
+                                    <strong class="text-@item.Color">@itemXP.ToString("N0") XP</strong>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-@item.Color" style="width: @(maxXP > 0 ? (int)(100.0 * itemXP / maxXP) : 0)%"></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Achievements -->
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-award me-2 text-warning"></i>@T.Gamification_Achievements</h5>
+                        <span class="badge bg-success">@achievements.Count(a => a.IsUnlocked) / @achievements.Count</span>
+                    </div>
+                    <div class="card-body">
+                        <!-- Filter Tabs -->
+                        <div class="btn-group btn-group-sm mb-3 w-100 flex-wrap" role="group">
+                            <button class="btn @(achievementFilter == "all" ? "btn-primary" : "btn-outline-primary")"
+                                    @onclick='() => achievementFilter = "all"'>
+                                @T.Gamification_AllFilter <span class="badge bg-white text-primary ms-1">@achievements.Count</span>
+                            </button>
+                            <button class="btn @(achievementFilter == "unlocked" ? "btn-success" : "btn-outline-success")"
+                                    @onclick='() => achievementFilter = "unlocked"'>
+                                <i class="bi bi-check-circle-fill me-1"></i>@T.Gamification_UnlockedFilter @achievements.Count(a => a.IsUnlocked)
+                            </button>
+                            <button class="btn @(achievementFilter == "inprogress" ? "btn-warning" : "btn-outline-warning")"
+                                    @onclick='() => achievementFilter = "inprogress"'>
+                                <i class="bi bi-hourglass-split me-1"></i>@T.Gamification_InProgressFilter @achievements.Count(a => !a.IsUnlocked && a.Progress > 0)
+                            </button>
+                            <button class="btn @(achievementFilter == "locked" ? "btn-secondary" : "btn-outline-secondary")"
+                                    @onclick='() => achievementFilter = "locked"'>
+                                <i class="bi bi-lock-fill me-1"></i>@T.Gamification_LockedFilter @achievements.Count(a => !a.IsUnlocked && a.Progress == 0)
+                            </button>
+                        </div>
+
+                        <div style="max-height: 500px; overflow-y: auto;">
+                            @foreach (var ach in GetFilteredAchievements())
+                            {
+                                <div class="d-flex align-items-center gap-3 mb-3 @(!ach.IsUnlocked ? "opacity-50" : "")">
+                                    <div class="achievement-icon @(ach.IsUnlocked ? $"bg-{ach.Color} bg-opacity-10" : "bg-light")"
+                                         style="width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                        <i class="bi @ach.Icon @(ach.IsUnlocked ? $"text-{ach.Color}" : "text-muted")" style="font-size: 1.25rem;"></i>
+                                    </div>
+                                    <div class="flex-grow-1 min-w-0">
+                                        <div class="d-flex justify-content-between">
+                                            <strong class="small">
+                                                @ach.Name
+                                                @if (ach.IsUnlocked)
+                                                {
+                                                    <i class="bi bi-check-circle-fill text-success ms-1"></i>
+                                                }
+                                            </strong>
+                                            <small class="text-muted">@ach.CurrentCount.ToString("N0") / @ach.RequiredCount.ToString("N0")</small>
+                                        </div>
+                                        <small class="text-muted">@ach.Description</small>
+                                        <div class="progress mt-1" style="height: 4px;">
+                                            <div class="progress-bar bg-@ach.Color" style="width: @((int)(ach.Progress * 100))%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leaderboard -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h5 class="mb-0"><i class="bi bi-trophy me-2 text-warning"></i>@T.Gamification_Leaderboard</h5>
+                <small class="text-muted">@T.Gamification_LeaderboardSubtitle</small>
+            </div>
+            <div class="card-body p-0">
+                @if (leaderboard.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 leaderboard-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 60px;" class="text-center">#</th>
+                                    <th>@T.Gamification_User</th>
+                                    <th class="text-center">@T.Gamification_Level_Col</th>
+                                    <th class="text-end">@T.Gamification_TotalXP</th>
+                                    <th class="text-center">@T.Gamification_Movements</th>
+                                    <th class="text-center">@T.Gamification_Scans</th>
+                                    <th class="text-center">@T.Gamification_ProductsCreated</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    var rank = 0;
+                                }
+                                @foreach (var entry in leaderboard)
+                                {
+                                    rank++;
+                                    var isCurrentUser = entry.UserId == currentUserId;
+                                    <tr class="@(isCurrentUser ? "table-primary" : "")">
+                                        <td class="text-center fw-bold">
+                                            @if (rank == 1)
+                                            {
+                                                <span style="font-size: 1.5rem;">🥇</span>
+                                            }
+                                            else if (rank == 2)
+                                            {
+                                                <span style="font-size: 1.5rem;">🥈</span>
+                                            }
+                                            else if (rank == 3)
+                                            {
+                                                <span style="font-size: 1.5rem;">🥉</span>
+                                            }
+                                            else
+                                            {
+                                                @rank
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center gap-2">
+                                                @if (!string.IsNullOrEmpty(entry.ProfileImagePath))
+                                                {
+                                                    <img src="@entry.ProfileImagePath" alt=""
+                                                         style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;" />
+                                                }
+                                                else
+                                                {
+                                                    <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.75rem;">
+                                                        @entry.DisplayName[..1].ToUpper()
+                                                    </div>
+                                                }
+                                                <div>
+                                                    <strong>@entry.DisplayName</strong>
+                                                    @if (isCurrentUser)
+                                                    {
+                                                        <span class="badge bg-primary ms-1">@T.Gamification_You</span>
+                                                    }
+                                                    <br />
+                                                    <small class="text-muted">@@@entry.Username</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-primary rounded-pill">Lv. @entry.Level</span>
+                                        </td>
+                                        <td class="text-end fw-bold">@entry.XP.ToString("N0")</td>
+                                        <td class="text-center">@entry.Movements</td>
+                                        <td class="text-center">@entry.Scans</td>
+                                        <td class="text-center">@entry.ProductsCreated</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-emoji-neutral" style="font-size: 2rem;"></i>
+                        <p class="mt-2 mb-0">@T.Gamification_NoActivity</p>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+
+@code {
+    private LagersystemLVHome.I18nText.App T = new();
+    private UserGamificationProfile? profile;
+    private List<Achievement> achievements = new();
+    private List<UserLeaderboardEntry> leaderboard = new();
+    private UserStreakInfo streak = new();
+    private bool isLoading = true;
+    private int currentUserId;
+    private int? currentWarehouseId;
+    private string achievementFilter = "all";
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+        try
+        {
+            var user = await AuthService.GetCurrentUserAsync();
+            if (user == null) return;
+
+            currentUserId = user.Id;
+            currentWarehouseId = user.Role == UserRole.SuperAdmin ? null : (int?)user.WarehouseId;
+
+            // One-time migration: transfer existing audit logs to persistent stats
+            await GamificationService.MigrateFromAuditLogsAsync(user.Id);
+
+            profile = await GamificationService.GetUserProfileAsync(user.Id);
+            achievements = await GamificationService.GetAchievementsAsync(user.Id);
+            streak = await GamificationService.GetStreakInfoAsync(user.Id);
+            leaderboard = await GamificationService.GetLeaderboardAsync(currentWarehouseId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading gamification data");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private static string GetLevelTitle(int level) => level switch
+    {
+        1 => "Lager-Anfänger",
+        2 => "Lager-Helfer",
+        3 => "Lager-Mitarbeiter",
+        4 => "Lager-Spezialist",
+        5 => "Lager-Experte",
+        6 => "Lager-Profi",
+        7 => "Lager-Meister",
+        8 => "Lager-Veteran",
+        9 => "Lager-Champion",
+        10 => "Lager-Legende",
+        >= 11 and < 15 => "Lager-Titan",
+        >= 15 and < 20 => "Lager-Gott",
+        >= 20 => "Lager-Unsterblich",
+        _ => "Lager-Neuling"
+    };
+
+    private IEnumerable<Achievement> GetFilteredAchievements()
+    {
+        var filtered = achievementFilter switch
+        {
+            "unlocked" => achievements.Where(a => a.IsUnlocked),
+            "inprogress" => achievements.Where(a => !a.IsUnlocked && a.Progress > 0),
+            "locked" => achievements.Where(a => !a.IsUnlocked && a.Progress == 0),
+            _ => achievements
+        };
+        return filtered.OrderByDescending(a => a.IsUnlocked).ThenByDescending(a => a.Progress);
+    }
+}

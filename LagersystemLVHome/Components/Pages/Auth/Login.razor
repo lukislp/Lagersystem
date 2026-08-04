@@ -1,0 +1,1378 @@
+@page "/login"
+@using System.ComponentModel.DataAnnotations
+@using LagersystemLVHome.Data
+@using LagersystemLVHome.Domain.Models
+@using Microsoft.EntityFrameworkCore
+@layout EmptyLayout
+@rendermode InteractiveServer
+@inject IAuthService AuthService
+@inject IUserProfileService UserProfileService
+@inject ITwoFactorManagementService TwoFactorManagementService
+@inject NavigationManager NavigationManager
+@inject IGdprService GdprService
+@inject ITwoFactorService TwoFactorService
+@inject IJSRuntime JSRuntime
+@inject ILogger<Login> _logger
+@inject IPasswordlessLoginService PasswordlessService
+@inject IUserIpAccessService IpAccessService
+@inject IWebAuthnService WebAuthnService
+@inject IHttpContextAccessor HttpContextAccessor
+@inject ITrustedDeviceService TrustedDeviceService
+@inject I18nText I18nText
+@using Soenneker.Blazor.Thumbmarkjs
+@using Soenneker.Blazor.Thumbmarkjs.Abstract
+
+<PageTitle>@T.Login_PageTitle</PageTitle>
+
+@* Capture device fingerprint before login submit and store as cookie *@
+<Thumbmarkjs @ref="_loginThumbmark" OnGenerated="OnLoginFingerprintGenerated" class="d-none" />
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+        <i class="bi bi-box-seam login-logo"></i>
+        <h1>LagerSystem</h1>
+        <p>@T.Login_Subtitle</p>
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+{
+<div class="alert alert-danger">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+                @errorMessage
+            </div>
+        }
+      
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success">
+    <i class="bi bi-check-circle me-2"></i>
+    @successMessage
+    </div>
+    }
+
+        @* Passkey login button (when WebAuthn is available) *@
+        @if (webAuthnSupported && !showMagicLinkForm)
+{
+        <div class="passkey-login-section mb-4">
+            <button type="button" class="btn btn-outline-primary btn-lg w-100 passkey-btn" 
+    @onclick="LoginWithPasskey" disabled="@isLoading">
+    @if (isPasskeyLoading)
+    {
+                <span class="spinner-border spinner-border-sm me-2"></span>
+    }
+    else
+        {
+    <i class="bi bi-fingerprint me-2"></i>
+        }
+        @T.Login_PasskeyButton
+    </button>
+                
+        <div class="divider my-3">
+        <span>@T.Login_Or</span>
+</div>
+        </div>
+        }
+
+@if (!showMagicLinkForm)
+        {
+            <!-- Standard Login Form -->
+            <EditForm Model="loginModel" OnValidSubmit="HandleLogin" FormName="LoginForm">
+            <DataAnnotationsValidator />
+    
+        <div class="form-group">
+        <label class="form-label">@T.Login_Username</label>
+    <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-person"></i></span>
+        <InputText class="form-control form-control-lg" @bind-Value="loginModel.Username" 
+    placeholder="demo" autocomplete="username" />
+        </div>
+        <ValidationMessage For="() => loginModel.Username" />
+    </div>
+
+        <div class="form-group">
+    <label class="form-label">@T.Login_Password</label>
+            <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+        <InputText type="password" class="form-control form-control-lg" @bind-Value="loginModel.Password" 
+        placeholder="••••••••" autocomplete="current-password" />
+        </div>
+            <ValidationMessage For="() => loginModel.Password" />
+            </div>
+
+    <div class="d-flex justify-content-between mb-3">
+    <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" @onclick="ShowMagicLinkForm">
+    <i class="bi bi-magic me-1"></i>@T.Login_MagicLinkButton
+        </button>
+    <a href="/forgot-password" class="text-decoration-none small">
+@T.Login_ForgotPassword
+            </a>
+    </div>
+
+<button type="submit" class="btn btn-primary btn-lg w-100" disabled="@isLoading">
+        @if (isLoading)
+        {
+    <span class="spinner-border spinner-border-sm me-2"></span>
+        }
+    <i class="bi bi-box-arrow-in-right me-2"></i>
+        @T.Login_Submit
+        </button>
+        </EditForm>
+}
+else
+        {
+        <!-- Magic Link Form -->
+            <div class="magic-link-form">
+        <div class="alert alert-info mb-3">
+        <i class="bi bi-magic me-2"></i>
+        <strong>@T.Login_MagicLink_Title</strong><br>
+                <small>@T.Login_MagicLink_Hint</small>
+        </div>
+       
+        <div class="form-group">
+            <label class="form-label">@T.ForgotPassword_EmailLabel</label>
+        <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+<input type="email" class="form-control form-control-lg" 
+@bind="magicLinkEmail" 
+        placeholder="ihre@email.de" />
+</div>
+        </div>
+
+        <button type="button" class="btn btn-primary btn-lg w-100 mb-3" 
+    @onclick="SendMagicLink" 
+        disabled="@(isLoading || string.IsNullOrWhiteSpace(magicLinkEmail))">
+        @if (isLoading)
+        {
+    <span class="spinner-border spinner-border-sm me-2"></span>
+        }
+    <i class="bi bi-send me-2"></i>
+        @T.Login_MagicLink_Send
+        </button>
+   
+    <button type="button" class="btn btn-link w-100" @onclick="HideMagicLinkForm">
+    <i class="bi bi-arrow-left me-1"></i>
+            @T.Login_MagicLink_Back
+        </button>
+            </div>
+        }
+
+    <div class="login-footer">
+        <p>@T.Login_NoAccount <a href="/register">@T.Login_Register</a></p>
+    </div>
+    </div>
+</div>
+
+<!-- Passkey registration prompt after login -->
+@if (showPasskeyPrompt && pendingUser != null)
+{
+    <div class="modal-backdrop modal-backdrop--active"></div>
+<div class="modal modal--active">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+    <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">
+        <i class="bi bi-fingerprint me-2"></i>
+        @T.Login_PasskeySetup_Title
+            </h5>
+            <button type="button" class="btn-close btn-close-white" @onclick="SkipPasskeySetup"></button>
+    </div>
+            <div class="modal-body">
+<div class="text-center mb-3">
+            <i class="bi bi-fingerprint display-1 text-primary"></i>
+        </div>
+      
+<h6 class="text-center mb-3">@T.Login_PasskeySetup_Subtitle</h6>
+                    
+    <div class="alert alert-light">
+    <p class="mb-2"><strong>@T.Login_PasskeySetup_BenefitsTitle</strong></p>
+    <ul class="mb-0 small">
+                <li><i class="bi bi-check-circle text-success me-1"></i> @T.Login_PasskeySetup_Benefit1</li>
+            <li><i class="bi bi-check-circle text-success me-1"></i> @T.Login_PasskeySetup_Benefit2</li>
+        <li><i class="bi bi-check-circle text-success me-1"></i> @T.Login_PasskeySetup_Benefit3</li>
+<li><i class="bi bi-check-circle text-success me-1"></i> @T.Login_PasskeySetup_Benefit4</li>
+                </ul>
+        </div>
+         
+    <div class="form-group mt-3">
+        <label class="form-label">@T.Login_PasskeySetup_DeviceLabel</label>
+                <input type="text" class="form-control" @bind="passkeyDeviceName" 
+        placeholder="@detectedDeviceName" />
+            <small class="text-muted">@T.Login_PasskeySetup_DeviceDetected: @detectedDeviceName</small>
+    </div>
+
+            @if (!string.IsNullOrEmpty(passkeyError))
+    {
+                <div class="alert alert-danger mt-3 mb-0">
+            <small>@passkeyError</small>
+    </div>
+    }
+                </div>
+        <div class="modal-footer">
+        <button class="btn btn-secondary" @onclick="SkipPasskeySetup">
+        <i class="bi bi-x-lg me-1"></i>
+        @T.Login_PasskeySetup_Later
+</button>
+        <button class="btn btn-primary" @onclick="CreatePasskeyAfterLogin" disabled="@isPasskeyLoading">
+        @if (isPasskeyLoading)
+                {
+            <span class="spinner-border spinner-border-sm me-1"></span>
+    }
+            <i class="bi bi-fingerprint me-1"></i>
+    @T.Login_PasskeySetup_Create
+</button>
+    </div>
+        </div>
+        </div>
+    </div>
+}
+
+<!-- 2FA verification modal -->
+@if (require2FA && pendingUser != null)
+{
+    <div class="modal-backdrop modal-backdrop--active"></div>
+    <div class="modal modal--active">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+        <div class="modal-header bg-warning text-dark">
+            <h5 class="modal-title">
+<i class="bi bi-shield-lock me-2"></i>
+@T.Login_2FA_Title
+        </h5>
+                </div>
+    <div class="modal-body">
+
+                @* Method selection when multiple 2FA methods are available *@
+                @if (available2FAMethods.Count > 1 && !useRecoveryCode)
+                {
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">
+                            <i class="bi bi-list-check me-1"></i>@T.Login_2FA_ChooseMethod:
+                        </label>
+                        <div class="d-flex gap-2">
+                            @if (available2FAMethods.Contains(TwoFactorMethods.Authenticator))
+                            {
+                                <button type="button"
+                                    class="btn @(selected2FAMethod == TwoFactorMethods.Authenticator ? "btn-primary" : "btn-outline-primary") flex-fill"
+                                    @onclick="SelectAuthenticatorMethod">
+                                    <i class="bi bi-phone me-1"></i>Authenticator
+                                </button>
+                            }
+                            @if (available2FAMethods.Contains(TwoFactorMethods.EmailOtp))
+                            {
+                                <button type="button"
+                                    class="btn @(selected2FAMethod == TwoFactorMethods.EmailOtp ? "btn-primary" : "btn-outline-primary") flex-fill"
+                                    @onclick="SelectEmailOtpMethod">
+                                    <i class="bi bi-envelope me-1"></i>@T.Login_2FA_EmailOtpLabel
+                                </button>
+                            }
+                        </div>
+                    </div>
+                    @if (methodSelected)
+                    {
+                        <hr />
+                    }
+                }
+
+                @if (!methodSelected && available2FAMethods.Count > 1 && !useRecoveryCode)
+                {
+                    <!-- Prompt: select a verification method first -->
+                    <div class="alert alert-secondary text-center">
+                        <i class="bi bi-hand-index me-2"></i>
+                        @T.Login_2FA_SelectMethodPrompt
+                    </div>
+                }
+                else if (!useRecoveryCode)
+    {
+                    @if (selected2FAMethod == TwoFactorMethods.Authenticator)
+                    {
+                        <!-- Authenticator code input -->
+                        <div class="alert alert-info">
+                            <i class="bi bi-phone me-2"></i>
+                            @T.Login_2FA_AuthenticatorHint
+                        </div>
+
+                        <div class="mb-3">
+                            <input type="text" class="form-control form-control-lg text-center otp-input"
+                                @bind="twoFactorCode"
+                                placeholder="000 000"
+                                maxlength="7" />
+                        </div>
+                    }
+                    else if (selected2FAMethod == TwoFactorMethods.EmailOtp)
+                    {
+                        <!-- Email OTP input -->
+                        <div class="alert alert-info">
+                            <i class="bi bi-envelope-check me-2"></i>
+                            @(T.Login_2FA_EmailOtpHint != null ? string.Format(T.Login_2FA_EmailOtpHint, MaskEmail(pendingUser.Email)) : "")
+                        </div>
+
+                        <div class="mb-3">
+                            <input type="text" class="form-control form-control-lg text-center otp-input"
+                                @bind="twoFactorCode"
+                                placeholder="000000"
+                                maxlength="7" />
+                        </div>
+
+                        <button class="btn btn-link btn-sm" @onclick="ResendEmailOtp" disabled="@emailOtpCooldown">
+                            <i class="bi bi-arrow-clockwise me-1"></i>
+                            @if (emailOtpCooldown)
+                            {
+                                <span>@(T.Login_2FA_ResendIn != null ? string.Format(T.Login_2FA_ResendIn, emailOtpCooldownSeconds) : "")</span>
+                            }
+                            else
+                            {
+                                <span>@T.Login_2FA_ResendCode</span>
+                            }
+                        </button>
+                    }
+
+            <button class="btn btn-link btn-sm" @onclick="() => useRecoveryCode = true">
+@T.Login_2FA_UseRecovery
+    </button>
+        }
+    else
+                {
+<!-- Recovery code input -->
+    <div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+            @T.Login_2FA_RecoveryHint
+        </div>
+
+        <div class="mb-3">
+    <input type="text" class="form-control form-control-lg text-center recovery-input" 
+        @bind="twoFactorCode" 
+ placeholder="XXXX-XXXX" 
+        maxlength="9" />
+                </div>
+
+<button class="btn btn-link btn-sm" @onclick="() => useRecoveryCode = false">
+        @T.Login_2FA_BackToCode
+            </button>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+            {
+    <div class="alert alert-danger mt-3">
+            @errorMessage
+        </div>
+        }
+
+                @* Trusted device checkbox *@
+                @if (!useRecoveryCode && methodSelected && !string.IsNullOrEmpty(currentDeviceFingerprint))
+                {
+                    <div class="form-check mt-3 pt-2 border-top">
+                        <input class="form-check-input" type="checkbox" id="trustDevice"
+                            @bind="trustThisDevice" />
+                        <label class="form-check-label small" for="trustDevice">
+                            <i class="bi bi-shield-check me-1 text-success"></i>
+                            @T.Login_2FA_TrustDevice
+                        </label>
+                    </div>
+                }
+</div>
+            <div class="modal-footer">
+        <button class="btn btn-secondary" @onclick="Cancel2FA">
+    @T.Login_2FA_Cancel
+        </button>
+            <button class="btn btn-primary" @onclick="Verify2FA" disabled="@(isLoading || (!methodSelected && !useRecoveryCode))">
+        @if (isLoading)
+            {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+        }
+        @T.Login_2FA_Confirm
+    </button>
+                </div>
+            </div>
+    </div>
+    </div>
+}
+
+<!-- GDPR consent modal -->
+@if (showGdprModal)
+{
+    <div class="modal-backdrop modal-backdrop--active"></div>
+    <div class="modal modal--active">
+        <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+    <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title">
+        <i class="bi bi-shield-check me-2"></i>
+@T.Login_Gdpr_Title
+    </h5>
+                </div>
+    <div class="modal-body">
+        <div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>
+                @T.Login_Gdpr_Intro
+</div>
+<p>
+<a href="/privacy" target="_blank" class="btn btn-outline-primary btn-sm mb-3">
+    <i class="bi bi-file-text me-1"></i>
+        @T.Login_Gdpr_ReadPrivacy
+            </a>
+</p>
+         
+    <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" 
+            id="gdprConsentLogin" @bind="gdprConsentLogin" required>
+    <label class="form-check-label" for="gdprConsentLogin">
+    <strong><i class="bi bi-shield-check me-1"></i>@T.Login_Gdpr_Privacy_Strong</strong> - 
+        @T.Login_Gdpr_Privacy_Accept <a href="/privacy" target="_blank">@T.Login_Gdpr_Privacy_LinkText</a>
+                <span class="text-danger">*</span>
+        </label>
+    </div>
+           
+                <!-- Required: Analytics consent -->
+<div class="form-check mb-2">
+    <input class="form-check-input" type="checkbox" 
+    id="analyticsConsentLogin" @bind="analyticsConsentLogin" required>
+                <label class="form-check-label" for="analyticsConsentLogin">
+    <strong><i class="bi bi-graph-up me-1"></i>@T.Login_Gdpr_Analytics_Strong</strong> - 
+        @T.Login_Gdpr_Analytics_Desc <span class="text-danger">*</span>
+            </label>
+    <small class="text-muted d-block ms-4">
+        <i class="bi bi-info-circle me-1"></i>
+    <strong>@T.Common_Required</strong> @T.Login_Gdpr_Analytics_Required
+        </small>
+    </div>
+
+        <!-- Required: Device fingerprint consent -->
+        <div class="form-check mb-2">
+    <input class="form-check-input" type="checkbox" 
+id="fingerprintConsentLogin" @bind="fingerprintConsentLogin" required>
+        <label class="form-check-label" for="fingerprintConsentLogin">
+        <strong><i class="bi bi-phone me-1"></i>@T.Login_Gdpr_Security_Strong</strong> - 
+Device Fingerprinting, VPN-Erkennung <span class="text-danger">*</span>
+        </label>
+    <small class="text-muted d-block ms-4">
+            <i class="bi bi-info-circle me-1"></i>
+        <strong>@T.Common_Required</strong> @T.Login_Gdpr_Security_Required
+            </small>
+                </div>
+
+    <div class="form-check">
+    <input class="form-check-input" type="checkbox" 
+        id="marketingConsentLogin" @bind="marketingConsentLogin">
+        <label class="form-check-label" for="marketingConsentLogin">
+        <i class="bi bi-envelope me-1"></i>
+            @T.Login_Gdpr_Marketing
+        </label>
+                </div>
+    </div>
+        <div class="modal-footer">
+        <button class="btn btn-secondary" @onclick="CancelGdprConsent">
+        @T.Login_Gdpr_Cancel
+        </button>
+        <button class="btn btn-primary" @onclick="AcceptGdprConsent" 
+        disabled="@(!gdprConsentLogin || !analyticsConsentLogin || !fingerprintConsentLogin)">
+                <i class="bi bi-check-circle me-1"></i>
+                @T.Login_Gdpr_Accept
+        </button>
+        </div>
+            </div }
+</div>
+</div>
+}
+
+
+@code {
+    private LoginModel loginModel = new();
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private bool isLoading = false;
+    
+    // Magic link state
+    private bool showMagicLinkForm = false;
+    private string magicLinkEmail = string.Empty;
+
+    // GDPR consent modal
+    private bool showGdprModal = false;
+    private bool gdprConsentLogin = false;
+    private bool marketingConsentLogin = false;
+    private User? pendingUser = null;
+    
+    // Granular consent flags
+    private bool analyticsConsentLogin = false;
+    private bool fingerprintConsentLogin = false;
+
+    // 2FA state
+    private bool require2FA = false;
+    private string twoFactorCode = "";
+    private bool useRecoveryCode = false;
+    private string selected2FAMethod = "";
+    private bool methodSelected = false;
+    private List<string> available2FAMethods = new();
+    private bool emailOtpCooldown = false;
+    private int emailOtpCooldownSeconds = 0;
+    private System.Threading.Timer? emailOtpCooldownTimer;
+
+    // Trusted device
+    private bool trustThisDevice = false;
+    private string? currentDeviceFingerprint;
+    private Thumbmarkjs? _loginThumbmark;
+    private bool _loginFingerprintCaptured = false;
+
+    // WebAuthn / Passkey state
+    private bool webAuthnSupported = false;
+    private bool isPasskeyLoading = false;
+    private bool showPasskeyPrompt = false;
+    private string passkeyDeviceName = string.Empty;
+    private string detectedDeviceName = "Unbekanntes Gerät";
+    private string passkeyError = string.Empty;
+    private string? currentPasskeySessionId;
+    private LagersystemLVHome.I18nText.App T = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+        detectedDeviceName = T.Login_UnknownDevice;
+        // Check if setup is needed (no users exist)
+        var hasUsers = await UserProfileService.AnyUsersExistAsync();
+        if (!hasUsers)
+        {
+        NavigationManager.NavigateTo("/setup");
+        return;
+    }
+
+        // Check if already logged in
+        var authState = await AuthService.GetCurrentUserAsync();
+if (authState != null)
+        {
+    NavigationManager.NavigateTo("/", false);
+            return;
+    }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+        // Check WebAuthn support
+try
+            {
+        var supportInfo = await JSRuntime.InvokeAsync<WebAuthnSupportInfo>("webAuthnHelper.getAvailableAuthenticators");
+        webAuthnSupported = supportInfo.WebAuthnSupported;
+
+if (webAuthnSupported)
+                {
+    detectedDeviceName = await JSRuntime.InvokeAsync<string>("webAuthnHelper.detectDeviceName");
+            }
+
+        StateHasChanged();
+            }
+        catch (Exception ex)
+            {
+        _logger.LogWarning(ex, "Error checking WebAuthn support");
+        webAuthnSupported = false;
+    }
+
+            // Capture thumbmarkjs fingerprint and store as cookie before login submit
+            await Task.Delay(1500);
+            if (!_loginFingerprintCaptured && _loginThumbmark != null)
+            {
+                try
+                {
+                    var fp = await _loginThumbmark.Get();
+                    if (!string.IsNullOrEmpty(fp))
+                    {
+                        await SaveLoginFingerprint(fp);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error capturing Thumbmarkjs fingerprint on login page");
+                }
+            }
+        }
+    }
+
+    private async Task OnLoginFingerprintGenerated(string fingerprint)
+    {
+        if (!string.IsNullOrEmpty(fingerprint) && !_loginFingerprintCaptured)
+        {
+            await SaveLoginFingerprint(fingerprint);
+        }
+    }
+
+    private async Task SaveLoginFingerprint(string fingerprint)
+    {
+        if (_loginFingerprintCaptured) return;
+        _loginFingerprintCaptured = true;
+        currentDeviceFingerprint = fingerprint;
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("cookieHelper.setCookie", "DeviceFingerprint", fingerprint, 30, "Strict");
+            _logger.LogInformation("Thumbmarkjs fingerprint set on login page: {FP}",
+                fingerprint[..Math.Min(16, fingerprint.Length)] + "...");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error setting fingerprint cookie on login page");
+        }
+    }
+
+    // Authenticate using a passkey (WebAuthn)
+    private async Task LoginWithPasskey()
+    {
+        isPasskeyLoading = true;
+        errorMessage = string.Empty;
+        
+        try
+        {
+        // Generate authentication options (without username for discoverable credentials)
+        var options = await WebAuthnService.GenerateAuthenticationOptionsAsync();
+            
+    if (!options.Success)
+        {
+    errorMessage = options.Error ?? "Fehler bei der Passkey-Authentifizierung.";
+        return;
+        }
+
+currentPasskeySessionId = options.SessionId;
+            _logger.LogInformation("Passkey login: Generated options with SessionId: {SessionId}, Challenge: {Challenge}",
+                options.SessionId,
+    options.Challenge?.Substring(0, Math.Min(20, options.Challenge?.Length ?? 0)));
+
+// Invoke WebAuthn browser API
+        var jsOptions = new
+    {
+    challenge = options.Challenge,
+        rpId = options.RpId,
+        timeout = options.Timeout,
+    userVerification = options.UserVerification,
+    allowCredentials = options.AllowCredentials?.Select(c => new
+        {
+        type = c.Type,
+        id = c.Id,
+    transports = c.Transports
+    })
+    };
+
+    var result = await JSRuntime.InvokeAsync<WebAuthnResult>("webAuthnHelper.authenticatePasskey", jsOptions);
+
+        if (!result.Success)
+        {
+        if (!string.IsNullOrEmpty(result.Error) && !result.Error.Contains("abgebrochen"))
+    {
+    errorMessage = result.Error;
+            }
+        return;
+    }
+
+    _logger.LogInformation("Passkey login: JS returned credential, verifying with SessionId: {SessionId}", currentPasskeySessionId);
+
+            // Verify on server - must use the stored SessionId
+        var authResult = await WebAuthnService.VerifyAuthenticationAsync(result.Credential!, currentPasskeySessionId!);
+
+            if (authResult.Success && authResult.User != null)
+        {
+    // Check if user has all required consents
+        if (!authResult.User.AnalyticsConsent || !authResult.User.DeviceFingerprintConsent || !authResult.User.GdprConsentGiven)
+{
+    pendingUser = authResult.User;
+    showGdprModal = true;
+    return;
+        }
+
+        // Login successful - create session
+        var passkeyLoginResult = await AuthService.LoginWithPasskeyAsync(authResult.UserId);
+
+        if (passkeyLoginResult.IsSuccess)
+    {
+    // Set session cookie
+        try
+        {
+    var sessionId = await AuthService.GetCurrentSessionIdAsync();
+if (!string.IsNullOrEmpty(sessionId))
+        {
+await JSRuntime.InvokeVoidAsync("cookieHelper.setCookie", "LagerSystem.SessionId", sessionId, 7);
+}
+        }
+    catch (Exception ex)
+        {
+        _logger.LogWarning(ex, "Failed to set session cookie");
+        }
+
+            successMessage = "Passkey-Login erfolgreich!";
+    await Task.Delay(500);
+        NavigationManager.NavigateTo("/", false);
+        }
+        else
+    {
+errorMessage = passkeyLoginResult.ErrorCode switch
+        {
+            LoginFailures.GdprConsentRequired or LoginFailures.GranularConsentRequired =>
+                "Bitte melden Sie sich einmalig mit Passwort an, um die erforderlichen Einwilligungen zu erteilen.",
+            LoginFailures.Inactive => "Konto ist deaktiviert.",
+            LoginFailures.PendingApproval => "Konto wartet auf Freigabe durch einen Administrator.",
+            LoginFailures.Rejected => "Konto wurde abgelehnt.",
+            LoginFailures.IpDenied => "Anmeldung von dieser IP-Adresse ist nicht erlaubt.",
+            LoginFailures.UserNotFound => "Benutzer wurde nicht gefunden.",
+            _ => "Login fehlgeschlagen."
+        };
+        }
+    }
+    else
+{
+        errorMessage = authResult.Error ?? "Passkey-Authentifizierung fehlgeschlagen.";
+}
+        }
+        catch (JSException jsEx) when (jsEx.Message.Contains("cancelled") || jsEx.Message.Contains("NotAllowedError"))
+    {
+        // User cancelled - no error message needed
+        _logger.LogInformation("User cancelled passkey authentication");
+        }
+catch (Exception ex)
+        {
+    _logger.LogError(ex, "Error during passkey authentication");
+errorMessage = "Ein Fehler ist aufgetreten. Bitte verwenden Sie Ihr Passwort.";
+        }
+        finally
+    {
+    isPasskeyLoading = false;
+    }
+    }
+
+    // Create passkey after successful login
+    private async Task CreatePasskeyAfterLogin()
+    {
+        if (pendingUser == null) return;
+
+        isPasskeyLoading = true;
+    passkeyError = string.Empty;
+
+try
+        {
+            var deviceName = string.IsNullOrWhiteSpace(passkeyDeviceName) ? detectedDeviceName : passkeyDeviceName;
+            
+    // Generate registration options
+    var options = await WebAuthnService.GenerateRegistrationOptionsAsync(pendingUser.Id, deviceName);
+    
+            if (!options.Success)
+            {
+            passkeyError = options.Error ?? "Fehler bei der Vorbereitung.";
+            return;
+        }
+
+    currentPasskeySessionId = options.SessionId;
+
+        // Invoke WebAuthn browser API
+            var jsOptions = new
+            {
+        challenge = options.Challenge,
+    rpId = options.RpId,
+        rpName = options.RpName,
+                userId = options.UserId,
+        userName = options.UserName,
+            userDisplayName = options.UserDisplayName,
+        excludeCredentials = options.ExcludeCredentials.Select(c => new
+{
+        type = c.Type,
+                id = c.Id,
+    transports = c.Transports
+            }),
+    authenticatorSelection = new
+        {
+        authenticatorAttachment = options.AuthenticatorSelection.AuthenticatorAttachment,
+    residentKey = options.AuthenticatorSelection.ResidentKey,
+        userVerification = options.AuthenticatorSelection.UserVerification
+    },
+        timeout = options.Timeout,
+        attestation = options.Attestation,
+                deviceName = deviceName
+            };
+
+var result = await JSRuntime.InvokeAsync<WebAuthnResult>("webAuthnHelper.registerPasskey", jsOptions);
+
+        if (!result.Success)
+        {
+    passkeyError = result.Error ?? "Passkey-Erstellung fehlgeschlagen.";
+        return;
+        }
+
+            // Verify registration on server
+    var verifyResult = await WebAuthnService.VerifyRegistrationAsync(pendingUser.Id, result.Credential!, currentPasskeySessionId);
+
+            if (verifyResult.Success)
+            {
+        _logger.LogInformation("Passkey registered for user {UserId} after login", pendingUser.Id);
+                showPasskeyPrompt = false;
+        NavigationManager.NavigateTo("/", false);
+}
+else
+    {
+                passkeyError = verifyResult.Error ?? "Passkey konnte nicht verifiziert werden.";
+            }
+        }
+        catch (JSException jsEx) when (jsEx.Message.Contains("cancelled") || jsEx.Message.Contains("NotAllowedError"))
+        {
+        // User cancelled
+            _logger.LogInformation("User cancelled passkey registration");
+            showPasskeyPrompt = false;
+            NavigationManager.NavigateTo("/", false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during passkey registration");
+        passkeyError = "Ein Fehler ist aufgetreten.";
+    }
+        finally
+{
+        isPasskeyLoading = false;
+        }
+    }
+
+    private void SkipPasskeySetup()
+    {
+    showPasskeyPrompt = false;
+    NavigationManager.NavigateTo("/", false);
+    }
+
+    // Magic link methods
+    private void ShowMagicLinkForm()
+    {
+        showMagicLinkForm = true;
+errorMessage = string.Empty;
+        successMessage = string.Empty;
+    }
+
+    private void HideMagicLinkForm()
+    {
+        showMagicLinkForm = false;
+        magicLinkEmail = string.Empty;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+    }
+
+    private async Task SendMagicLink()
+{
+        if (string.IsNullOrWhiteSpace(magicLinkEmail)) return;
+
+        isLoading = true;
+errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            var user = await UserProfileService.GetActiveUserByEmailAsync(magicLinkEmail);
+
+    if (user != null && !user.PasswordlessEnabled && user.DefaultLoginMethod == "Password")
+        {
+        errorMessage = T.Login_PasswordlessOff ?? "Passwordless Login ist für diesen Account nicht aktiviert.";
+        return;
+            }
+
+        var success = await PasswordlessService.SendMagicLinkAsync(magicLinkEmail);
+
+            if (success)
+            {
+        successMessage = T.Login_MagicLinkSent ?? "Ein Magic Link wurde an Ihre E-Mail-Adresse gesendet. Der Link ist 15 Minuten gültig.";
+        magicLinkEmail = string.Empty;
+            }
+            else
+            {
+        errorMessage = "Fehler beim Senden des Magic Links.";
+            }
+}
+        catch (Exception ex)
+        {
+_logger.LogError(ex, "Error sending magic link");
+    errorMessage = "Ein Fehler ist aufgetreten.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleLogin()
+    {
+    isLoading = true;
+errorMessage = string.Empty;
+
+        try
+        {
+        // Check IP restrictions
+            var userCheck = await UserProfileService.GetActiveUserByUsernameAsync(loginModel.Username);
+          
+            if (userCheck != null)
+        {
+        var clientIp = GetClientIp();
+        if (!string.IsNullOrEmpty(clientIp))
+        {
+            var ipResult = await IpAccessService.CheckAccessAsync(userCheck.Id, clientIp);
+    if (!ipResult.IsAllowed)
+        {
+errorMessage = $"Zugriff verweigert: Ihre IP-Adresse ({clientIp}) ist nicht freigegeben.";
+                return;
+        }
+    }
+            }
+
+            var loginResult = await AuthService.LoginAsync(loginModel.Username, loginModel.Password);
+
+            if (loginResult.IsSuccess)
+            {
+                var user = loginResult.Value!;
+                await Task.Delay(100);
+                StateHasChanged();
+                
+    // Set session cookie
+                try
+{
+        var sessionId = await AuthService.GetCurrentSessionIdAsync();
+if (!string.IsNullOrEmpty(sessionId))
+        {
+    await JSRuntime.InvokeVoidAsync("cookieHelper.setCookie", "LagerSystem.SessionId", sessionId, 7);
+        }
+            }
+            catch (Exception ex)
+    {
+    _logger.LogWarning(ex, "Failed to set session cookie");
+        }
+       
+    // Check 2FA requirement
+        if (user.TwoFactorEnabled || user.EmailOtpEnabled)
+    {
+            // Trusted device check: use thumbmarkjs fingerprint
+            // (captured locally on login page or from cookie on repeat request)
+            var isTrusted = false;
+            try
+            {
+                if (string.IsNullOrEmpty(currentDeviceFingerprint))
+                {
+                    currentDeviceFingerprint = HttpContextAccessor?.HttpContext?.Request.Cookies["DeviceFingerprint"];
+                }
+                if (!string.IsNullOrEmpty(currentDeviceFingerprint))
+                {
+                    isTrusted = await TrustedDeviceService.IsDeviceTrustedAsync(user.Id, currentDeviceFingerprint);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error checking trusted device for user {UserId}", user.Id);
+            }
+
+            if (isTrusted)
+            {
+                _logger.LogInformation("Trusted device detected for user {UserId} - skipping 2FA", user.Id);
+                // 2FA skipped - proceed to passkey prompt or redirect
+            }
+            else
+            {
+                pendingUser = user;
+                require2FA = true;
+                trustThisDevice = false;
+
+                // Determine available 2FA methods
+                available2FAMethods.Clear();
+                if (user.TwoFactorEnabled) available2FAMethods.Add(TwoFactorMethods.Authenticator);
+                if (user.EmailOtpEnabled) available2FAMethods.Add(TwoFactorMethods.EmailOtp);
+
+                // Auto-select when only one method is available
+                if (available2FAMethods.Count == 1)
+                {
+                    selected2FAMethod = available2FAMethods[0];
+                    methodSelected = true;
+
+                    if (selected2FAMethod == TwoFactorMethods.EmailOtp)
+                    {
+                        await SendEmailOtpCode();
+                    }
+                }
+                else
+                {
+                    selected2FAMethod = "";
+                    methodSelected = false;
+                }
+
+                return;
+            }
+    }
+
+    // Check if user has passkeys - if not, show prompt
+    if (webAuthnSupported)
+{
+    var hasPasskeys = await WebAuthnService.HasPasskeysAsync(user.Id);
+        if (!hasPasskeys)
+{
+                pendingUser = user;
+        showPasskeyPrompt = true;
+        return;
+        }
+        }
+
+        NavigationManager.NavigateTo("/", false);
+            }
+            else
+            {
+                // Authoritative error mapping driven by AuthService.LoginAsync result.
+                // No duplicated DB lookups / consent checks here – everything below
+                // is purely UI presentation.
+                switch (loginResult.ErrorCode)
+                {
+                    case LoginFailures.GranularConsentRequired:
+                    case LoginFailures.GdprConsentRequired:
+                        // Consent missing – open the GDPR modal so the user can give it.
+                        pendingUser = await UserProfileService.GetActiveUserByUsernameAsync(loginModel.Username);
+                        if (pendingUser is not null)
+                        {
+                            showGdprModal = true;
+                            return;
+                        }
+                        errorMessage = "Einwilligung erforderlich.";
+                        break;
+
+                    case LoginFailures.AccountLocked:
+                        errorMessage = $"Account gesperrt. Versuchen Sie es in {loginResult.ErrorMessage} Minuten erneut.";
+                        break;
+
+                    case LoginFailures.PendingApproval:
+                        errorMessage = "Ihr Account wartet noch auf Genehmigung.";
+                        break;
+
+                    case LoginFailures.Rejected:
+                        errorMessage = "Ihr Account wurde abgelehnt.";
+                        break;
+
+                    case LoginFailures.IpDenied:
+                        errorMessage = "Zugriff verweigert: Ihre IP-Adresse ist nicht freigegeben.";
+                        break;
+
+                    case LoginFailures.Inactive:
+                        errorMessage = "Account ist deaktiviert.";
+                        break;
+
+                    default:
+                        errorMessage = "Benutzername oder Passwort ist falsch.";
+                        break;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"{T.Login_Error_LoginFailed} {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string? GetClientIp()
+    {
+        var context = HttpContextAccessor?.HttpContext;
+    if (context == null) return null;
+
+        var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(forwardedFor))
+        {
+    return forwardedFor.Split(',')[0].Trim();
+        }
+
+        return context.Connection.RemoteIpAddress?.ToString();
+    }
+
+    private async Task AcceptGdprConsent()
+    {
+        if (pendingUser != null && gdprConsentLogin && analyticsConsentLogin && fingerprintConsentLogin)
+{
+    try
+    {
+        await GdprService.GiveConsentAsync(pendingUser.Id, marketingConsentLogin);
+
+        await UserProfileService.UpdateConsentPreferencesAsync(pendingUser.Id, analyticsConsentLogin, fingerprintConsentLogin);
+
+        var loginResult = await AuthService.LoginAsync(loginModel.Username, loginModel.Password);
+
+        if (loginResult.IsSuccess)
+                {
+                var user = loginResult.Value!;
+                showGdprModal = false;
+            
+                    try
+        {
+        var sessionId = await AuthService.GetCurrentSessionIdAsync();
+    if (!string.IsNullOrEmpty(sessionId))
+        {
+await JSRuntime.InvokeVoidAsync("cookieHelper.setCookie", "LagerSystem.SessionId", sessionId, 7);
+                }
+        }
+            catch { }
+
+        // Show passkey prompt after GDPR consent
+            if (webAuthnSupported)
+    {
+    var hasPasskeys = await WebAuthnService.HasPasskeysAsync(user.Id);
+if (!hasPasskeys)
+        {
+    pendingUser = user;
+            showPasskeyPrompt = true;
+return;
+        }
+        }
+           
+        NavigationManager.NavigateTo("/", false);
+        }
+        else
+        {
+            errorMessage = T.Login_Error_GdprLoginFailed;
+        showGdprModal = false;
+            }
+    }
+    catch (Exception ex)
+            {
+        errorMessage = $"Fehler: {ex.Message}";
+    showGdprModal = false;
+        }
+    }
+    }
+
+    private void CancelGdprConsent()
+    {
+        showGdprModal = false;
+        pendingUser = null;
+gdprConsentLogin = false;
+    marketingConsentLogin = false;
+        analyticsConsentLogin = false;
+        fingerprintConsentLogin = false;
+    }
+
+    private async Task Verify2FA()
+    {
+        if (pendingUser == null) return;
+
+    isLoading = true;
+    errorMessage = string.Empty;
+
+        try
+        {
+            bool isValid;
+
+            if (useRecoveryCode)
+            {
+                isValid = await AuthService.Verify2FARecoveryCodeAsync(pendingUser.Id, twoFactorCode);
+            }
+            else if (selected2FAMethod == TwoFactorMethods.EmailOtp)
+            {
+                isValid = await AuthService.VerifyEmailOtpAsync(pendingUser.Id, twoFactorCode);
+            }
+            else
+            {
+                isValid = await AuthService.Verify2FACodeAsync(pendingUser.Id, twoFactorCode);
+            }
+
+    if (isValid)
+            {
+                // Save trusted device if requested
+                if (trustThisDevice && !string.IsNullOrEmpty(currentDeviceFingerprint) && pendingUser != null)
+                {
+                    try
+                    {
+                        var clientIp = GetClientIp();
+                        var userAgent = HttpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString() ?? "Unknown";
+                        var deviceName = ParseDeviceNameFromUserAgent(userAgent);
+                        await TrustedDeviceService.TrustDeviceAsync(
+                            pendingUser.Id, currentDeviceFingerprint, deviceName, clientIp, 30);
+                        _logger.LogInformation("Device trusted after 2FA for user {UserId}", pendingUser.Id);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to trust device for user {UserId}", pendingUser.Id);
+                    }
+                }
+
+    try
+    {
+            var sessionId = await AuthService.GetCurrentSessionIdAsync();
+        if (!string.IsNullOrEmpty(sessionId))
+            {
+        await JSRuntime.InvokeVoidAsync("cookieHelper.setCookie", "LagerSystem.SessionId", sessionId, 7);
+        }
+}
+        catch { }
+
+        require2FA = false;
+
+    // Show passkey prompt after 2FA
+        if (webAuthnSupported)
+        {
+    var hasPasskeys = await WebAuthnService.HasPasskeysAsync(pendingUser.Id);
+        if (!hasPasskeys)
+        {
+showPasskeyPrompt = true;
+            return;
+}
+}
+
+    NavigationManager.NavigateTo("/", forceLoad: true);
+    }
+else
+            {
+                if (useRecoveryCode)
+                    errorMessage = T.Login_Error_InvalidRecoveryCode;
+                else if (selected2FAMethod == TwoFactorMethods.EmailOtp)
+                    errorMessage = T.Login_Error_InvalidEmailOtp;
+                else
+                    errorMessage = T.Login_Error_Invalid2FA;
+    }
+        }
+        catch (Exception ex)
+        {
+errorMessage = $"Fehler: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task Select2FAMethod(string method)
+    {
+        selected2FAMethod = method;
+        methodSelected = true;
+        twoFactorCode = "";
+        errorMessage = string.Empty;
+
+        // Send OTP code immediately for email method
+        if (method == TwoFactorMethods.EmailOtp && pendingUser != null)
+        {
+            await SendEmailOtpCode();
+        }
+    }
+
+    private Task SelectAuthenticatorMethod() => Select2FAMethod(TwoFactorMethods.Authenticator);
+    private Task SelectEmailOtpMethod() => Select2FAMethod(TwoFactorMethods.EmailOtp);
+
+    private async Task SendEmailOtpCode()
+    {
+        if (pendingUser == null) return;
+
+        try
+        {
+            var sent = await TwoFactorManagementService.SendEmailOtpAsync(pendingUser.Id);
+            if (!sent)
+            {
+                errorMessage = T.Login_Error_EmailOtpSendFailed;
+            }
+            else
+            {
+                StartEmailOtpCooldown();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending email OTP");
+            errorMessage = T.Login_Error_EmailOtpSendError;
+        }
+    }
+
+    private async Task ResendEmailOtp()
+    {
+        if (emailOtpCooldown) return;
+        errorMessage = string.Empty;
+        await SendEmailOtpCode();
+    }
+
+    private void StartEmailOtpCooldown()
+    {
+        emailOtpCooldown = true;
+        emailOtpCooldownSeconds = 30;
+        emailOtpCooldownTimer?.Dispose();
+        emailOtpCooldownTimer = new System.Threading.Timer(_ =>
+        {
+            emailOtpCooldownSeconds--;
+            if (emailOtpCooldownSeconds <= 0)
+            {
+                emailOtpCooldown = false;
+                emailOtpCooldownTimer?.Dispose();
+            }
+            InvokeAsync(StateHasChanged);
+        }, null, 1000, 1000);
+    }
+
+    private static string MaskEmail(string email)
+    {
+        if (string.IsNullOrEmpty(email) || !email.Contains('@'))
+            return "***";
+
+        var parts = email.Split('@');
+        var local = parts[0];
+        var domain = parts[1];
+
+        if (local.Length <= 2)
+            return $"{local[0]}***@{domain}";
+
+        return $"{local[0]}{local[1]}***@{domain}";
+    }
+
+    private static string ParseDeviceNameFromUserAgent(string userAgent)
+    {
+        if (string.IsNullOrEmpty(userAgent)) return "Unbekanntes Gerät";
+
+        var ua = userAgent.ToLower();
+        var browser = "Browser";
+        if (ua.Contains("edg/")) browser = "Edge";
+        else if (ua.Contains("opr/") || ua.Contains("opera")) browser = "Opera";
+        else if (ua.Contains("chrome") && !ua.Contains("edg")) browser = "Chrome";
+        else if (ua.Contains("firefox")) browser = "Firefox";
+        else if (ua.Contains("safari") && !ua.Contains("chrome")) browser = "Safari";
+
+        var os = "Unbekannt";
+        if (ua.Contains("windows")) os = "Windows";
+        else if (ua.Contains("mac os")) os = "macOS";
+        else if (ua.Contains("iphone")) os = "iPhone";
+        else if (ua.Contains("ipad")) os = "iPad";
+        else if (ua.Contains("android")) os = "Android";
+        else if (ua.Contains("linux")) os = "Linux";
+
+        return $"{browser} auf {os}";
+    }
+
+    private void Cancel2FA()
+    {
+        require2FA = false;
+        pendingUser = null;
+        twoFactorCode = "";
+        useRecoveryCode = false;
+        errorMessage = string.Empty;
+        selected2FAMethod = "";
+        methodSelected = false;
+        available2FAMethods.Clear();
+        emailOtpCooldown = false;
+        emailOtpCooldownTimer?.Dispose();
+        trustThisDevice = false;
+}
+
+    // JS interop DTOs
+    private class WebAuthnSupportInfo
+    {
+        public bool WebAuthnSupported { get; set; }
+        public bool PlatformAuthenticator { get; set; }
+        public bool ConditionalUI { get; set; }
+}
+
+    private class WebAuthnResult
+    {
+        // Single property with JsonPropertyName for case-insensitive matching
+        [System.Text.Json.Serialization.JsonPropertyName("success")]
+    public bool Success { get; set; }
+  
+[System.Text.Json.Serialization.JsonPropertyName("error")]
+        public string? Error { get; set; }
+    
+        [System.Text.Json.Serialization.JsonPropertyName("credential")]
+        public string? Credential { get; set; }
+}
+
+    public class LoginModel
+{
+    [Required(ErrorMessage = "Benutzername ist erforderlich")]
+        public string Username { get; set; } = string.Empty;
+    
+        [Required(ErrorMessage = "Passwort ist erforderlich")]
+        public string Password { get; set; } = string.Empty;
+    }
+}

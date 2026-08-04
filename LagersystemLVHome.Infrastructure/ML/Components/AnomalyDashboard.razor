@@ -1,0 +1,319 @@
+@page "/ml/anomaly-dashboard"
+@using LagersystemLVHome.Infrastructure.ML.Services
+@using LagersystemLVHome.Infrastructure.ML.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+@rendermode InteractiveServer
+@inject IAnomalyDetectionService AnomalyService
+@inject IToastService ToastService
+
+<PageTitle>Anomalie-Erkennung - ML Dashboard</PageTitle>
+
+<div class="page-header mb-4">
+    <div>
+        <h1 class="page-title">
+            <i class="bi bi-robot me-2"></i>
+            Anomalie-Erkennung
+        </h1>
+        <p class="page-subtitle">KI-gest&#252;tzte Erkennung ungew&#246;hnlicher Aktivit&#228;ten</p>
+    </div>
+    <div>
+        @if (!AnomalyService.IsModelReady)
+        {
+            <button class="btn btn-warning" @onclick="TrainModel" disabled="@isTraining">
+                <i class="bi bi-cpu @(isTraining ? "rotating" : "")"></i>
+                Modell trainieren
+            </button>
+        }
+        else
+        {
+            <button class="btn btn-primary" @onclick="RefreshData" disabled="@isLoading">
+                <i class="bi bi-arrow-clockwise @(isLoading ? "rotating" : "")"></i>
+                Aktualisieren
+            </button>
+        }
+    </div>
+</div>
+
+@if (!AnomalyService.IsModelReady)
+{
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        <strong>Modell noch nicht trainiert</strong>
+        <p class="mb-0">Bitte trainieren Sie das Anomalie-Erkennungs-Modell, bevor Sie fortfahren.</p>
+        @if (AnomalyService.LastTrainingDate.HasValue)
+        {
+            <small>Letztes Training: @AnomalyService.LastTrainingDate.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</small>
+        }
+    </div>
+}
+else
+{
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Analysiere...</span>
+            </div>
+            <p>Anomalie-Analyse l&#228;uft...</p>
+        </div>
+    }
+    else if (anomalies != null)
+    {
+        <!-- KPI Cards -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="card @(highRiskCount > 0 ? "text-bg-danger" : "text-bg-success") h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-exclamation-triangle-fill display-1"></i>
+                        <h2 class="mt-3 mb-0">@highRiskCount</h2>
+                        <p class="mb-0">Hochrisiko-Anomalien</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card text-bg-warning h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-shield-exclamation display-1"></i>
+                        <h2 class="mt-3 mb-0">@mediumRiskCount</h2>
+                        <p class="mb-0">Mittleres Risiko</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card text-bg-info h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-graph-up display-1"></i>
+                        <h2 class="mt-3 mb-0">@analyzedUsers</h2>
+                        <p class="mb-0">Analysierte Benutzer</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card text-bg-primary h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-calendar-check display-1"></i>
+                        <h2 class="mt-3 mb-0">@daysAnalyzed</h2>
+                        <p class="mb-0">Tage analysiert</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (anomalies.Any())
+        {
+            <!-- Detected Anomalies -->
+            <div class="card mb-4">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-exclamation-octagon me-2"></i>
+                        Erkannte Anomalien
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Benutzer</th>
+                                    <th>Risiko-Score</th>
+                                    <th>Status</th>
+                                    <th>Muster</th>
+                                    <th>Empfehlung</th>
+                                    <th>Analysiert</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var anomaly in anomalies.Take(20))
+                                {
+                                    <tr class="@GetRowClass(anomaly.AnomalyScore)">
+                                        <td>
+                                            <strong>@anomaly.Username</strong>
+                                            <br />
+                                            <small class="text-muted">ID: @anomaly.UserId</small>
+                                        </td>
+                                        <td>
+                                            <div class="progress" style="min-width: 100px;">
+                                                <div class="progress-bar @GetProgressBarClass(anomaly.AnomalyScore)"
+                                                    role="progressbar"
+                                                    style="width: @anomaly.AnomalyScore%"
+                                                    aria-valuenow="@anomaly.AnomalyScore"
+                                                    aria-valuemin="0"
+                                                    aria-valuemax="100">
+                                                    @anomaly.AnomalyScore.ToString("F1")%
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge @GetStatusBadge(anomaly.IsHighRisk)">
+                                                @(anomaly.IsHighRisk ? "HOCH" : "MITTEL")
+                                            </span>
+                                        </td>
+                                        <td>
+                                            @foreach (var pattern in anomaly.DetectedPatterns.Take(2))
+                                            {
+                                                <small class="d-block text-muted">
+                                                    <i class="bi bi-dot"></i> @pattern
+                                                </small>
+                                            }
+                                            @if (anomaly.DetectedPatterns.Count > 2)
+                                            {
+                                                <small class="text-muted">
+                                                    <i class="bi bi-plus"></i> @(anomaly.DetectedPatterns.Count - 2) weitere
+                                                </small>
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">
+                                                @anomaly.RecommendedAction
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <small>@anomaly.AnalyzedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</small>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-success">
+                <i class="bi bi-shield-check me-2"></i>
+                <strong>Keine Anomalien erkannt</strong>
+                <p class="mb-0">Alle Benutzeraktivit&#228;ten liegen im normalen Bereich.</p>
+            </div>
+        }
+
+        <!-- Model Info -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Modell-Informationen
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Status:</strong> <span class="badge bg-success">Einsatzbereit</span></p>
+                        <p><strong>Letztes Training:</strong> @(AnomalyService.LastTrainingDate?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "Unbekannt")</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Algorithmus:</strong> Randomized PCA</p>
+                        <p><strong>Features:</strong> 9 Verhaltensmerkmale</p>
+                    </div>
+                </div>
+                <div class="alert alert-info mb-0">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    <strong>Tipp:</strong> F&#252;r optimale Ergebnisse sollte das Modell regelm&#228;&#223;ig (z.B. w&#246;chentlich) neu trainiert werden.
+                </div>
+            </div>
+        </div>
+    }
+}
+
+
+@code {
+    private List<AnomalyAnalysisResult>? anomalies;
+    private bool isLoading = false;
+    private bool isTraining = false;
+    private int highRiskCount = 0;
+    private int mediumRiskCount = 0;
+    private int analyzedUsers = 0;
+    private int daysAnalyzed = 7;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AnomalyService.IsModelReady)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+
+            var from = DateTime.UtcNow.AddDays(-daysAnalyzed);
+            var to = DateTime.UtcNow;
+
+            anomalies = await AnomalyService.DetectAnomaliesAsync(from, to);
+
+            highRiskCount = anomalies.Count(a => a.AnomalyScore >= 60);
+            mediumRiskCount = anomalies.Count(a => a.AnomalyScore >= 40 && a.AnomalyScore < 60);
+            analyzedUsers = anomalies.Select(a => a.UserId).Distinct().Count();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error loading: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadData();
+        ToastService.ShowSuccess("Data refreshed");
+    }
+
+    private async Task TrainModel()
+    {
+        try
+        {
+            isTraining = true;
+            ToastService.ShowInfo("Modell-Training gestartet...");
+
+            var success = await AnomalyService.TrainModelAsync();
+
+            if (success)
+            {
+                ToastService.ShowSuccess("Model trained successfully!");
+                await LoadData();
+            }
+            else
+            {
+                ToastService.ShowWarning("Training failed. Not enough data?");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error during training: {ex.Message}");
+        }
+        finally
+        {
+            isTraining = false;
+        }
+    }
+
+    private string GetRowClass(double score)
+    {
+        if (score >= 80) return "table-danger";
+        if (score >= 60) return "table-danger-light";
+        if (score >= 40) return "table-warning-light";
+        return "";
+    }
+
+    private string GetProgressBarClass(double score)
+    {
+        if (score >= 80) return "bg-danger";
+        if (score >= 60) return "bg-warning";
+        return "bg-info";
+    }
+
+    private string GetStatusBadge(bool isHighRisk)
+    {
+        return isHighRisk ? "bg-danger" : "bg-warning";
+    }
+}

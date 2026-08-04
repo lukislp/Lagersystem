@@ -1,3 +1,21 @@
+# [1.1.0](https://github.com/lukislp/Lagersystem/compare/v1.0.0...v1.1.0) (2026-08-04)
+
+
+### Bug Fixes
+
+* install SkiaSharp native deps in CI and force consistent CRLF checkout ([f0f4006](https://github.com/lukislp/Lagersystem/commit/f0f40062f35fc82c243daff0c0502dfe09981dc1))
+* make GeoLite2-City.mmdb build inclusion conditional on the file existing ([2b7fa8a](https://github.com/lukislp/Lagersystem/commit/2b7fa8a89f6d06dfb31ba8095354e57d8431920e))
+* mark MySQL CI leg as known-broken instead of retrying a hard version mismatch ([6228439](https://github.com/lukislp/Lagersystem/commit/622843932b67e60f24ef7eac317412a6abe91ce1))
+* retry MySQL server version auto-detection on transient startup failures ([29735d4](https://github.com/lukislp/Lagersystem/commit/29735d480018a63bb8ac601adea13957f6a6a426))
+* separate build from app startup in test-db-providers, widen healthz window ([21d91e4](https://github.com/lukislp/Lagersystem/commit/21d91e477e26480d752fd6f87f6bf3bdd901128f))
+* suppress CS8618 on InventoryDbContext's DbSet properties ([b32c7ee](https://github.com/lukislp/Lagersystem/commit/b32c7eecc3e911b938a6107e8df7748523d1ff5d))
+* unblock CI test-lint, test-unit, and test-db-providers ([b9b2e6e](https://github.com/lukislp/Lagersystem/commit/b9b2e6e1aa375e3eef83944263c4d1c3a1c25623))
+
+
+### Features
+
+* add GitHub Actions CI/CD pipeline with automated releases and Docker publishing ([1c6c234](https://github.com/lukislp/Lagersystem/commit/1c6c234f7dfec3981e4f10afeea13a28145ae642))
+
 # Changelog
 
 All notable changes to this project are documented in this file.

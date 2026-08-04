@@ -21,13 +21,17 @@ public class SetupCheckMiddleware
     {
         var path = httpContext.Request.Path.Value?.ToLower() ?? string.Empty;
 
-        // Skip static files and specific paths
+        // Skip static files and specific paths. Health/readiness probes must always respond
+        // regardless of setup state - otherwise a fresh, unseeded instance (e.g. right after
+        // `docker compose up` before the setup wizard has run) never reports healthy.
         if (path.StartsWith("/_framework") ||
             path.StartsWith("/_content") ||
             path.StartsWith("/css") ||
             path.StartsWith("/js") ||
             path.StartsWith("/lib") ||
-            path == "/setup")
+            path == "/setup" ||
+            path == "/healthz" ||
+            path == "/readyz")
         {
             await _next(httpContext);
             return;

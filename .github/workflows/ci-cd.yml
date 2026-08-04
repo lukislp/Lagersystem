@@ -60,7 +60,12 @@ jobs:
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'LagersystemLVHome.sln') }}
           restore-keys: |
             nuget-${{ runner.os }}-
-      - run: dotnet format LagersystemLVHome.sln --verify-no-changes --verbosity diagnostic
+      # CA1848 (LoggerMessage delegate suggestion) has no Roslyn code-fix provider, but
+      # `dotnet format`'s default run still includes the `analyzers` category and flags
+      # every file touched by it as "would be formatted" even though nothing textually
+      # changes - a tool-level false positive, not a real formatting violation. Exclude it
+      # so --verify-no-changes only fails on genuine whitespace/style issues.
+      - run: dotnet format LagersystemLVHome.sln --verify-no-changes --exclude-diagnostics CA1848 --verbosity diagnostic
 
   test-security:
     runs-on: ubuntu-latest

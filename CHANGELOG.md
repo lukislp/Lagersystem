@@ -1,3 +1,10 @@
+## [1.1.2](https://github.com/lukislp/Lagersystem/compare/v1.1.1...v1.1.2) (2026-08-05)
+
+
+### Bug Fixes
+
+* surface build/release/license status via README badges ([1ae2cf9](https://github.com/lukislp/Lagersystem/commit/1ae2cf9f54f381c3c0143f46f7fda8806f1f091e))
+
 ## [1.1.1](https://github.com/lukislp/Lagersystem/compare/v1.1.0...v1.1.1) (2026-08-04)
 
 

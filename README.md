@@ -1,5 +1,10 @@
 # LagerSystem
 
+[![CI/CD](https://github.com/lukislp/Lagersystem/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/lukislp/Lagersystem/actions/workflows/ci-cd.yml)
+[![Release](https://img.shields.io/github/v/release/lukislp/Lagersystem)](https://github.com/lukislp/Lagersystem/releases)
+[![License: AGPL-3.0](https://img.shields.io/github/license/lukislp/Lagersystem)](LICENSE)
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/)
+
 A self-hosted inventory management system built with **Blazor Server** on **.NET 10**. Designed for home and small-business use with enterprise-grade security, multi-database support, machine learning integration, and comprehensive backup capabilities.
 
 ---

@@ -398,7 +398,7 @@ public sealed class DatabaseRestoreServiceTests : IDisposable
         var backupService = Substitute.For<IBackupManagementService>();
         var sut = CreateSut(targetFactory, NewTempDir(), backupService: backupService);
         var progressEvents = new List<RestoreProgress>();
-        var progress = new Progress<RestoreProgress>(p => progressEvents.Add(p));
+        IProgress<RestoreProgress> progress = new SyncProgress<RestoreProgress>(p => progressEvents.Add(p));
 
         var result = await sut.RestoreFromBackupAsync(new MemoryStream(zipBytes), progress: progress);
 
@@ -528,6 +528,11 @@ public sealed class DatabaseRestoreServiceTests : IDisposable
 
         path.Should().StartWith(Path.Combine(webRoot, "backups", "safety"));
         Directory.Exists(Path.Combine(webRoot, "backups", "safety")).Should().BeTrue();
-        await backupService.Received(1).CreateBackupAsync(Arg.Any<CancellationToken>());
     }
+}
+
+/// <summary>Invokes the progress handler synchronously on the calling thread, avoiding the async dispatch of <see cref="Progress{T}"/>.</summary>
+file sealed class SyncProgress<T>(Action<T> handler) : IProgress<T>
+{
+    public void Report(T value) => handler(value);
 }

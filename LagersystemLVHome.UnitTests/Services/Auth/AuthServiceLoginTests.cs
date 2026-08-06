@@ -281,4 +281,157 @@ public class AuthServiceLoginTests
 
         sut.IsAuthenticated().Should().BeFalse();
     }
+
+    // ---- IP access + session bootstrap (uses AuthServiceTestSupport for a real HttpContext) ----
+
+    [Fact]
+    public async Task LoginAsync_WithIpAccessDenied_ReturnsIpDeniedWithoutCheckingPassword()
+    {
+        var fixture = AuthServiceTestSupport.CreateFixture(nameof(LoginAsync_WithIpAccessDenied_ReturnsIpDeniedWithoutCheckingPassword));
+        var user = await AuthServiceTestSupport.SeedUserAsync(fixture.Factory);
+        fixture.IpAccess.CheckAccessAsync(user.Id, Arg.Any<string>())
+            .Returns(Task.FromResult(LagersystemLVHome.Application.Services.IpAccessCheckResult.Denied("blocked", "rule-1")));
+
+        var result = await fixture.Sut.LoginAsync(user.Username, "WRONG");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(LoginFailures.IpDenied);
+        result.ErrorMessage.Should().Be("rule-1");
+
+        await using var verify = fixture.Factory.CreateDbContext();
+        (await verify.Users.FindAsync(user.Id))!.FailedLoginAttempts.Should().Be(0, "password should never be checked once IP access is denied");
+
+        await fixture.Audit.Received(1).LogAsync("LOGIN_IP_DENIED", "User", user.Id, Arg.Any<object?>(), AuditSeverity.Warning);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task LoginAsync_WithIpAccessAllowed_Succeeds(bool restrictionsEnabled)
+    {
+        var fixture = AuthServiceTestSupport.CreateFixture($"{nameof(LoginAsync_WithIpAccessAllowed_Succeeds)}_{restrictionsEnabled}");
+        var user = await AuthServiceTestSupport.SeedUserAsync(fixture.Factory);
+        fixture.IpAccess.CheckAccessAsync(user.Id, Arg.Any<string>())
+            .Returns(Task.FromResult(new LagersystemLVHome.Application.Services.IpAccessCheckResult
+            {
+                IsAllowed = true,
+                RestrictionsEnabled = restrictionsEnabled
+            }));
+
+        var result = await fixture.Sut.LoginAsync(user.Username, "Correct!1");
+
+        result.IsSuccess.Should().BeTrue($"error was '{result.ErrorCode}'");
+    }
+
+    [Fact]
+    public async Task LoginAsync_WithSessionManagement_CreatesSessionAndStoresSessionIdInCircuit()
+    {
+        var accessor = AuthServiceTestSupport.CreateHttpContextAccessor(circuitId: "circuit-1");
+        var fixture = AuthServiceTestSupport.CreateFixture(
+            nameof(LoginAsync_WithSessionManagement_CreatesSessionAndStoresSessionIdInCircuit), accessor);
+        var user = await AuthServiceTestSupport.SeedUserAsync(fixture.Factory);
+
+        var result = await fixture.Sut.LoginAsync(user.Username, "Correct!1");
+
+        result.IsSuccess.Should().BeTrue();
+        await fixture.SessionMgmt.Received(1).CreateSessionAsync(user.Id, user.WarehouseId, Arg.Any<string>(), Arg.Any<string>());
+        fixture.UserStore.GetSessionId().Should().NotBeNullOrEmpty();
+        await fixture.SessionMonitor.Received(1).StartMonitoringAsync(user.Id, Arg.Any<string>(), "circuit-1");
+    }
+
+    [Fact]
+    public async Task LoginAsync_WithSessionManagementButNoCircuitId_StartsMonitoringWithoutCircuit()
+    {
+        var accessor = AuthServiceTestSupport.CreateHttpContextAccessor();
+        var fixture = AuthServiceTestSupport.CreateFixture(
+            nameof(LoginAsync_WithSessionManagementButNoCircuitId_StartsMonitoringWithoutCircuit), accessor);
+        var user = await AuthServiceTestSupport.SeedUserAsync(fixture.Factory);
+
+        var result = await fixture.Sut.LoginAsync(user.Username, "Correct!1");
+
+        result.IsSuccess.Should().BeTrue();
+        await fixture.SessionMonitor.Received(1).StartMonitoringAsync(user.Id, Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task LoginAsync_WithDeviceFingerprintCookie_SavesFingerprint()
+    {
+        var accessor = AuthServiceTestSupport.CreateHttpContextAccessor(deviceFingerprintCookie: "fp-abc123");
+        var fixture = AuthServiceTestSupport.CreateFixture(
+            nameof(LoginAsync_WithDeviceFingerprintCookie_SavesFingerprint), accessor);
+        var user = await AuthServiceTestSupport.SeedUserAsync(fixture.Factory);
+
+        var result = await fixture.Sut.LoginAsync(user.Username, "Correct!1");
+
+        result.IsSuccess.Should().BeTrue();
+        await fixture.DeviceFp.Received(1).SaveDeviceFingerprintAsync(Arg.Any<int>(), "fp-abc123", Arg.Any<HttpContext>());
+    }
+
+    [Fact]
+    public async Task LoginAsync_WithoutDeviceFingerprintCookie_DoesNotSaveFingerprint()
+    {
+        var fixture = AuthServiceTestSupport.CreateFixture(nameof(LoginAsync_WithoutDeviceFingerprintCookie_DoesNotSaveFingerprint));
+        var user = await AuthServiceTestSupport.SeedUserAsync(fixture.Factory);
+
+        var result = await fixture.Sut.LoginAsync(user.Username, "Correct!1");
+
+        result.IsSuccess.Should().BeTrue();
+        await fixture.DeviceFp.DidNotReceiveWithAnyArgs().SaveDeviceFingerprintAsync(default, default!, default!);
+    }
+
+    [Fact]
+    public async Task LoginAsync_WithoutSessionManagementService_StillSucceedsWithoutCreatingSession()
+    {
+        var fixture = AuthServiceTestSupport.CreateFixture(
+            nameof(LoginAsync_WithoutSessionManagementService_StillSucceedsWithoutCreatingSession), includeSessionMgmt: false);
+        var user = await AuthServiceTestSupport.SeedUserAsync(fixture.Factory);
+
+        var result = await fixture.Sut.LoginAsync(user.Username, "Correct!1");
+
+        result.IsSuccess.Should().BeTrue();
+        fixture.UserStore.GetSessionId().Should().BeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task LoginAsync_WhenSessionCreationThrows_StillMarksUserAuthenticated()
+    {
+        var accessor = AuthServiceTestSupport.CreateHttpContextAccessor(circuitId: "circuit-throw");
+        var fixture = AuthServiceTestSupport.CreateFixture(nameof(LoginAsync_WhenSessionCreationThrows_StillMarksUserAuthenticated), accessor);
+        fixture.SessionMgmt.CreateSessionAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns<Task<LagersystemLVHome.Domain.Models.UserSession>>(_ => throw new InvalidOperationException("db unavailable"));
+        var user = await AuthServiceTestSupport.SeedUserAsync(fixture.Factory);
+
+        var result = await fixture.Sut.LoginAsync(user.Username, "Correct!1");
+
+        result.IsSuccess.Should().BeTrue("session bootstrap failures must not block a successful login");
+        fixture.UserStore.GetUser().Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task LoginAsync_WhenDeviceFingerprintSaveThrows_StillSucceeds()
+    {
+        var accessor = AuthServiceTestSupport.CreateHttpContextAccessor(deviceFingerprintCookie: "fp-1");
+        var fixture = AuthServiceTestSupport.CreateFixture(
+            nameof(LoginAsync_WhenDeviceFingerprintSaveThrows_StillSucceeds), accessor);
+        fixture.DeviceFp.SaveDeviceFingerprintAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<HttpContext>())
+            .Returns<Task>(_ => throw new InvalidOperationException("fingerprint failure"));
+        var user = await AuthServiceTestSupport.SeedUserAsync(fixture.Factory);
+
+        var result = await fixture.Sut.LoginAsync(user.Username, "Correct!1");
+
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task LoginAsync_WhenSessionMonitorStartThrows_StillSucceeds()
+    {
+        var fixture = AuthServiceTestSupport.CreateFixture(nameof(LoginAsync_WhenSessionMonitorStartThrows_StillSucceeds));
+        fixture.SessionMonitor.StartMonitoringAsync(Arg.Any<int>(), Arg.Any<string>())
+            .Returns<Task>(_ => throw new InvalidOperationException("monitor failure"));
+        var user = await AuthServiceTestSupport.SeedUserAsync(fixture.Factory);
+
+        var result = await fixture.Sut.LoginAsync(user.Username, "Correct!1");
+
+        result.IsSuccess.Should().BeTrue();
+    }
 }

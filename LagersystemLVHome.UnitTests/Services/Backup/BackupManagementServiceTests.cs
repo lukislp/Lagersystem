@@ -412,14 +412,14 @@ public sealed class BackupManagementServiceTests : IDisposable
     [Fact]
     public async Task CleanupOldBackupsAsync_RemovesEntriesOlderThanRetentionWindowPerType()
     {
-        // NOTE: this pins CURRENT (buggy) behaviour. The Weekly/Monthly cutoffs are
+        // Regression test for an inverted-sign bug: the Weekly/Monthly cutoffs used to be
         // computed as cutoffDate.AddDays(+28) / (+365) instead of extending the cutoff
-        // further into the past. With a typical RetentionDays (e.g. 30) that makes the
-        // Weekly cutoff *tighter* than Daily's (now-2 days instead of now-30), and pushes
-        // the Monthly cutoff into the future entirely - so every Monthly-retention backup,
-        // however recent, gets deleted unconditionally. Flagged as a suspected bug in the
-        // report; this test documents the actual behaviour so a future fix shows up as an
-        // intentional, reviewed test change rather than a silent regression.
+        // further into the past. That made the Weekly cutoff *tighter* than Daily's
+        // (now-2 days instead of now-30) and pushed the Monthly cutoff into the future
+        // entirely - so every Monthly-retention backup, however recent, was deleted
+        // unconditionally. "monthly-recent" below is the key regression assertion: it must
+        // now survive, and "monthly-old" (well past the fixed now-395 cutoff) proves
+        // Monthly cleanup still actually deletes genuinely stale backups.
         var factory = CreateFactory(nameof(CleanupOldBackupsAsync_RemovesEntriesOlderThanRetentionWindowPerType));
         var provider = await SeedProviderAsync(factory, "P", BackupProviderType.Local);
         var now = DateTime.UtcNow;
@@ -430,7 +430,8 @@ public sealed class BackupManagementServiceTests : IDisposable
                 new BackupHistory { BackupProviderId = provider.Id, FileName = "daily-recent", RetentionType = BackupRetentionType.Daily, BackupDate = now.AddDays(-1) },
                 new BackupHistory { BackupProviderId = provider.Id, FileName = "weekly-old", RetentionType = BackupRetentionType.Weekly, BackupDate = now.AddDays(-100) },
                 new BackupHistory { BackupProviderId = provider.Id, FileName = "weekly-recent", RetentionType = BackupRetentionType.Weekly, BackupDate = now },
-                new BackupHistory { BackupProviderId = provider.Id, FileName = "monthly-recent", RetentionType = BackupRetentionType.Monthly, BackupDate = now });
+                new BackupHistory { BackupProviderId = provider.Id, FileName = "monthly-recent", RetentionType = BackupRetentionType.Monthly, BackupDate = now },
+                new BackupHistory { BackupProviderId = provider.Id, FileName = "monthly-old", RetentionType = BackupRetentionType.Monthly, BackupDate = now.AddDays(-400) });
             await db.SaveChangesAsync();
         }
         var sut = CreateSut(factory);
@@ -443,7 +444,8 @@ public sealed class BackupManagementServiceTests : IDisposable
         remaining.Should().NotContain("daily-old");
         remaining.Should().Contain("weekly-recent");
         remaining.Should().NotContain("weekly-old");
-        remaining.Should().NotContain("monthly-recent");
+        remaining.Should().Contain("monthly-recent", "a monthly backup this recent must survive - the cutoff must not land in the future");
+        remaining.Should().NotContain("monthly-old");
     }
 
     // ----- ValidateBackupAsync -----
@@ -586,21 +588,26 @@ public sealed class BackupManagementServiceTests : IDisposable
     // ----- CleanupBackupsByProviderSettingsAsync -----
 
     [Fact]
-    public async Task CleanupBackupsByProviderSettingsAsync_RemovesOldDaily_LeavesWeeklyAndMonthlyUntouched()
+    public async Task CleanupBackupsByProviderSettingsAsync_RemovesOldEntriesAcrossAllRetentionTypes()
     {
-        // NOTE: this documents the CURRENT behaviour. The method's XML doc says
-        // "Weekly and monthly handled analogously" but the implementation only ever
-        // processes BackupRetentionType.Daily - Weekly/Monthly rows are never cleaned up
-        // by this method regardless of age. Flagged as a suspected bug in the report.
-        var factory = CreateFactory(nameof(CleanupBackupsByProviderSettingsAsync_RemovesOldDaily_LeavesWeeklyAndMonthlyUntouched));
+        // Regression test: the method's XML doc said "Weekly and monthly handled
+        // analogously" but the implementation only ever processed
+        // BackupRetentionType.Daily - Weekly/Monthly rows were never cleaned up by this
+        // method regardless of age. All three types are now processed, each with its own
+        // progressively longer cutoff (same reasoning as CleanupOldBackupsAsync).
+        var factory = CreateFactory(nameof(CleanupBackupsByProviderSettingsAsync_RemovesOldEntriesAcrossAllRetentionTypes));
         var provider = await SeedProviderAsync(factory, "P", BackupProviderType.Local);
+        var now = DateTime.UtcNow;
         await using (var db = factory.CreateDbContext())
         {
             db.BackupSettings.Add(new LagersystemLVHome.Domain.Models.BackupSettings { RetentionDays = 30 });
             db.BackupHistory.AddRange(
-                new BackupHistory { BackupProviderId = provider.Id, FileName = "daily-old", RetentionType = BackupRetentionType.Daily, BackupDate = DateTime.UtcNow.AddDays(-40) },
-                new BackupHistory { BackupProviderId = provider.Id, FileName = "weekly-ancient", RetentionType = BackupRetentionType.Weekly, BackupDate = DateTime.UtcNow.AddDays(-400) },
-                new BackupHistory { BackupProviderId = provider.Id, FileName = "monthly-ancient", RetentionType = BackupRetentionType.Monthly, BackupDate = DateTime.UtcNow.AddYears(-5) });
+                new BackupHistory { BackupProviderId = provider.Id, FileName = "daily-old", RetentionType = BackupRetentionType.Daily, BackupDate = now.AddDays(-40) },
+                new BackupHistory { BackupProviderId = provider.Id, FileName = "daily-recent", RetentionType = BackupRetentionType.Daily, BackupDate = now.AddDays(-1) },
+                new BackupHistory { BackupProviderId = provider.Id, FileName = "weekly-ancient", RetentionType = BackupRetentionType.Weekly, BackupDate = now.AddDays(-400) },
+                new BackupHistory { BackupProviderId = provider.Id, FileName = "weekly-recent", RetentionType = BackupRetentionType.Weekly, BackupDate = now },
+                new BackupHistory { BackupProviderId = provider.Id, FileName = "monthly-ancient", RetentionType = BackupRetentionType.Monthly, BackupDate = now.AddYears(-5) },
+                new BackupHistory { BackupProviderId = provider.Id, FileName = "monthly-recent", RetentionType = BackupRetentionType.Monthly, BackupDate = now });
             await db.SaveChangesAsync();
         }
         var uploader = CreateUploader(BackupProviderType.Local);
@@ -611,16 +618,20 @@ public sealed class BackupManagementServiceTests : IDisposable
 
         await using var verifyDb = factory.CreateDbContext();
         var remaining = await verifyDb.BackupHistory.Select(h => h.FileName).ToListAsync();
-        remaining.Should().BeEquivalentTo(new[] { "weekly-ancient", "monthly-ancient" });
+        remaining.Should().BeEquivalentTo(new[] { "daily-recent", "weekly-recent", "monthly-recent" });
         await uploader.Received(1).DeleteAsync(Arg.Is<BackupHistory>(h => h.FileName == "daily-old"));
+        await uploader.Received(1).DeleteAsync(Arg.Is<BackupHistory>(h => h.FileName == "weekly-ancient"));
+        await uploader.Received(1).DeleteAsync(Arg.Is<BackupHistory>(h => h.FileName == "monthly-ancient"));
     }
 
     [Fact]
-    public async Task CleanupBackupsByProviderSettingsAsync_UploaderDeleteThrows_RowStillRemovedFromDb()
+    public async Task CleanupBackupsByProviderSettingsAsync_UploaderDeleteThrows_RowIsKeptForRetry()
     {
-        // NOTE: documents current behaviour - RemoveRange runs unconditionally after the
-        // per-item try/catch, so a failed remote delete still purges the DB row.
-        var factory = CreateFactory(nameof(CleanupBackupsByProviderSettingsAsync_UploaderDeleteThrows_RowStillRemovedFromDb));
+        // Regression test: RemoveRange used to run unconditionally after the per-item
+        // try/catch, so a failed remote delete still purged the DB row - "forgetting" a
+        // backup that may still exist at the provider. A thrown exception now leaves the
+        // row in place so it is retried on the next cleanup run.
+        var factory = CreateFactory(nameof(CleanupBackupsByProviderSettingsAsync_UploaderDeleteThrows_RowIsKeptForRetry));
         var provider = await SeedProviderAsync(factory, "P", BackupProviderType.Local);
         await using (var db = factory.CreateDbContext())
         {
@@ -636,7 +647,7 @@ public sealed class BackupManagementServiceTests : IDisposable
 
         await act.Should().NotThrowAsync();
         await using var verifyDb = factory.CreateDbContext();
-        (await verifyDb.BackupHistory.AnyAsync()).Should().BeFalse();
+        (await verifyDb.BackupHistory.AnyAsync(h => h.FileName == "daily-old")).Should().BeTrue("a failed remote delete must not silently forget the backup in the DB");
     }
 
     // ----- CreateBackupAsync -----

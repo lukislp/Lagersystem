@@ -535,14 +535,18 @@ public sealed partial class BackupManagementService : IBackupManagementService
 
         context.BackupHistory.RemoveRange(oldDaily);
 
+        // Weekly/monthly backups should survive further into the past than daily ones -
+        // AddDays needs a NEGATIVE offset here to push the cutoff further back in time
+        // (a positive offset moved it forward, making weekly stricter than daily and
+        // monthly land in the future, so every monthly backup was deleted unconditionally).
         var oldWeekly = await context.BackupHistory
-            .Where(h => h.RetentionType == BackupRetentionType.Weekly && h.BackupDate < cutoffDate.AddDays(28))
+            .Where(h => h.RetentionType == BackupRetentionType.Weekly && h.BackupDate < cutoffDate.AddDays(-28))
             .ToListAsync(cancellationToken);
 
         context.BackupHistory.RemoveRange(oldWeekly);
 
         var oldMonthly = await context.BackupHistory
-            .Where(h => h.RetentionType == BackupRetentionType.Monthly && h.BackupDate < cutoffDate.AddDays(365))
+            .Where(h => h.RetentionType == BackupRetentionType.Monthly && h.BackupDate < cutoffDate.AddDays(-365))
             .ToListAsync(cancellationToken);
 
         context.BackupHistory.RemoveRange(oldMonthly);
@@ -645,16 +649,33 @@ public sealed partial class BackupManagementService : IBackupManagementService
         LogCleanupStarting(_logger);
 
         var now = DateTime.UtcNow;
-        int totalDeleted = 0;
-
-        // Daily backups
         var dailyCutoff = now.AddDays(-settings.RetentionDays);
-        var oldDaily = await context.BackupHistory
+
+        int totalDeleted = 0;
+        totalDeleted += await CleanupBackupsOlderThanAsync(context, BackupRetentionType.Daily, dailyCutoff, cancellationToken);
+        // Same "further into the past" reasoning as CleanupOldBackupsAsync: weekly/monthly
+        // backups get an additional grace period on top of the daily retention window.
+        totalDeleted += await CleanupBackupsOlderThanAsync(context, BackupRetentionType.Weekly, dailyCutoff.AddDays(-28), cancellationToken);
+        totalDeleted += await CleanupBackupsOlderThanAsync(context, BackupRetentionType.Monthly, dailyCutoff.AddDays(-365), cancellationToken);
+
+        await context.SaveChangesAsync(cancellationToken);
+
+        LogCleanupComplete(_logger, totalDeleted);
+    }
+
+    private async Task<int> CleanupBackupsOlderThanAsync(
+        InventoryDbContext context,
+        BackupRetentionType retentionType,
+        DateTime cutoff,
+        CancellationToken cancellationToken)
+    {
+        var candidates = await context.BackupHistory
             .Include(h => h.BackupProvider)
-            .Where(h => h.RetentionType == BackupRetentionType.Daily && h.BackupDate < dailyCutoff)
+            .Where(h => h.RetentionType == retentionType && h.BackupDate < cutoff)
             .ToListAsync(cancellationToken);
 
-        foreach (var backup in oldDaily)
+        var deletedCount = 0;
+        foreach (var backup in candidates)
         {
             try
             {
@@ -666,7 +687,14 @@ public sealed partial class BackupManagementService : IBackupManagementService
 
                 var uploader = _providerFactory.GetUploader(backup.BackupProvider.Type);
                 await uploader.DeleteAsync(backup);
-                totalDeleted++;
+
+                // Only remove the DB row once the remote side is confirmed handled (deleted,
+                // or DeleteAsync returned false because it was already gone - either way not
+                // an exception). If DeleteAsync throws, leave the row in place so the app
+                // doesn't "forget" a backup that may still exist at the provider; it's picked
+                // up again on the next cleanup run.
+                context.BackupHistory.Remove(backup);
+                deletedCount++;
             }
             catch (Exception ex)
             {
@@ -674,13 +702,7 @@ public sealed partial class BackupManagementService : IBackupManagementService
             }
         }
 
-        context.BackupHistory.RemoveRange(oldDaily);
-
-        // Weekly and monthly handled analogously...
-
-        await context.SaveChangesAsync(cancellationToken);
-
-        LogCleanupComplete(_logger, totalDeleted);
+        return deletedCount;
     }
 
     private async Task SendBackupNotificationAsync(BackupResult result, BackupSettings settings, CancellationToken cancellationToken = default)

@@ -429,11 +429,12 @@ public class ExportServiceTests
     [Fact]
     public async Task ExportStorageLocationsToExcelAsync_WritesHeaderAndDataRows()
     {
-        // NOTE: production code does `.Include(sl => sl.Room)`, but StorageLocation.Room is a
-        // plain string column (not a navigation property) — see StorageLocation.cs. EF Core's
-        // Include() requires a navigation property; calling it on a scalar member is invalid and
-        // is expected to throw at query-translation time. This test documents the current
-        // (likely unintended) runtime behavior of ExportStorageLocationsToExcelAsync.
+        // Regression test: production code used to do `.Include(sl => sl.Room)`, but
+        // StorageLocation.Room is a plain string column, not a navigation property - see
+        // StorageLocation.cs. EF Core's Include() requires a navigation property, so calling
+        // it on a scalar member threw InvalidOperationException at query-translation time on
+        // every call, making this export endpoint completely broken. The Include() is gone;
+        // Room is a normal column and needs no eager-loading.
         var factory = CreateFactory(nameof(ExportStorageLocationsToExcelAsync_WritesHeaderAndDataRows));
         await using (var db = factory.CreateDbContext())
         {
@@ -444,12 +445,14 @@ public class ExportServiceTests
 
         var sut = Build(factory);
 
-        var act = () => sut.ExportStorageLocationsToExcelAsync(1);
+        var bytes = await sut.ExportStorageLocationsToExcelAsync(1);
 
-        // See comment above: `.Include(sl => sl.Room)` on a scalar property is invalid and the
-        // service's catch block logs and rethrows, so this currently always fails in production.
-        await act.Should().ThrowAsync<InvalidOperationException>(
-            "sl.Room is a scalar string, not a navigation property, so Include() cannot resolve it");
+        using var workbook = new XLWorkbook(new MemoryStream(bytes));
+        var ws = workbook.Worksheet("Lagerplaetze");
+        ws.Cell(1, 1).GetString().Should().Be("Code");
+        ws.Cell(1, 3).GetString().Should().Be("Raum");
+        ws.Cell(2, 1).GetString().Should().Be("A1");
+        ws.Cell(2, 3).GetString().Should().Be("Hall A");
     }
 
     // ---- GenerateInventoryReportPdfAsync (HTML) -------------------------------------

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using LagersystemLVHome.Application.Configuration;
@@ -74,7 +75,21 @@ public sealed class DatabaseRestoreService : IDatabaseRestoreService
                 // 1. Verify ZIP structure
                 if (!await IsValidZipAsync(backupStream))
                 {
-                    result.ErrorMessage = "Keine gueltige ZIP-Datei";
+                    // Not a ZIP - this is exactly the shape BackupManagementService.EncryptBackupAsync
+                    // produces (a 16-byte IV followed by opaque AES ciphertext; the plaintext ZIP only
+                    // exists again after decryption). Treat it as an encrypted-backup candidate instead
+                    // of rejecting outright; a wrong password or genuinely corrupt upload still surfaces
+                    // as a clear error once decryption is attempted.
+                    backupStream.Position = 0;
+                    if (backupStream.Length <= 16)
+                    {
+                        result.ErrorMessage = "Keine gueltige ZIP-Datei";
+                        return result;
+                    }
+
+                    result.IsEncrypted = true;
+                    result.RequiresPassword = true;
+                    result.IsValid = true;
                     return result;
                 }
 
@@ -132,8 +147,8 @@ public sealed class DatabaseRestoreService : IDatabaseRestoreService
                     return true;
                 }
 
-                // 2. Check for backup_metadata.json (normal backups have this)
-                var metadataEntry = archive.GetEntry("backup_metadata.json");
+                // 2. Check for metadata.json (normal backups have this - see JsonBackupHelper)
+                var metadataEntry = archive.GetEntry("metadata.json");
                 if (metadataEntry != null)
                 {
                     return false;
@@ -468,13 +483,37 @@ public sealed class DatabaseRestoreService : IDatabaseRestoreService
 
         try
         {
-            // Decryption delegated to EncryptionService when backup encryption is enabled
-            using (var fileStream = File.Create(tempZip))
+            // Mirrors BackupManagementService.EncryptBackupAsync's exact on-disk format: a
+            // 16-byte random IV followed by AES-CBC ciphertext, key derived from the password
+            // the same way (SHA256). leaveOpen on the CryptoStream since encryptedStream is
+            // owned by the caller.
+            var iv = new byte[16];
+            var ivBytesRead = await encryptedStream.ReadAsync(iv.AsMemory(0, 16), cancellationToken);
+            if (ivBytesRead != 16)
             {
-                await encryptedStream.CopyToAsync(fileStream);
+                throw new InvalidOperationException("Verschluesselte Datei ist zu kurz, um einen gueltigen IV zu enthalten.");
             }
 
-            ZipFile.ExtractToDirectory(tempZip, targetDir);
+            try
+            {
+                using var aes = Aes.Create();
+                aes.Key = DeriveKeyFromPassword(password);
+                aes.IV = iv;
+
+                await using (var fileStream = File.Create(tempZip))
+                await using (var cryptoStream = new CryptoStream(encryptedStream, aes.CreateDecryptor(), CryptoStreamMode.Read, leaveOpen: true))
+                {
+                    await cryptoStream.CopyToAsync(fileStream, cancellationToken);
+                }
+
+                ZipFile.ExtractToDirectory(tempZip, targetDir);
+            }
+            catch (Exception ex) when (ex is CryptographicException or InvalidDataException)
+            {
+                // A wrong password decrypts to garbage: CryptoStream's PKCS7 unpadding rejects it
+                // (CryptographicException), or the "decrypted" bytes simply aren't a ZIP (InvalidDataException).
+                throw new InvalidOperationException("Entschluesselung fehlgeschlagen - falsches Passwort?", ex);
+            }
         }
         finally
         {
@@ -483,6 +522,14 @@ public sealed class DatabaseRestoreService : IDatabaseRestoreService
                 File.Delete(tempZip);
             }
         }
+    }
+
+    // Must stay byte-for-byte identical to BackupManagementService.DeriveKeyFromPassword -
+    // this is the decrypt half of the same encrypt/decrypt pair.
+    private static byte[] DeriveKeyFromPassword(string password)
+    {
+        using var sha256 = SHA256.Create();
+        return sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
     }
 
     private async Task ReplaceDatabaseAsync(string backupDirectory, CancellationToken cancellationToken)
@@ -500,64 +547,10 @@ public sealed class DatabaseRestoreService : IDatabaseRestoreService
         _logger.LogInformation("JSON restore completed successfully for {Provider}", _databaseSettings.Provider);
     }
 
-    private async Task ReplaceSQLiteDatabaseAsync(string backupDbFile, CancellationToken cancellationToken = default)
-    {
-        var currentDbPath = GetDatabasePath();
-
-        await DisconnectAllClientsAsync();
-        await Task.Delay(500);
-
-        var oldDbPath = $"{currentDbPath}.old";
-        if (File.Exists(currentDbPath))
-        {
-            File.Move(currentDbPath, oldDbPath, true);
-        }
-
-        File.Copy(backupDbFile, currentDbPath, true);
-
-        if (!await ValidateDatabaseIntegrityAsync(currentDbPath))
-        {
-            File.Delete(currentDbPath);
-            if (File.Exists(oldDbPath))
-            {
-                File.Move(oldDbPath, currentDbPath, true);
-            }
-            throw new InvalidOperationException("Database validation failed - rollback performed");
-        }
-
-        if (File.Exists(oldDbPath))
-        {
-            File.Delete(oldDbPath);
-        }
-    }
-
-    private async Task DisconnectAllClientsAsync(CancellationToken cancellationToken = default)
-    {
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        await Task.Delay(100);
-    }
-
     private async Task ReInitializeDatabaseConnectionAsync(CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         await context.Database.CanConnectAsync();
-    }
-
-    private async Task<bool> ValidateDatabaseIntegrityAsync(string dbPath, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
-            await context.Database.CanConnectAsync();
-
-            var userCount = await context.Users.CountAsync(cancellationToken);
-            return userCount >= 0;
-        }
-        catch
-        {
-            return false;
-        }
     }
 
     private async Task<int> CountTablesAsync(CancellationToken cancellationToken = default)

@@ -161,6 +161,31 @@ public class DatabaseHealthServiceTests : IDisposable
         report.HealthStatus.Should().Be("Excellent");
         report.Warnings.Should().BeEmpty();
         report.Recommendations.Should().BeEmpty();
+        report.LastBackup.Should().BeNull("no backup history exists yet");
+    }
+
+    /// <summary>Regression test: GetHealthReportAsync used to never call the existing
+    /// GetLastBackupDateAsync helper, so DatabaseHealthReport.LastBackup stayed null
+    /// regardless of actual backup history. It is now wired up.</summary>
+    [Fact]
+    public async Task GetHealthReportAsync_HasSuccessfulBackup_PopulatesLastBackup()
+    {
+        using var factory = CreateSqliteFactory();
+        var expected = DateTime.UtcNow.AddDays(-1);
+        await using (var seed = factory.CreateDbContext())
+        {
+            seed.BackupProviders.Add(new BackupProvider { Name = "local", Type = BackupProviderType.Local });
+            await seed.SaveChangesAsync();
+            var providerId = seed.BackupProviders.First().Id;
+            seed.BackupHistory.Add(new BackupHistory { BackupProviderId = providerId, FileName = "recent.bak", BackupDate = expected, Status = BackupStatus.Success });
+            await seed.SaveChangesAsync();
+        }
+        var sut = BuildSut(factory);
+
+        var report = await sut.GetHealthReportAsync();
+
+        report.LastBackup.Should().NotBeNull();
+        report.LastBackup!.Value.Should().BeCloseTo(expected, TimeSpan.FromSeconds(2));
     }
 
     [Fact]
@@ -446,11 +471,12 @@ public class DatabaseHealthServiceTests : IDisposable
         (await InvokeAsync<double>(sut, "GetAverageQueryTimeAsync", ctx, CancellationToken.None)).Should().Be(0);
     }
 
-    // ==================== GetLastBackupDateAsync (private, currently unused by production code) ====================
-    // BUG (suspected): GetHealthReportAsync never calls GetLastBackupDateAsync, so
-    // DatabaseHealthReport.LastBackup/LastVacuum/NeedsVacuum are always left at their default
-    // values (null/false) regardless of actual backup history. Verified directly via reflection
-    // since there is no public call path to exercise it otherwise.
+    // ==================== GetLastBackupDateAsync (private) ====================
+    // GetHealthReportAsync now calls this and populates DatabaseHealthReport.LastBackup (see
+    // GetHealthReportAsync_HasSuccessfulBackup_PopulatesLastBackup above). These two tests
+    // exercise the helper directly via reflection for its own edge cases.
+    // LastVacuum/NeedsVacuum have no backing implementation anywhere in this class - out of
+    // scope here, that would be new functionality rather than wiring up an existing method.
 
     [Fact]
     public async Task GetLastBackupDateAsync_NoSuccessfulBackups_ReturnsNull()

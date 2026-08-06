@@ -205,23 +205,50 @@ public class ImageServiceTests : IDisposable
         await act.Should().NotThrowAsync();
     }
 
+    /// <summary>
+    /// Makes File.Delete on <paramref name="filePath"/> throw on BOTH platforms. An
+    /// exclusive FileStream (the first version of these tests) only blocks deletion
+    /// under Windows sharing semantics - POSIX happily unlinks open files, which made
+    /// the three delete-failure tests pass locally and fail in Linux CI. Instead:
+    /// Windows gets the ReadOnly attribute on the file, Linux gets a write-protected
+    /// parent directory (unlink needs parent write permission; CI runners are non-root).
+    /// Dispose restores everything so the temp-dir cleanup still works.
+    /// </summary>
+    private static IDisposable MakeUndeletable(string filePath)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            File.SetAttributes(filePath, File.GetAttributes(filePath) | FileAttributes.ReadOnly);
+            return new ActionDisposable(() =>
+                File.SetAttributes(filePath, File.GetAttributes(filePath) & ~FileAttributes.ReadOnly));
+        }
+
+        var dir = Path.GetDirectoryName(filePath)!;
+        var originalMode = File.GetUnixFileMode(dir);
+        File.SetUnixFileMode(dir, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+        return new ActionDisposable(() => File.SetUnixFileMode(dir, originalMode));
+    }
+
+    private sealed class ActionDisposable(Action onDispose) : IDisposable
+    {
+        public void Dispose() => onDispose();
+    }
+
     [Fact]
-    public async Task DeleteProductImageAsync_LockedFile_SwallowsExceptionAndLeavesFileInPlace()
+    public async Task DeleteProductImageAsync_UndeletableFile_SwallowsExceptionAndLeavesFileInPlace()
     {
         var sut = CreateSut();
         var bytes = MakeImageBytes(SKEncodedImageFormat.Png);
         var (imageUrl, thumbnailUrl) = await sut.UploadProductImageAsync(new FakeBrowserFile("p.png", bytes), 1);
         var physicalPath = sut.GetImagePath(imageUrl);
 
-        // Hold an exclusive lock so File.Delete throws IOException inside the service,
-        // exercising its catch-and-log branch instead of propagating.
-        await using (new FileStream(physicalPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        using (MakeUndeletable(physicalPath))
         {
             var act = async () => await sut.DeleteProductImageAsync(imageUrl, thumbnailUrl);
             await act.Should().NotThrowAsync();
-        }
 
-        File.Exists(physicalPath).Should().BeTrue("the delete attempt should have failed silently while the file was locked");
+            File.Exists(physicalPath).Should().BeTrue("the delete attempt should have failed silently while the file was undeletable");
+        }
     }
 
     // ---- GetImagePath / ImageExists ----
@@ -333,18 +360,18 @@ public class ImageServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task DeleteProfileImageAsync_LockedFile_SwallowsExceptionAndReturnsFalse()
+    public async Task DeleteProfileImageAsync_UndeletableFile_SwallowsExceptionAndReturnsFalse()
     {
         var sut = CreateSut();
         var imageUrl = await sut.UploadProfileImageAsync(new FakeBrowserFile("a.jpg", MakeImageBytes(SKEncodedImageFormat.Jpeg)));
         var physicalPath = sut.GetImagePath(imageUrl);
 
-        await using (new FileStream(physicalPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        using (MakeUndeletable(physicalPath))
         {
             (await sut.DeleteProfileImageAsync(imageUrl)).Should().BeFalse();
-        }
 
-        File.Exists(physicalPath).Should().BeTrue();
+            File.Exists(physicalPath).Should().BeTrue();
+        }
     }
 
     // ---- UploadSpecificationPdfAsync / DeleteSpecificationPdfAsync ----
@@ -427,17 +454,17 @@ public class ImageServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task DeleteSpecificationPdfAsync_LockedFile_SwallowsExceptionAndReturnsFalse()
+    public async Task DeleteSpecificationPdfAsync_UndeletableFile_SwallowsExceptionAndReturnsFalse()
     {
         var sut = CreateSut();
         var pdfUrl = await sut.UploadSpecificationPdfAsync(new FakeBrowserFile("s.pdf", MakeFakePdfBytes()), productId: 1);
         var physicalPath = sut.GetImagePath(pdfUrl);
 
-        await using (new FileStream(physicalPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        using (MakeUndeletable(physicalPath))
         {
             (await sut.DeleteSpecificationPdfAsync(pdfUrl)).Should().BeFalse();
-        }
 
-        File.Exists(physicalPath).Should().BeTrue();
+            File.Exists(physicalPath).Should().BeTrue();
+        }
     }
 }

@@ -226,7 +226,14 @@ public class ImageServiceTests : IDisposable
         var dir = Path.GetDirectoryName(filePath)!;
         var originalMode = File.GetUnixFileMode(dir);
         File.SetUnixFileMode(dir, UnixFileMode.UserRead | UnixFileMode.UserExecute);
-        return new ActionDisposable(() => File.SetUnixFileMode(dir, originalMode));
+        return new ActionDisposable(() =>
+        {
+            // CA1416's platform-guard analysis doesn't flow into lambdas, so re-guard here.
+            if (!OperatingSystem.IsWindows())
+            {
+                File.SetUnixFileMode(dir, originalMode);
+            }
+        });
     }
 
     private sealed class ActionDisposable(Action onDispose) : IDisposable

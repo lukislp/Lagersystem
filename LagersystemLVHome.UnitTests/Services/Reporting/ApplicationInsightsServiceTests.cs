@@ -402,8 +402,10 @@ public class ApplicationInsightsServiceTests
         metric.ActiveUsers.Should().Be(1);
         metric.CpuUsagePercent.Should().BeGreaterThanOrEqualTo(0);
         metric.MemoryUsedMB.Should().BeGreaterThanOrEqualTo(0);
-        // Suspected bug: MemoryTotalMB is hardcoded to long.MinValue instead of an actual total-memory reading.
-        metric.MemoryTotalMB.Should().Be(long.MinValue);
+        // Regression test: MemoryTotalMB used to be hardcoded to long.MinValue instead of an
+        // actual reading. It now reflects GC.GetGCMemoryInfo().TotalAvailableMemoryBytes,
+        // which is always positive on any real runtime.
+        metric.MemoryTotalMB.Should().BeGreaterThan(0);
     }
 
     [Fact]

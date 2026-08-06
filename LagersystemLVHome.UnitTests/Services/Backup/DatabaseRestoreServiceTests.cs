@@ -14,32 +14,33 @@ namespace LagersystemLVHome.UnitTests.Services.Backup;
 /// <summary>
 /// Covers <see cref="DatabaseRestoreService"/>.
 ///
-/// Two real bugs surfaced while writing these tests and are pinned/documented rather
-/// than "fixed" (production code is out of scope for this change):
+/// Two real bugs were found and fixed while writing these tests:
 ///
-/// 1. <c>DecryptAndExtractAsync</c> never actually decrypts, and restoring an encrypted
-///    backup is broken in two independent, compounding ways:
-///    (a) <c>ValidateBackupAsync</c>'s first gate (<c>IsValidZipAsync</c>) requires the
+/// 1. <c>DecryptAndExtractAsync</c> never actually decrypted, and restoring an encrypted
+///    backup was broken in two independent, compounding ways:
+///    (a) <c>ValidateBackupAsync</c>'s first gate (<c>IsValidZipAsync</c>) required the
 ///    raw uploaded stream to already parse as a ZIP archive - but a genuinely
 ///    AES-encrypted backup (the IV-prefixed ciphertext
 ///    <c>BackupManagementService.EncryptBackupAsync</c> produces) is opaque binary, not a
-///    ZIP, so it is rejected as "Keine gueltige ZIP-Datei" before encryption/password
-///    handling is ever reached. See
-///    RestoreFromBackupAsync_RealAesEncryptedBackup_IsRejectedAtTheZipValidationGate.
-///    (b) even for an input that clears that gate (e.g. a structurally valid ZIP that
-///    happens to carry the ".encrypted" marker), <c>DecryptAndExtractAsync</c> - despite
+///    ZIP, so it was rejected as "Keine gueltige ZIP-Datei" before encryption/password
+///    handling was ever reached. Any non-ZIP stream long enough to hold a 16-byte IV is
+///    now treated as an encrypted-backup candidate instead. See
+///    ValidateBackupAsync_NotAZipButLongEnoughForAnIV_IsTreatedAsEncrypted.
+///    (b) even for an input that cleared that gate, <c>DecryptAndExtractAsync</c> - despite
 ///    its comment "Decryption delegated to EncryptionService when backup encryption is
-///    enabled" - just copies the stream verbatim to a .zip path and extracts it as-is;
-///    <c>_encryptionService</c> is never referenced anywhere in the class, so nothing is
-///    ever genuinely decrypted. See
-///    RestoreFromBackupAsync_ZipMarkedEncrypted_NeverActuallyDecrypts_SoNothingIsImported.
+///    enabled" - just copied the stream verbatim to a .zip path and extracted it as-is.
+///    It now performs the actual AES-CBC decryption (key derived from the password the
+///    same way <c>BackupManagementService.EncryptBackupAsync</c> does), and a wrong
+///    password now fails cleanly instead of silently importing nothing. See
+///    RestoreFromBackupAsync_RealAesEncryptedBackup_DecryptsAndImportsSuccessfully and
+///    RestoreFromBackupAsync_EncryptedWithWrongPassword_FailsCleanlyWithoutImporting.
 ///
-/// 2. <c>IsBackupEncryptedAsync</c>'s fast-path check looks for a zip entry named
+/// 2. <c>IsBackupEncryptedAsync</c>'s fast-path check looked for a zip entry named
 ///    <c>"backup_metadata.json"</c>, but the real metadata file
 ///    <see cref="JsonBackupHelper"/> writes is named <c>"metadata.json"</c> - so that
-///    check is dead code for every real backup and detection always falls through to the
-///    byte-sniffing heuristic (which happens to still get the right answer for JSON
-///    backups). See IsBackupEncryptedAsync_BackupMetadataJsonEntryName_OnlyMatchesTheWrongFilename.
+///    check was dead code for every real backup and detection always fell through to the
+///    byte-sniffing heuristic. Now matches the real filename. See
+///    IsBackupEncryptedAsync_MetadataJsonEntryPresent_ReturnsFalse.
 ///
 /// The final step of a fully successful <c>RestoreFromBackupAsync</c> call
 /// (<c>CountTablesAsync</c>) calls <c>context.Database.GetDbConnection()</c>, which is a
@@ -149,13 +150,6 @@ public sealed class DatabaseRestoreServiceTests : IDisposable
         return ms.ToArray();
     }
 
-    private static byte[] RandomBytes(int count)
-    {
-        var bytes = new byte[count];
-        RandomNumberGenerator.Fill(bytes);
-        return bytes;
-    }
-
     private static byte[] EncryptLikeBackupManagementService(byte[] plainZipBytes, string password)
     {
         using var sha256 = SHA256.Create();
@@ -187,14 +181,35 @@ public sealed class DatabaseRestoreServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ValidateBackupAsync_NotAZip_ReturnsInvalidWithGermanErrorMessage()
+    public async Task ValidateBackupAsync_TooShortToContainAnIV_ReturnsInvalidWithGermanErrorMessage()
     {
-        var sut = CreateSut(CreateFactory(nameof(ValidateBackupAsync_NotAZip_ReturnsInvalidWithGermanErrorMessage)), NewTempDir(), backupService: null);
+        var sut = CreateSut(CreateFactory(nameof(ValidateBackupAsync_TooShortToContainAnIV_ReturnsInvalidWithGermanErrorMessage)), NewTempDir(), backupService: null);
 
         var result = await sut.ValidateBackupAsync(new MemoryStream(new byte[] { 1, 2, 3, 4 }));
 
         result.IsValid.Should().BeFalse();
         result.ErrorMessage.Should().Contain("ZIP");
+    }
+
+    /// <summary>
+    /// Regression test: a genuinely AES-encrypted backup (the IV-prefixed ciphertext
+    /// BackupManagementService.EncryptBackupAsync produces) is not a valid ZIP by itself -
+    /// it used to be rejected outright here as "Keine gueltige ZIP-Datei". Any non-ZIP
+    /// stream long enough to plausibly hold a 16-byte IV is now treated as an encrypted
+    /// backup candidate instead.
+    /// </summary>
+    [Fact]
+    public async Task ValidateBackupAsync_NotAZipButLongEnoughForAnIV_IsTreatedAsEncrypted()
+    {
+        var encrypted = EncryptLikeBackupManagementService(BuildZip(("a.json", "{}"u8.ToArray())), "pw");
+        var sut = CreateSut(CreateFactory(nameof(ValidateBackupAsync_NotAZipButLongEnoughForAnIV_IsTreatedAsEncrypted)), NewTempDir(), backupService: null);
+
+        var result = await sut.ValidateBackupAsync(new MemoryStream(encrypted));
+
+        result.IsValid.Should().BeTrue();
+        result.IsEncrypted.Should().BeTrue();
+        result.RequiresPassword.Should().BeTrue();
+        result.ErrorMessage.Should().BeNull();
     }
 
     [Fact]
@@ -220,13 +235,13 @@ public sealed class DatabaseRestoreServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task IsBackupEncryptedAsync_BackupMetadataJsonEntryName_OnlyMatchesTheWrongFilename()
+    public async Task IsBackupEncryptedAsync_MetadataJsonEntryPresent_ReturnsFalse()
     {
-        // Proves check #2 *does* work for the literal name it looks for
-        // ("backup_metadata.json") - but JsonBackupHelper never produces that filename
-        // (it writes "metadata.json"), so this fast path is dead for real backups.
-        var zip = BuildZip(("backup_metadata.json", "{}"u8.ToArray()));
-        var sut = CreateSut(CreateFactory(nameof(IsBackupEncryptedAsync_BackupMetadataJsonEntryName_OnlyMatchesTheWrongFilename)), NewTempDir(), backupService: null);
+        // Regression test: this fast-path check used to look for the wrong filename
+        // ("backup_metadata.json"), so it was dead code for every real backup -
+        // JsonBackupHelper actually writes "metadata.json". Now matches the real name.
+        var zip = BuildZip(("metadata.json", "{}"u8.ToArray()));
+        var sut = CreateSut(CreateFactory(nameof(IsBackupEncryptedAsync_MetadataJsonEntryPresent_ReturnsFalse)), NewTempDir(), backupService: null);
 
         (await sut.IsBackupEncryptedAsync(new MemoryStream(zip))).Should().BeFalse();
     }
@@ -324,53 +339,60 @@ public sealed class DatabaseRestoreServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task RestoreFromBackupAsync_RealAesEncryptedBackup_IsRejectedAtTheZipValidationGate()
+    public async Task RestoreFromBackupAsync_RealAesEncryptedBackup_DecryptsAndImportsSuccessfully()
     {
-        // Empirically demonstrates the more fundamental half of bug #1: a genuinely
-        // AES-encrypted backup (same IV-prefixed scheme BackupManagementService.EncryptBackupAsync
-        // produces) is, by construction, no longer a valid ZIP container - it's opaque
-        // ciphertext. ValidateBackupAsync's very first gate (IsValidZipAsync) rejects it
-        // outright as "Keine gueltige ZIP-Datei" before encryption/password handling is
-        // even reached, so RestoreFromBackupAsync bails out immediately and never calls
-        // the safety-backup step. Restoring an encrypted backup produced by this
-        // application's own backup pipeline is therefore impossible end-to-end.
-        var plainZip = BuildZip(("Warehouses.json", "[]"u8.ToArray()));
+        // Regression test for both halves of the fixed bug: a genuinely AES-encrypted
+        // backup (same IV-prefixed scheme BackupManagementService.EncryptBackupAsync
+        // produces) is no longer a valid ZIP container by itself - ValidateBackupAsync now
+        // recognizes "not a ZIP, but plausibly sized" as an encrypted-backup candidate
+        // instead of rejecting it outright, and DecryptAndExtractAsync now genuinely
+        // decrypts (same key derivation, same IV placement) before extracting. Uses a real
+        // JsonBackupHelper export as the plaintext so a successful decrypt is proven by the
+        // seeded Warehouse actually landing in the target database.
+        var sourceFactory = CreateFactory(nameof(RestoreFromBackupAsync_RealAesEncryptedBackup_DecryptsAndImportsSuccessfully) + "_src");
+        await using (var db = sourceFactory.CreateDbContext())
+        {
+            db.Warehouses.Add(new Warehouse { Id = 1, Name = "WH1", Address = "a", IsActive = true });
+            await db.SaveChangesAsync();
+        }
+        var exportHelper = new JsonBackupHelper(sourceFactory, NullLogger<JsonBackupHelper>.Instance,
+            Options.Create(new DatabaseSettings { Provider = DatabaseProvider.SQLite }));
+        var zipPath = Path.Combine(NewTempDir(), "src.zip");
+        await exportHelper.CreateJsonBackupAsync(zipPath);
+        var plainZip = await File.ReadAllBytesAsync(zipPath);
         var encrypted = EncryptLikeBackupManagementService(plainZip, "correct-password");
 
+        var targetFactory = CreateFactory(nameof(RestoreFromBackupAsync_RealAesEncryptedBackup_DecryptsAndImportsSuccessfully) + "_dst");
         var backupService = Substitute.For<IBackupManagementService>();
-        var sut = CreateSut(CreateFactory(nameof(RestoreFromBackupAsync_RealAesEncryptedBackup_IsRejectedAtTheZipValidationGate)), NewTempDir(), backupService: backupService);
+        var sut = CreateSut(targetFactory, NewTempDir(), backupService: backupService);
+        var progressEvents = new List<RestoreProgress>();
+        IProgress<RestoreProgress> progress = new SyncProgress<RestoreProgress>(p => progressEvents.Add(p));
 
-        var result = await sut.RestoreFromBackupAsync(new MemoryStream(encrypted), password: "correct-password");
+        var result = await sut.RestoreFromBackupAsync(new MemoryStream(encrypted), password: "correct-password", progress: progress);
 
-        result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("ZIP");
-        await backupService.DidNotReceiveWithAnyArgs().CreateBackupAsync(default);
+        // Same InMemory-provider seam as the unencrypted happy-path test (see class
+        // remarks): the import itself succeeds, only the final relational-only tally fails.
+        result.SafetyBackupPath.Should().NotBeNullOrEmpty();
+        progressEvents.Should().Contain(p => p.Step == RestoreStep.Decrypting);
+        await backupService.Received(1).CreateBackupAsync(Arg.Any<CancellationToken>());
+        await using var verifyDb = targetFactory.CreateDbContext();
+        (await verifyDb.Warehouses.CountAsync()).Should().Be(1);
     }
 
     [Fact]
-    public async Task RestoreFromBackupAsync_ZipMarkedEncrypted_NeverActuallyDecrypts_SoNothingIsImported()
+    public async Task RestoreFromBackupAsync_EncryptedWithWrongPassword_FailsCleanlyWithoutImporting()
     {
-        // Empirically demonstrates the other half of bug #1: DecryptAndExtractAsync never
-        // calls IEncryptionService - it copies whatever bytes it receives straight into a
-        // .zip and extracts them as-is. To get PAST the ZIP-validation gate (see the test
-        // above) this uses a *structurally valid* ZIP that carries the ".encrypted"
-        // marker BackupManagementService.EncryptBackupAsync's sibling code checks for, but
-        // whose payload is not a real JSON export (standing in for what genuinely
-        // encrypted ciphertext would look like once "decrypted" by simply re-opening it
-        // as a zip - garbage). The call completes without throwing and even runs the
-        // safety-backup step, but silently imports zero records: none of the expected
-        // Warehouses.json/Users.json/etc. table files exist in what got extracted.
-        var fakeEncryptedZip = BuildZip(
-            (".encrypted", Array.Empty<byte>()),
-            ("payload.bin", RandomBytes(64)));
+        var plainZip = BuildZip(("Warehouses.json", "[]"u8.ToArray()));
+        var encrypted = EncryptLikeBackupManagementService(plainZip, "correct-password");
 
-        var targetFactory = CreateFactory(nameof(RestoreFromBackupAsync_ZipMarkedEncrypted_NeverActuallyDecrypts_SoNothingIsImported));
+        var targetFactory = CreateFactory(nameof(RestoreFromBackupAsync_EncryptedWithWrongPassword_FailsCleanlyWithoutImporting));
         var backupService = Substitute.For<IBackupManagementService>();
         var sut = CreateSut(targetFactory, NewTempDir(), backupService: backupService);
 
-        await sut.RestoreFromBackupAsync(new MemoryStream(fakeEncryptedZip), password: "any-password");
+        var result = await sut.RestoreFromBackupAsync(new MemoryStream(encrypted), password: "wrong-password");
 
-        await backupService.Received(1).CreateBackupAsync(Arg.Any<CancellationToken>());
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("Passwort");
         await using var verifyDb = targetFactory.CreateDbContext();
         (await verifyDb.Warehouses.CountAsync()).Should().Be(0);
     }

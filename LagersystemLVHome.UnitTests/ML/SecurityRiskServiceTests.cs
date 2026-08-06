@@ -515,7 +515,11 @@ public class SecurityRiskServiceTests
         var result = await sut.GetHighRiskUsersAsync();
 
         result.Should().OnlyContain(a => a.UserId == 1 || a.UserId == 2);
-        result.Select(a => a.UserId).Should().BeInDescendingOrder();
+        // Ordered by RiskScore descending, not by UserId - user 1 has more sensitive actions
+        // (25 vs 12) so scores higher despite having the lower UserId, meaning the correctly
+        // ordered result is [1, 2] (ascending IDs) here, not descending.
+        result.Select(a => a.RiskScore).Should().BeInDescendingOrder();
+        result.First().UserId.Should().Be(1, "user 1 has more sensitive actions and must score higher");
         result.Should().OnlyContain(a => a.RiskLevel >= RiskLevel.High);
     }
 

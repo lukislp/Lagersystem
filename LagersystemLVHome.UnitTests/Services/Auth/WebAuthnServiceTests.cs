@@ -463,16 +463,14 @@ public class WebAuthnServiceTests
     }
 
     /// <summary>
-    /// Suspected bug: origin verification only logs a warning
-    /// (<c>"WebAuthn registration failed: Origin mismatch..."</c>) and does not return a
-    /// failure result, so a credential presented with a completely unrelated origin is
-    /// still registered. This test documents the current (permissive) behaviour rather
-    /// than asserting a fix.
+    /// Regression test: a credential presented with a completely unrelated origin used to
+    /// only log a warning and still register successfully. Origin mismatch is now a hard
+    /// registration failure.
     /// </summary>
     [Fact]
-    public async Task VerifyRegistrationAsync_WithMismatchedOrigin_StillSucceeds_DocumentingPermissiveBehaviour()
+    public async Task VerifyRegistrationAsync_WithMismatchedOrigin_ReturnsFailure()
     {
-        var (sut, factory, _) = CreateSut(nameof(VerifyRegistrationAsync_WithMismatchedOrigin_StillSucceeds_DocumentingPermissiveBehaviour));
+        var (sut, factory, _) = CreateSut(nameof(VerifyRegistrationAsync_WithMismatchedOrigin_ReturnsFailure));
         var user = await SeedUserAsync(factory);
         var options = await sut.GenerateRegistrationOptionsAsync(user.Id, "My Key");
 
@@ -488,7 +486,11 @@ public class WebAuthnServiceTests
 
         var result = await sut.VerifyRegistrationAsync(user.Id, credentialJson, options.SessionId);
 
-        result.Success.Should().BeTrue("origin mismatch is only logged, not enforced, in the current implementation");
+        result.Success.Should().BeFalse();
+        result.Error.Should().Be("Origin stimmt nicht überein");
+
+        await using var verify = factory.CreateDbContext();
+        (await verify.UserPasskeys.CountAsync()).Should().Be(0, "a credential from an untrusted origin must not be persisted");
     }
 
     [Fact]
@@ -1030,13 +1032,13 @@ public class WebAuthnServiceTests
     }
 
     [Fact]
-    public async Task VerifyAuthenticationAsync_WithSignatureCounterRegression_StillSucceedsButLogsWarning()
+    public async Task VerifyAuthenticationAsync_WithSignatureCounterRegression_ReturnsFailure()
     {
-        // Suspected weakness: a signature counter that goes backwards (a classic cloned
-        // -authenticator indicator) is only logged as a warning, not rejected. The counter
-        // is unconditionally overwritten afterwards, so a rollback is not actually detected
-        // as a hard failure. This test documents the current (permissive) behaviour.
-        var (sut, factory, _) = CreateSut(nameof(VerifyAuthenticationAsync_WithSignatureCounterRegression_StillSucceedsButLogsWarning));
+        // Regression test: a signature counter that goes backwards (a classic cloned
+        // -authenticator indicator) used to be only logged as a warning and then
+        // unconditionally overwritten. It is now a hard authentication failure, and the
+        // stored counter is left untouched so a later legitimate auth can still detect it.
+        var (sut, factory, _) = CreateSut(nameof(VerifyAuthenticationAsync_WithSignatureCounterRegression_ReturnsFailure));
         var user = await SeedUserAsync(factory);
         var options = await sut.GenerateAuthenticationOptionsAsync(user.Username);
 
@@ -1067,10 +1069,11 @@ public class WebAuthnServiceTests
 
         var result = await sut.VerifyAuthenticationAsync(credentialJson, options.SessionId);
 
-        result.Success.Should().BeTrue("counter regression is currently only logged, not enforced");
+        result.Success.Should().BeFalse();
+        result.Error.Should().Be("Signaturzähler ungültig");
 
         await using var verify = factory.CreateDbContext();
-        (await verify.UserPasskeys.SingleAsync()).SignatureCounter.Should().Be(1u, "the counter is overwritten unconditionally");
+        (await verify.UserPasskeys.SingleAsync()).SignatureCounter.Should().Be(50u, "a rejected authentication must not advance the stored counter");
     }
 
     // ---- GetUserPasskeysAsync / DeletePasskeyAsync / RenamePasskeyAsync / HasPasskeysAsync ----

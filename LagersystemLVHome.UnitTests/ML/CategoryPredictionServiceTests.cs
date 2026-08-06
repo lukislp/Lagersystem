@@ -17,12 +17,17 @@ namespace LagersystemLVHome.UnitTests.ML;
 public class CategoryPredictionServiceTests : IDisposable
 {
     private readonly List<string> _tempRoots = new();
+    private readonly List<SqliteContextFactory> _sqliteFactories = new();
 
     public void Dispose()
     {
         foreach (var root in _tempRoots)
         {
             try { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); } catch { /* best effort */ }
+        }
+        foreach (var factory in _sqliteFactories)
+        {
+            factory.Dispose();
         }
         GC.SuppressFinalize(this);
     }
@@ -40,6 +45,35 @@ public class CategoryPredictionServiceTests : IDisposable
         => new InMemoryContextFactory(
             new DbContextOptionsBuilder<InventoryDbContext>()
                 .UseInMemoryDatabase(nameof(CategoryPredictionServiceTests) + "." + name).Options);
+
+    // A real relational provider is needed to prove FindSimilarProductsAsync's query actually
+    // translates and runs case-insensitively - InMemory can't translate this query shape at all
+    // (see FindSimilarProductsAsync_UnderInMemoryProvider_QueryIsUntranslatable_ReturnsEmpty).
+    private sealed class SqliteContextFactory : IDbContextFactory<InventoryDbContext>, IDisposable
+    {
+        private readonly Microsoft.Data.Sqlite.SqliteConnection _connection;
+        private readonly DbContextOptions<InventoryDbContext> _options;
+
+        public SqliteContextFactory()
+        {
+            _connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+            _connection.Open();
+            _options = new DbContextOptionsBuilder<InventoryDbContext>().UseSqlite(_connection).Options;
+            using var ctx = new InventoryDbContext(_options);
+            ctx.Database.EnsureCreated();
+        }
+
+        public InventoryDbContext CreateDbContext() => new(_options);
+
+        public void Dispose() => _connection.Dispose();
+    }
+
+    private SqliteContextFactory CreateSqliteFactory()
+    {
+        var factory = new SqliteContextFactory();
+        _sqliteFactories.Add(factory);
+        return factory;
+    }
 
     private static readonly CategoryKeywordService KeywordService =
         new(NullLogger<CategoryKeywordService>.Instance);
@@ -287,19 +321,18 @@ public class CategoryPredictionServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task SuggestCategoriesAsync_ImmediatelyAfterTrainingOnSameInstance_FallsBackToKeywordOnly()
+    public async Task SuggestCategoriesAsync_ImmediatelyAfterTrainingOnSameInstance_UsesGenuineMlPrediction()
     {
-        // Real ML.NET quirk: the transformer chain `pipeline.Fit(dataView)` returns is bound to
-        // its full original *training* input schema (which includes "Label", produced by
-        // MapValueToKey("Label")). Building a PredictionEngine<CategoryPredictionInput, ...> from
-        // that in-memory transformer - i.e. calling SuggestCategoriesAsync right after
-        // TrainModelAsync on the *same* instance, without an intervening Save+Load round trip -
-        // throws ArgumentOutOfRangeException("Could not find input column 'Label'"), because
-        // CategoryPredictionInput has no Label property. The service catches this and silently
-        // falls back to keyword-only suggestions (see the reload-based test below for the path
-        // where the ML model genuinely participates).
+        // Regression test: CategoryPredictionInput used to lack a "Label" property, so
+        // building a PredictionEngine<CategoryPredictionInput, ...> from the trained
+        // pipeline (whose first step, MapValueToKey("Label"), requires that input column)
+        // always threw ArgumentOutOfRangeException("Could not find input column 'Label'") -
+        // both right after training and after a save/reload round trip. CategoryPredictionInput
+        // now has an (unused-at-prediction-time) Label property to satisfy that schema
+        // requirement, so the ML model now genuinely participates instead of the service
+        // silently and permanently falling back to keyword-only suggestions.
         var contentRoot = NewTempRoot();
-        var factory = CreateFactory(nameof(SuggestCategoriesAsync_ImmediatelyAfterTrainingOnSameInstance_FallsBackToKeywordOnly));
+        var factory = CreateFactory(nameof(SuggestCategoriesAsync_ImmediatelyAfterTrainingOnSameInstance_UsesGenuineMlPrediction));
         await SeedCategoriesAsync(factory, MakeCategory(1, "Batterien"), MakeCategory(2, "Elektronik"));
         await using (var db = factory.CreateDbContext())
         {
@@ -318,22 +351,21 @@ public class CategoryPredictionServiceTests : IDisposable
         sut.IsMlModelTrained.Should().BeTrue();
         result.Suggestions.Should().NotBeEmpty();
         result.BestMatch!.CategoryName.Should().Be("Batterien");
-        result.BestMatch.Reasons.Should().Contain(r => r.Contains("Schlüsselwörter"), "the ML prediction engine creation failed, so this came from the keyword fallback");
+        result.BestMatch.Reasons.Should().Contain(r => r.Contains("ML-Modell"), "the ML prediction engine now builds successfully and genuinely contributes");
     }
 
     [Fact]
-    public async Task Constructor_ReloadingTrainedModel_AlsoHitsTheLabelSchemaMismatch_AndDeletesTheModelFile()
+    public async Task Constructor_ReloadingTrainedModel_SucceedsAndModelFileSurvivesRestart()
     {
-        // This pins a second, more serious consequence of the same ML.NET schema mismatch as
-        // above: LoadModelIfExists's `catch (ArgumentOutOfRangeException ex) when
-        // (ex.Message.Contains("Label"))` branch - seemingly written to handle a *legacy* model
-        // format - actually fires on every reload of a model trained by *this exact, current*
-        // TrainModelAsync pipeline, not just old ones. Its handler deletes the just-trained model
-        // file and never resets `_trainedModel` to null, so IsMlModelTrained stays misleadingly
-        // true while ML.NET can never build a working PredictionEngine. Net effect: a trained
-        // model file never survives a single app restart, and the "trained" flag lies about it.
+        // Regression test for the second, more serious consequence of the same "Label"
+        // schema mismatch: LoadModelIfExists used to hit the identical
+        // ArgumentOutOfRangeException on every reload of a model trained by this exact
+        // pipeline (not just legacy ones) and its handler deleted the just-trained model
+        // file - so a trained model never survived a single app restart. Reload now
+        // succeeds outright, the file is left in place, and the reloaded instance can
+        // genuinely predict.
         var contentRoot = NewTempRoot();
-        var factory = CreateFactory(nameof(Constructor_ReloadingTrainedModel_AlsoHitsTheLabelSchemaMismatch_AndDeletesTheModelFile));
+        var factory = CreateFactory(nameof(Constructor_ReloadingTrainedModel_SucceedsAndModelFileSurvivesRestart));
         await SeedCategoriesAsync(factory, MakeCategory(1, "Batterien"), MakeCategory(2, "Elektronik"));
         await using (var db = factory.CreateDbContext())
         {
@@ -351,43 +383,12 @@ public class CategoryPredictionServiceTests : IDisposable
 
         var reloaded = CreateSut(factory, contentRoot); // constructor -> LoadModelIfExists
 
-        reloaded.IsMlModelTrained.Should().BeTrue("_trainedModel is set before the failing CreatePredictionEngine call and is never rolled back");
-        File.Exists(modelPath).Should().BeFalse("the Label-schema-mismatch handler deletes the model file it just failed to fully load");
+        reloaded.IsMlModelTrained.Should().BeTrue();
+        File.Exists(modelPath).Should().BeTrue("a successful reload must not delete the model file");
 
         var result = await reloaded.SuggestCategoriesAsync("AA Batterie Akku Mignon", description: "Batterie Zubehoer");
         result.BestMatch!.CategoryName.Should().Be("Batterien");
-        result.BestMatch.Reasons.Should().Contain(r => r.Contains("Schlüsselwörter"), "the ML path is unreachable, so this is the keyword fallback");
-    }
-
-    [Fact]
-    public async Task Constructor_ReloadFailsToDeleteLockedModelFile_LogsWarningWithoutThrowing()
-    {
-        var contentRoot = NewTempRoot();
-        var factory = CreateFactory(nameof(Constructor_ReloadFailsToDeleteLockedModelFile_LogsWarningWithoutThrowing));
-        await SeedCategoriesAsync(factory, MakeCategory(1, "Batterien"), MakeCategory(2, "Elektronik"));
-        await using (var db = factory.CreateDbContext())
-        {
-            var battNames = new[] { "AA Batterie Mignon", "AAA Batterie Micro", "9V Blockbatterie", "Akku Wiederaufladbar", "Knopfzelle CR2032", "Lithium Batterie AA" };
-            var elecNames = new[] { "Laptop Notebook 15 Zoll", "USB Kabel Ladekabel", "Bluetooth Kopfhoerer", "HDMI Adapter", "Wireless Maus" };
-            var id = 1;
-            foreach (var n in battNames) db.Products.Add(MakeProduct(id++, n, 1, description: "Batterie Zubehoer"));
-            foreach (var n in elecNames) db.Products.Add(MakeProduct(id++, n, 2, description: "Elektronik Zubehoer"));
-            await db.SaveChangesAsync();
-        }
-        var trainer = CreateSut(factory, contentRoot);
-        (await trainer.TrainModelAsync()).Should().BeTrue();
-        var modelPath = Path.Combine(contentRoot, "ML", "Data", "category-prediction-model.zip");
-
-        // Hold a read-sharing (but not delete-sharing) handle so _mlContext.Model.Load can still
-        // open and read the file (letting execution reach the ArgumentOutOfRangeException/"Label"
-        // branch as usual), but the subsequent File.Delete(_modelPath) fails - exercising the
-        // nested "Could not delete old model file" catch.
-        using (new FileStream(modelPath, FileMode.Open, FileAccess.Read, FileShare.Read))
-        {
-            var act = () => CreateSut(factory, contentRoot);
-
-            act.Should().NotThrow();
-        }
+        result.BestMatch.Reasons.Should().Contain(r => r.Contains("ML-Modell"), "the reloaded instance's prediction engine must genuinely work, not just report IsMlModelTrained = true");
     }
 
     [Fact]
@@ -494,6 +495,29 @@ public class CategoryPredictionServiceTests : IDisposable
         var result = await sut.FindSimilarProductsAsync("Duracell Batterie");
 
         result.Should().BeEmpty();
+    }
+
+    /// <summary>Regression test: `words` (extracted from the query) are always lowercased,
+    /// but the production code used to compare them against p.Name (not lowercased), so a
+    /// capitalized product name like "Batterie" never matched the lowercase keyword
+    /// "batterie". Needs a real relational provider (SQLite) since InMemory can't translate
+    /// this query shape at all regardless of case, see the test above.</summary>
+    [Fact]
+    public async Task FindSimilarProductsAsync_UnderSqlite_MatchesCaseInsensitively()
+    {
+        using var factory = CreateSqliteFactory();
+        await SeedCategoriesAsync(factory, MakeCategory(1, "Batterien"));
+        await using (var db = factory.CreateDbContext())
+        {
+            db.Products.Add(MakeProduct(1, "Duracell Batterie AA Mignon", 1));
+            db.Products.Add(MakeProduct(2, "USB Kabel", 1));
+            await db.SaveChangesAsync();
+        }
+        var sut = CreateSut(factory);
+
+        var result = await sut.FindSimilarProductsAsync("Duracell Batterie");
+
+        result.Should().ContainSingle().Which.Should().Be("Duracell Batterie AA Mignon");
     }
 
     [Fact]

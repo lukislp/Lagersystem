@@ -1,3 +1,10 @@
+## [1.2.2](https://github.com/lukislp/Lagersystem/compare/v1.2.1...v1.2.2) (2026-08-06)
+
+
+### Bug Fixes
+
+* null category name no longer crashes the icon lookup ([6ffe3ee](https://github.com/lukislp/Lagersystem/commit/6ffe3ee2781de538f8d63322bab3689d5d9ca7fd))
+
 ## [1.2.1](https://github.com/lukislp/Lagersystem/compare/v1.2.0...v1.2.1) (2026-08-06)
 
 

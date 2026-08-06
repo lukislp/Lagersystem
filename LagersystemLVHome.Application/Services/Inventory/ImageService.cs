@@ -374,7 +374,11 @@ public sealed class ImageService : IImageService
             throw new InvalidOperationException($"Keine Signatur-Validierung f\u00fcr {extension} definiert");
         }
 
-        var headerBytes = new byte[signatures.Max(s => s.Length)];
+        // At least 12 bytes: the WebP check below needs the "WEBP" marker at offset 8-11,
+        // but .webp's only signature entry is the 4-byte RIFF header - sizing the buffer
+        // purely by signature length capped bytesRead at 4 and made the `bytesRead >= 12`
+        // guard unconditionally false, rejecting EVERY WebP upload including valid ones.
+        var headerBytes = new byte[Math.Max(12, signatures.Max(s => s.Length))];
         var bytesRead = stream.Read(headerBytes, 0, headerBytes.Length);
 
         var isValid = signatures.Any(signature =>

@@ -217,8 +217,13 @@ public static class CategoryIcons
             .ToList();
     }
 
-    public static List<CategoryIconInfo> GetIconsForCategory(string categoryName)
+    public static List<CategoryIconInfo> GetIconsForCategory(string? categoryName)
     {
+        if (string.IsNullOrEmpty(categoryName))
+        {
+            return IconsByCategory["Allgemein"];
+        }
+
         foreach (var kvp in IconsByCategory)
         {
             if (categoryName.Contains(kvp.Key, StringComparison.OrdinalIgnoreCase))

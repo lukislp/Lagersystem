@@ -1,3 +1,13 @@
+## [1.2.1](https://github.com/lukislp/Lagersystem/compare/v1.2.0...v1.2.1) (2026-08-06)
+
+
+### Bug Fixes
+
+* exclude source-generator output from the coverage measurement ([796ecca](https://github.com/lukislp/Lagersystem/commit/796ecca4eb9508d1989a7f4530e6699364e7ef57))
+* make the three delete-failure tests platform-independent ([07c541a](https://github.com/lukislp/Lagersystem/commit/07c541af978f1c53c34b82c614f9f5c02c4f65d3))
+* re-guard the unix-mode restore lambda for the platform analyzer ([67e3050](https://github.com/lukislp/Lagersystem/commit/67e3050608f29540a29e6c110cf5c61e79095d7b))
+* WebP uploads were always rejected by the signature validation ([c6f6a55](https://github.com/lukislp/Lagersystem/commit/c6f6a55383ddf08b4ed19a2d2915d241e75e84e0))
+
 # [1.2.0](https://github.com/lukislp/Lagersystem/compare/v1.1.2...v1.2.0) (2026-08-05)
 
 

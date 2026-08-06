@@ -318,8 +318,10 @@ public class CategoryPredictionService : ICategoryPredictionService
 
             var words = ExtractKeywords(productName);
 
+            // words are already lowercased by ExtractKeywords - match p.Name case-insensitively
+            // too, or a product name like "Batterie" would never match the keyword "batterie".
             var products = await context.Products
-                .Where(p => words.Any(w => p.Name.Contains(w)))
+                .Where(p => words.Any(w => p.Name.ToLower().Contains(w)))
                 .Select(p => p.Name)
                 .Take(limit)
                 .ToListAsync(cancellationToken);
@@ -339,27 +341,10 @@ public class CategoryPredictionService : ICategoryPredictionService
         {
             if (File.Exists(_modelPath))
             {
-                try
-                {
-                    _trainedModel = _mlContext.Model.Load(_modelPath, out var modelSchema);
-                    _predictionEngine = _mlContext.Model
-                        .CreatePredictionEngine<CategoryPredictionInput, CategoryPredictionOutput>(_trainedModel);
-                    _logger.LogInformation("Loaded existing category prediction model");
-                }
-                catch (ArgumentOutOfRangeException ex) when (ex.Message.Contains("Label"))
-                {
-                    _logger.LogWarning(
-                        "Old model format detected (with Label). Deleting old model - please retrain.");
-                    try
-                    {
-                        File.Delete(_modelPath);
-                        _logger.LogInformation("Deleted old model file: {ModelPath}", _modelPath);
-                    }
-                    catch (Exception deleteEx)
-                    {
-                        _logger.LogWarning(deleteEx, "Could not delete old model file");
-                    }
-                }
+                _trainedModel = _mlContext.Model.Load(_modelPath, out var modelSchema);
+                _predictionEngine = _mlContext.Model
+                    .CreatePredictionEngine<CategoryPredictionInput, CategoryPredictionOutput>(_trainedModel);
+                _logger.LogInformation("Loaded existing category prediction model");
             }
         }
         catch (Exception ex)

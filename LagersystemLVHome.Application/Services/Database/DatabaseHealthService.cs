@@ -163,6 +163,9 @@ public sealed class DatabaseHealthService : IDatabaseHealthService
             // 5. Query performance
             report.AverageQueryTimeMs = await GetAverageQueryTimeAsync(context);
 
+            // 5b. Last successful backup
+            report.LastBackup = await GetLastBackupDateAsync(context, cancellationToken);
+
             // 6. Calculate health score
             report.HealthScore = CalculateHealthScore(report, tableStats);
 

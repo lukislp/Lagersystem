@@ -300,8 +300,9 @@ public sealed class ExportService : IExportService
         try
         {
             await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+            // Room is a plain string column on StorageLocation, not a navigation property -
+            // no Include needed, EF loads it with the entity automatically.
             var locations = await context.StorageLocations
-                .Include(sl => sl.Room)
                 .Where(sl => sl.WarehouseId == warehouseId)
                 .OrderBy(sl => sl.Code)
                 .ToListAsync(cancellationToken);

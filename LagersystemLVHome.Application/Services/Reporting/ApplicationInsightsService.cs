@@ -196,7 +196,10 @@ public sealed class ApplicationInsightsService : IApplicationInsightsService
         {
             CpuUsagePercent = GetCpuUsage(),
             MemoryUsedMB = process.WorkingSet64 / 1024 / 1024,
-            MemoryTotalMB = long.MinValue,
+            // TotalAvailableMemoryBytes reflects the container's cgroup memory limit when
+            // running in Docker (as this app typically does), which is more meaningful here
+            // than raw host physical memory.
+            MemoryTotalMB = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 1024 / 1024,
             ActiveUsers = await GetActiveUserCountAsync(context),
             TotalRequests = await context.ApiRequests
                 .Where(r => r.Timestamp >= DateTime.UtcNow.AddHours(-1))

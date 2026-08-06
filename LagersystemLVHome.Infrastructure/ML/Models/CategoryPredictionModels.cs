@@ -18,6 +18,14 @@ public class CategoryPredictionInput
 
     [LoadColumn(3)]
     public string? Manufacturer { get; set; }
+
+    // The trained pipeline's first step (MapValueToKey("Label")) requires a "Label"
+    // input column to exist in whatever schema CreatePredictionEngine is built against -
+    // even though a real caller predicting a category obviously doesn't know it yet.
+    // Left null/unset at prediction time; MapValueToKey maps unseen/missing values to
+    // the "NA" key without throwing, and the actual prediction comes from the model's own
+    // "PredictedLabel" output column, never from this field.
+    public string? Label { get; set; }
 }
 
 /// <summary>

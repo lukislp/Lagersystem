@@ -164,6 +164,7 @@ public sealed class WebAuthnService : IWebAuthnService
                 !clientData.Origin.StartsWith("http://localhost"))
             {
                 _logger.LogWarning("WebAuthn registration failed: Origin mismatch. Expected {Expected}, got {Actual}", Origin, clientData.Origin);
+                return new PasskeyRegistrationResult { Success = false, Error = "Origin stimmt nicht überein" };
             }
 
             // Verify type
@@ -408,7 +409,8 @@ public sealed class WebAuthnService : IWebAuthnService
             // Verify signature counter (replay protection)
             if (authData.SignatureCounter <= passkey.SignatureCounter && passkey.SignatureCounter > 0)
             {
-                _logger.LogWarning("WebAuthn authentication: Signature counter not incremented. Possible cloned authenticator!");
+                _logger.LogWarning("WebAuthn authentication failed: Signature counter not incremented for user {UserId}. Possible cloned authenticator!", passkey.UserId);
+                return new PasskeyAuthenticationResult { Success = false, Error = "Signaturzähler ungültig" };
             }
 
             // Verify signature

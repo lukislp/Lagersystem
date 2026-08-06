@@ -51,12 +51,16 @@ jobs:
       # (LagersystemLVHome, the Blazor Server UI project, is excluded - no unit-test
       # practice on Razor markup here). Downloaded and committed by semantic-release below.
       - run: dotnet tool install -g dotnet-reportgenerator-globaltool
+      # -*.g.cs excludes source-generator output (e.g. the LoggerMessage generator's
+      # 700+ lines under obj/) - generated code, same rationale as studylife's
+      # migrations exclusion.
       - run: >
           reportgenerator
           -reports:"LagersystemLVHome.UnitTests/**/TestResults/**/coverage.cobertura.xml"
           -targetdir:coverage-summary
           -reporttypes:JsonSummary
           -assemblyfilters:"-LagersystemLVHome"
+          -filefilters:"-*.g.cs"
       - run: python3 scripts/generate_coverage_badge.py coverage-summary/Summary.json coverage-badge.json
       - uses: actions/upload-artifact@v7
         with:

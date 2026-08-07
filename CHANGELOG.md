@@ -1,3 +1,11 @@
+## [1.2.4](https://github.com/lukislp/Lagersystem/compare/v1.2.3...v1.2.4) (2026-08-07)
+
+
+### Bug Fixes
+
+* add a dashboard screenshot to the README ([c873817](https://github.com/lukislp/Lagersystem/commit/c873817570e4aceda660ec66b882824f8382c97b))
+* eliminate a Progress<T> race in the JSON restore round-trip test ([c3d4174](https://github.com/lukislp/Lagersystem/commit/c3d4174fc9bee66f8921618c21cb4964fe34446d))
+
 ## [1.2.3](https://github.com/lukislp/Lagersystem/compare/v1.2.2...v1.2.3) (2026-08-07)
 
 

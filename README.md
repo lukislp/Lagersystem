@@ -8,6 +8,8 @@
 
 A self-hosted inventory management system built with **Blazor Server** on **.NET 10**. Designed for home and small-business use with enterprise-grade security, multi-database support, machine learning integration, and comprehensive backup capabilities.
 
+![LagerSystem dashboard screenshot](docs/screenshot.png)
+
 ---
 
 ## Features

@@ -494,17 +494,27 @@ public class SecurityRiskServiceTests
             db.Users.AddRange(highRiskUser1, highRiskUser2, lowRiskUser, inactiveUser, deletedUser);
 
             var logs = new List<AuditLog>();
+            // Anchored to a fixed daytime hour band (8-19h), not `UtcNow.AddHours(-i-1)` -
+            // the latter drifts through all 24 hours as i grows, so whichever of the two users
+            // happens to have fewer total logs (user 2) can end up with a *larger fraction* of
+            // its (few) logs landing in the 0-6h "unusual hour" bucket purely depending on what
+            // wall-clock hour the test happens to run at, which can flip the risk-score ranking
+            // this test asserts. Pinning both users to the same safe daytime window removes
+            // that hour-of-day flakiness entirely and isolates the score difference to the
+            // dimension this test is actually about: sensitive-action count (25 vs 12).
+            var day = DateTime.UtcNow.Date.AddDays(-1);
+
             // Sensitive actions (+20) + no 2FA (+15) + new account (+10) + failed-login
             // ratio > 0.5 (+30) comfortably clears the 50-point "High" threshold for both.
-            for (int i = 0; i < 25; i++) logs.Add(Log(1, "PRODUCT_DELETE", DateTime.UtcNow.AddHours(-i - 1)));
-            logs.Add(Log(1, "LOGIN_SUCCESS", DateTime.UtcNow.AddHours(-1)));
-            logs.Add(Log(1, "LOGIN_FAILED", DateTime.UtcNow.AddHours(-1)));
-            logs.Add(Log(1, "LOGIN_FAILED", DateTime.UtcNow.AddHours(-1)));
+            for (int i = 0; i < 25; i++) logs.Add(Log(1, "PRODUCT_DELETE", day.AddHours(8 + (i % 12)).AddMinutes(i)));
+            logs.Add(Log(1, "LOGIN_SUCCESS", day.AddHours(9)));
+            logs.Add(Log(1, "LOGIN_FAILED", day.AddHours(9)));
+            logs.Add(Log(1, "LOGIN_FAILED", day.AddHours(9)));
 
-            for (int i = 0; i < 12; i++) logs.Add(Log(2, "PRODUCT_DELETE", DateTime.UtcNow.AddHours(-i - 1)));
-            logs.Add(Log(2, "LOGIN_SUCCESS", DateTime.UtcNow.AddHours(-1)));
-            logs.Add(Log(2, "LOGIN_FAILED", DateTime.UtcNow.AddHours(-1)));
-            logs.Add(Log(2, "LOGIN_FAILED", DateTime.UtcNow.AddHours(-1)));
+            for (int i = 0; i < 12; i++) logs.Add(Log(2, "PRODUCT_DELETE", day.AddHours(8 + (i % 12)).AddMinutes(i)));
+            logs.Add(Log(2, "LOGIN_SUCCESS", day.AddHours(9)));
+            logs.Add(Log(2, "LOGIN_FAILED", day.AddHours(9)));
+            logs.Add(Log(2, "LOGIN_FAILED", day.AddHours(9)));
             db.AuditLogs.AddRange(logs);
 
             await db.SaveChangesAsync();

@@ -81,17 +81,38 @@ public class AnomalyDetectionServiceTests : IDisposable
     /// <summary>Trains a model on a background population of "normal" users so
     /// <see cref="AnomalyDetectionService.IsModelReady"/> becomes true. 10 users x 10 benign,
     /// spread-out, daytime logins each satisfies both the &gt;=100-total-logs and
-    /// &gt;=10-qualifying-users thresholds in TrainModelAsync.</summary>
+    /// &gt;=10-qualifying-users thresholds in TrainModelAsync. Deliberately varies each user's
+    /// log count, action mix, IP count, start hour and spacing (all deterministic, keyed off
+    /// the user index - not real randomness, so the test stays reproducible): identical rows
+    /// for every user make several feature columns exactly constant, and RandomizedPca's SVD
+    /// throws "learnt eigenvectors contained NaN values" when it has to center+orthogonalize
+    /// against a zero-variance (all-zero after centering) column - a real bug hit on a
+    /// too-homogeneous seed, not a training/schema mistake.</summary>
     private static async Task SeedTrainableBaselineAsync(IDbContextFactory<InventoryDbContext> factory, int userCount = 10, int logsPerUser = 10)
     {
         await using var db = factory.CreateDbContext();
         db.Warehouses.Add(MakeWarehouse());
+        var actions = new[] { "VIEW", "VIEW", "VIEW", "SEARCH" };
         for (int u = 1; u <= userCount; u++)
         {
             db.Users.Add(MakeUser(u));
+            var baseDay = DateTime.UtcNow.AddDays(-1 - (u % 4)).Date;
+            var startHour = 8 + (u % 9);
+            var ipCount = 1 + (u % 3);
+            var minuteStep = 5 + (u % 7);
             for (int i = 0; i < logsPerUser; i++)
             {
-                db.AuditLogs.Add(Log(u, "VIEW", DateTime.UtcNow.AddDays(-1).Date.AddHours(9 + (i % 8)).AddMinutes(i), ip: "10.0.0.1"));
+                var action = actions[(u + i) % actions.Length];
+                var ip = $"10.0.0.{1 + (i % ipCount)}";
+                var timestamp = baseDay.AddHours((startHour + i) % 24).AddMinutes(i * minuteStep);
+                db.AuditLogs.Add(Log(u, action, timestamp, ip: ip));
+            }
+            // Occasional benign failed login for realistic FailedLoginCount variance across the
+            // population (not every user) - LOGIN_FAILED isn't a "sensitive action", so this
+            // doesn't affect SensitiveActionCount.
+            if (u % 3 == 0)
+            {
+                db.AuditLogs.Add(Log(u, "LOGIN_FAILED", baseDay.AddHours(startHour).AddMinutes(-5)));
             }
         }
         await db.SaveChangesAsync();

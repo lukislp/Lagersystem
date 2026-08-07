@@ -251,7 +251,7 @@ public class AnomalyDetectionService : IAnomalyDetectionService
                 nameof(AuditBehaviorInput.SensitiveActionCount))
                 .Append(_mlContext.AnomalyDetection.Trainers.RandomizedPca(
                     featureColumnName: "Features",
-                    rank: 7,
+                    rank: 3,
                     ensureZeroMean: true,
                     oversampling: 20));
 

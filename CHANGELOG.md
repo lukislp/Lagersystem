@@ -1,3 +1,12 @@
+## [1.2.3](https://github.com/lukislp/Lagersystem/compare/v1.2.2...v1.2.3) (2026-08-07)
+
+
+### Bug Fixes
+
+* address production bugs found by the coverage test suites ([e8f2209](https://github.com/lukislp/Lagersystem/commit/e8f2209bdb6ccf41071cf808464f1f3fb54af302))
+* re-trigger CI after a run got stuck queued during the GitHub Actions incident ([be3dc07](https://github.com/lukislp/Lagersystem/commit/be3dc07722699dfa9ae9c103b060860e4667491b))
+* stabilize anomaly-detection training and remove time-of-day flakiness from risk scoring test ([4d72cc3](https://github.com/lukislp/Lagersystem/commit/4d72cc30658a4397404196907e4cb3f09565ed03))
+
 ## [1.2.2](https://github.com/lukislp/Lagersystem/compare/v1.2.1...v1.2.2) (2026-08-06)
 
 

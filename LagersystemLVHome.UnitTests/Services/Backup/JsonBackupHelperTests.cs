@@ -243,7 +243,7 @@ public sealed class JsonBackupHelperTests : IDisposable
         var targetFactory = CreateFactory(nameof(RestoreFromJsonBackupAsync_RoundTripsExportedDataIntoFreshDatabase) + "_dst");
         var sut = CreateSut(targetFactory);
         var progressMessages = new List<string>();
-        var progress = new Progress<string>(m => progressMessages.Add(m));
+        var progress = new SyncProgress<string>(m => progressMessages.Add(m));
 
         await sut.RestoreFromJsonBackupAsync(extractDir, progress);
 
@@ -296,4 +296,16 @@ public sealed class JsonBackupHelperTests : IDisposable
         await using var db = targetFactory.CreateDbContext();
         (await db.Warehouses.CountAsync()).Should().Be(0);
     }
+}
+
+/// <summary>Invokes the progress handler synchronously on the calling thread, avoiding the
+/// async dispatch of <see cref="Progress{T}"/> - which posts each report via the captured
+/// SynchronizationContext (or a ThreadPool work item when none is captured, as on a typical
+/// xUnit test thread), so asserting immediately after an awaited call completes is a real
+/// race: the final report(s) may not have been delivered yet. Same fix already used in
+/// DatabaseRestoreServiceTests.cs; duplicated here since `file`-scoped types aren't shared
+/// across files.</summary>
+file sealed class SyncProgress<T>(Action<T> handler) : IProgress<T>
+{
+    public void Report(T value) => handler(value);
 }

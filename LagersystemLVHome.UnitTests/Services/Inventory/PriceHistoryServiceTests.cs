@@ -261,20 +261,10 @@ public class PriceHistoryServiceTests
             "PRODUCT_PRICE_CREATED", "ProductPrice", Arg.Any<int?>(), Arg.Any<object>(), AuditSeverity.Info, Arg.Any<CancellationToken>());
     }
 
-    // BUG: AddPriceAsync tries to keep Product.Price in sync with the current price by calling
-    // GetCurrentPriceAsync(productId) after adding the new ProductPrice to its own DbContext but
-    // BEFORE calling SaveChangesAsync. GetCurrentPriceAsync opens its OWN separate DbContext
-    // (via the same IDbContextFactory), so it queries the database as it was before this call's
-    // pending insert is persisted. Net effect: Product.Price is never updated to reflect the
-    // price being added in the current call - on the very first price for a product it stays
-    // completely unchanged, and on subsequent calls it lags one price behind. Left as a
-    // documented, skipped regression test rather than asserting the broken behavior as correct.
-    [Fact(Skip = "Known bug: AddPriceAsync's Product.Price sync reads via a separate DbContext " +
-        "before the new price is saved, so Product.Price never reflects the price just added " +
-        "(see PriceHistoryService.AddPriceAsync). Reported upstream instead of asserted as correct.")]
-    public async Task AddPriceAsync_FirstPriceForProduct_ShouldSyncProductPrice_ButDoesNot()
+    [Fact]
+    public async Task AddPriceAsync_FirstPriceForProduct_SyncsProductPrice()
     {
-        var factory = CreateFactory(nameof(AddPriceAsync_FirstPriceForProduct_ShouldSyncProductPrice_ButDoesNot));
+        var factory = CreateFactory(nameof(AddPriceAsync_FirstPriceForProduct_SyncsProductPrice));
         var productId = await SeedProductAsync(factory, price: 1m);
         var sut = CreateSut(factory);
 
@@ -282,6 +272,34 @@ public class PriceHistoryServiceTests
 
         await using var db = factory.CreateDbContext();
         (await db.Products.FindAsync(productId))!.Price.Should().Be(25m);
+    }
+
+    [Fact]
+    public async Task AddPriceAsync_SecondPriceForProduct_SyncsProductPriceToNewValue()
+    {
+        var factory = CreateFactory(nameof(AddPriceAsync_SecondPriceForProduct_SyncsProductPriceToNewValue));
+        var productId = await SeedProductAsync(factory, price: 1m);
+        var sut = CreateSut(factory);
+        var now = DateTime.UtcNow;
+
+        await sut.AddPriceAsync(productId, 25m, now.AddDays(-5), null, createdBy: "a");
+        await sut.AddPriceAsync(productId, 30m, now, null, createdBy: "b");
+
+        await using var db = factory.CreateDbContext();
+        (await db.Products.FindAsync(productId))!.Price.Should().Be(30m);
+    }
+
+    [Fact]
+    public async Task AddPriceAsync_ScheduledFuturePrice_DoesNotSyncProductPriceYet()
+    {
+        var factory = CreateFactory(nameof(AddPriceAsync_ScheduledFuturePrice_DoesNotSyncProductPriceYet));
+        var productId = await SeedProductAsync(factory, price: 1m);
+        var sut = CreateSut(factory);
+
+        await sut.AddPriceAsync(productId, 99m, DateTime.UtcNow.AddDays(10), null, createdBy: "future");
+
+        await using var db = factory.CreateDbContext();
+        (await db.Products.FindAsync(productId))!.Price.Should().Be(1m);
     }
 
     [Fact]

@@ -78,10 +78,14 @@ public sealed class PriceHistoryService : IPriceHistoryService
 
         context.ProductPrices.Add(productPrice);
 
-        var currentPrice = await GetCurrentPriceAsync(productId);
-        if (currentPrice != null)
+        // Sync Product.Price directly from the values already in scope instead of re-reading
+        // "the current price" through GetCurrentPriceAsync's own separate DbContext - that read
+        // would run against the database as it stood before this call's pending insert is saved,
+        // so it could never see the price being added here.
+        var now = DateTime.UtcNow;
+        if (validFrom <= now && (!validTo.HasValue || validTo.Value >= now))
         {
-            product.Price = currentPrice.Price;
+            product.Price = price;
         }
 
         await context.SaveChangesAsync(cancellationToken);

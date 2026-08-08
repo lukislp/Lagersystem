@@ -1,3 +1,15 @@
+## [1.2.6](https://github.com/lukislp/Lagersystem/compare/v1.2.5...v1.2.6) (2026-08-08)
+
+
+### Bug Fixes
+
+* detect real iPhone user agents as iOS instead of macOS ([46407d8](https://github.com/lukislp/Lagersystem/commit/46407d8985916e2b0e9988accc7e5a8888856d82))
+* persist audit log Severity and the Entity alias field ([1c0bb52](https://github.com/lukislp/Lagersystem/commit/1c0bb5284754024a37a400a3e7c90c0e373dd16a))
+* resolve linked device fingerprints via active session lookup ([e742b80](https://github.com/lukislp/Lagersystem/commit/e742b800c9504e1519563576da81ca407924516d))
+* show idle and away teammates in the presence list ([9f17716](https://github.com/lukislp/Lagersystem/commit/9f17716542164d5c1fe3d4a9bfa1c10879537bc0))
+* surface custom presence status set before a session is first read ([20e1e51](https://github.com/lukislp/Lagersystem/commit/20e1e51b009984b2271ff5b59a8db70e175333ef))
+* sync Product.Price when a new price entry is added ([4fc9194](https://github.com/lukislp/Lagersystem/commit/4fc919401c41b7edf258d85bcc8c0e2247e36547))
+
 ## [1.2.5](https://github.com/lukislp/Lagersystem/compare/v1.2.4...v1.2.5) (2026-08-08)
 
 

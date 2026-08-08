@@ -178,7 +178,12 @@ public sealed class LocalBackupProviderUploaderTests : IDisposable
     public async Task UploadAsync_AllPathsInvalid_ReturnsFalse()
     {
         var sut = CreateSut();
-        var badTarget = "C:\\invalid|path?<>";
+        // Cross-platform "invalid path": Windows-illegal characters like | ? < > are valid
+        // filename characters on Linux, so that used to pass locally and fail in Linux CI. A real
+        // FILE at the target, treated as a directory to write into, fails identically on both
+        // platforms - same pattern already used for the File.Move-onto-a-directory fix elsewhere.
+        var blockingFile = NewSourceFile();
+        var badTarget = Path.Combine(blockingFile, "sub", "backup.zip");
         var source = NewSourceFile();
         var config = JsonSerializer.Serialize(new LocalBackupConfig { Paths = new() { badTarget } });
 

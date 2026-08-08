@@ -70,16 +70,16 @@ public class TeamPresenceServiceTests
     private static UserSession MakeSession(
         int userId, int warehouseId, DateTime lastActivity, bool isActive = true,
         string sessionId = "", string? deviceType = "Desktop", string? pageUrl = "/home") => new()
-    {
-        SessionId = string.IsNullOrEmpty(sessionId) ? Guid.NewGuid().ToString() : sessionId,
-        UserId = userId,
-        Username = $"u{userId}",
-        WarehouseId = warehouseId,
-        IsActive = isActive,
-        LastActivity = lastActivity,
-        DeviceType = deviceType,
-        LastPageUrl = pageUrl
-    };
+        {
+            SessionId = string.IsNullOrEmpty(sessionId) ? Guid.NewGuid().ToString() : sessionId,
+            UserId = userId,
+            Username = $"u{userId}",
+            WarehouseId = warehouseId,
+            IsActive = isActive,
+            LastActivity = lastActivity,
+            DeviceType = deviceType,
+            LastPageUrl = pageUrl
+        };
 
     // ==================== GetOnlineUsersInWarehouseAsync ====================
 

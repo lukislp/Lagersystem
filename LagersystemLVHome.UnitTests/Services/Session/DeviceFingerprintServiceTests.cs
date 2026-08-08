@@ -174,11 +174,18 @@ public class DeviceFingerprintServiceTests
         {
             db.UserSessions.Add(new LagersystemLVHome.Domain.Models.UserSession
             {
-                UserId = 1, SessionId = "s1", Username = "u1", DeviceFingerprint = "fp-primary", IsActive = true, CreatedAt = DateTime.UtcNow
+                UserId = 1,
+                SessionId = "s1",
+                Username = "u1",
+                DeviceFingerprint = "fp-primary",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
             });
             db.LinkedDeviceFingerprints.Add(new LagersystemLVHome.Domain.Models.LinkedDeviceFingerprint
             {
-                UserId = 1, PrimaryFingerprint = "fp-primary", LinkedFingerprint = "fp-pwa"
+                UserId = 1,
+                PrimaryFingerprint = "fp-primary",
+                LinkedFingerprint = "fp-pwa"
             });
             await db.SaveChangesAsync();
         }
@@ -204,7 +211,9 @@ public class DeviceFingerprintServiceTests
         {
             db.LinkedDeviceFingerprints.Add(new LagersystemLVHome.Domain.Models.LinkedDeviceFingerprint
             {
-                UserId = 1, PrimaryFingerprint = "fp-primary", LinkedFingerprint = "fp-pwa"
+                UserId = 1,
+                PrimaryFingerprint = "fp-primary",
+                LinkedFingerprint = "fp-pwa"
             });
             await db.SaveChangesAsync();
         }
@@ -279,7 +288,11 @@ public class DeviceFingerprintServiceTests
         await using var db = factory.CreateDbContext();
         var session = new LagersystemLVHome.Domain.Models.UserSession
         {
-            UserId = userId, SessionId = $"s-{Guid.NewGuid():N}", Username = "u1", IsActive = true, CreatedAt = DateTime.UtcNow
+            UserId = userId,
+            SessionId = $"s-{Guid.NewGuid():N}",
+            Username = "u1",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
         };
         db.UserSessions.Add(session);
         await db.SaveChangesAsync();
@@ -411,22 +424,45 @@ public class DeviceFingerprintServiceTests
         {
             db.UserSessions.Add(new LagersystemLVHome.Domain.Models.UserSession
             {
-                UserId = 1, SessionId = "s1", Username = "u1", DeviceFingerprint = "fp-a", IsActive = true,
-                DeviceInfo = "Desktop", LastActivity = DateTime.UtcNow.AddHours(-2), CreatedAt = DateTime.UtcNow
+                UserId = 1,
+                SessionId = "s1",
+                Username = "u1",
+                DeviceFingerprint = "fp-a",
+                IsActive = true,
+                DeviceInfo = "Desktop",
+                LastActivity = DateTime.UtcNow.AddHours(-2),
+                CreatedAt = DateTime.UtcNow
             });
             db.UserSessions.Add(new LagersystemLVHome.Domain.Models.UserSession
             {
-                UserId = 1, SessionId = "s2", Username = "u1", DeviceFingerprint = "fp-a", IsActive = false,
-                DeviceInfo = "Desktop", LastActivity = DateTime.UtcNow.AddHours(-1), CreatedAt = DateTime.UtcNow
+                UserId = 1,
+                SessionId = "s2",
+                Username = "u1",
+                DeviceFingerprint = "fp-a",
+                IsActive = false,
+                DeviceInfo = "Desktop",
+                LastActivity = DateTime.UtcNow.AddHours(-1),
+                CreatedAt = DateTime.UtcNow
             });
             db.UserSessions.Add(new LagersystemLVHome.Domain.Models.UserSession
             {
-                UserId = 1, SessionId = "s3", Username = "u1", DeviceFingerprint = "fp-b", IsActive = false,
-                DeviceInfo = "Mobile", LastActivity = DateTime.UtcNow.AddHours(-5), CreatedAt = DateTime.UtcNow
+                UserId = 1,
+                SessionId = "s3",
+                Username = "u1",
+                DeviceFingerprint = "fp-b",
+                IsActive = false,
+                DeviceInfo = "Mobile",
+                LastActivity = DateTime.UtcNow.AddHours(-5),
+                CreatedAt = DateTime.UtcNow
             });
             db.UserSessions.Add(new LagersystemLVHome.Domain.Models.UserSession
             {
-                UserId = 2, SessionId = "s4", Username = "u2", DeviceFingerprint = "fp-other-user", IsActive = true, CreatedAt = DateTime.UtcNow
+                UserId = 2,
+                SessionId = "s4",
+                Username = "u2",
+                DeviceFingerprint = "fp-other-user",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
             });
             await db.SaveChangesAsync();
         }

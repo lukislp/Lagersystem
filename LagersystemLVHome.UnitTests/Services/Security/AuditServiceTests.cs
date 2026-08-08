@@ -91,14 +91,8 @@ public class AuditServiceTests
         await using var db = factory.CreateDbContext();
         var log = await db.AuditLogs.SingleAsync();
         log.Action.Should().Be("SOME_ACTION");
-        // BUG: AuditService.LogAsync passes `entity` through to TamperProofAuditService as
-        // `entityType`, which only persists it to AuditLog.EntityType - AuditLog.Entity (the
-        // field GetEntityLogsAsync actually filters on) is left at its default "" for every
-        // row written through the normal logging path. See
-        // GetEntityLogsAsync_RealisticallyLoggedRow_NeverMatchesBecauseEntityFieldIsNeverSet
-        // below for the resulting broken query behaviour.
         log.EntityType.Should().Be("Widget");
-        log.Entity.Should().BeEmpty("known bug: AuditLog.Entity is never populated by AuditService.LogAsync");
+        log.Entity.Should().Be("Widget", "TamperProofAuditService now mirrors entityType onto the Entity alias field");
         log.EntityId.Should().Be(42);
         log.UserId.Should().BeNull("user id 0 (no logged-in user) must be stored as NULL, not 0");
     }
@@ -181,38 +175,24 @@ public class AuditServiceTests
     }
 
     /// <summary>
-    /// SECURITY BUG: <see cref="AuditService.LogAsync"/> accepts a <c>severity</c> parameter
-    /// and every <c>Log*Async</c> convenience wrapper (e.g. <c>LogUserDeletedAsync</c>,
-    /// account-lockout logging, GDPR deletion logging, ...) passes a meaningful, non-default
-    /// severity into it - but <c>TamperProofAuditService.CreateTamperProofAuditLogAsync</c>,
-    /// which actually persists the row, has NO severity parameter at all. The severity the
-    /// caller specified is silently discarded and every audit log is stored with
-    /// <see cref="AuditSeverity.Info"/> regardless of what was requested.
-    /// <para/>
-    /// Impact: <see cref="AuditService.GetSecurityEventsAsync"/> filters on
-    /// <c>Severity &gt;= Warning OR Action.Contains("FAILED"/"REJECTED"/"DELETED")</c>. Since
-    /// Severity is always Info, any Warning/Critical event whose action string doesn't happen
-    /// to contain one of those three keywords (e.g. "LOGIN_BLOCKED", "ACCOUNT_LOCKED",
-    /// "IP_ACCESS_DENIED", "2FA_LOCKED_DUE_TO_FAILED_ATTEMPTS" - wait, that one *does* match
-    /// "FAILED" - but "LOGIN_BLOCKED", "ACCOUNT_LOCKED", "GDPR_ACCOUNT_DELETION" do not
-    /// reliably contain those substrings) silently never surfaces on the security-events
-    /// dashboard. This is a fail-open gap in security monitoring, not just a cosmetic issue.
-    /// This test documents the current (broken) persisted behaviour so a future fix is
-    /// caught by a red test instead of silently passing.
+    /// <see cref="AuditService.LogAsync"/>'s <c>severity</c> parameter is now threaded through to
+    /// <see cref="TamperProofAuditService.CreateTamperProofAuditLogAsync"/> and actually persisted -
+    /// previously it was silently discarded and every row stored as <see cref="AuditSeverity.Info"/>
+    /// regardless of what was requested, which meant <see cref="AuditService.GetSecurityEventsAsync"/>'s
+    /// <c>Severity &gt;= Warning</c> filter could never match any row (a fail-open gap in security
+    /// monitoring for any Warning/Critical event whose action string doesn't also contain
+    /// "FAILED"/"REJECTED"/"DELETED", e.g. "LOGIN_BLOCKED", "ACCOUNT_LOCKED", "GDPR_ACCOUNT_DELETION").
     /// </summary>
     [Fact]
-    public async Task LogAsync_Severity_KnownBug_IsSilentlyDiscardedAndAlwaysPersistedAsInfo()
+    public async Task LogAsync_Severity_IsPersisted()
     {
-        var factory = CreateFactory(nameof(LogAsync_Severity_KnownBug_IsSilentlyDiscardedAndAlwaysPersistedAsInfo));
+        var factory = CreateFactory(nameof(LogAsync_Severity_IsPersisted));
         var sut = Build(factory, CreateAccessor(CreateAnonymousContext()));
 
         await sut.LogAsync("PRODUCT_DELETED", "Product", 1, null, AuditSeverity.Critical);
 
         await using var db = factory.CreateDbContext();
-        (await db.AuditLogs.SingleAsync()).Severity.Should().Be(
-            AuditSeverity.Info,
-            "known bug: TamperProofAuditService.CreateTamperProofAuditLogAsync has no severity " +
-            "parameter, so the severity requested by every AuditService caller is discarded");
+        (await db.AuditLogs.SingleAsync()).Severity.Should().Be(AuditSeverity.Critical);
     }
 
     /// <summary>
@@ -314,23 +294,22 @@ public class AuditServiceTests
         await using var db = factory.CreateDbContext();
         var log = await db.AuditLogs.SingleAsync();
         log.Action.Should().Be(expectedAction);
-        // NOTE: not asserting Severity here - see the "known bug" severity test above;
-        // LOGIN_FAILED is requested with AuditSeverity.Warning but is always persisted as Info.
-        log.EntityType.Should().Be("User", "EntityType is the field TamperProofAuditService actually persists (see Entity/EntityType bug above)");
+        log.Severity.Should().Be(success ? AuditSeverity.Info : AuditSeverity.Warning);
+        log.EntityType.Should().Be("User");
+        log.Entity.Should().Be("User");
         log.EntityId.Should().Be(1);
     }
 
     [Fact]
-    public async Task LogImportAsync_WithErrors_RequestsWarningSeverity_ButItIsDiscardedByTheKnownBug()
+    public async Task LogImportAsync_WithErrors_PersistsWarningSeverity()
     {
-        var factory = CreateFactory(nameof(LogImportAsync_WithErrors_RequestsWarningSeverity_ButItIsDiscardedByTheKnownBug));
+        var factory = CreateFactory(nameof(LogImportAsync_WithErrors_PersistsWarningSeverity));
         var sut = Build(factory, CreateAccessor(CreateAnonymousContext()));
 
         await sut.LogImportAsync("CSV", "Product", 10, 8, 2);
 
         await using var db = factory.CreateDbContext();
-        // Would be AuditSeverity.Warning if the severity-persistence bug documented above were fixed.
-        (await db.AuditLogs.SingleAsync()).Severity.Should().Be(AuditSeverity.Info);
+        (await db.AuditLogs.SingleAsync()).Severity.Should().Be(AuditSeverity.Warning);
     }
 
     [Fact]
@@ -356,8 +335,7 @@ public class AuditServiceTests
         await using var db = factory.CreateDbContext();
         var log = await db.AuditLogs.SingleAsync();
         log.Action.Should().Be("GDPR_ACCOUNT_DELETION");
-        // Requested as AuditSeverity.Warning by LogGdprAccountDeletionAsync, but silently
-        // discarded - see the dedicated severity-bug test above.
+        log.Severity.Should().Be(AuditSeverity.Warning, "LogGdprAccountDeletionAsync requests Warning severity");
         log.Changes.Should().Contain("user requested erasure");
     }
 
@@ -401,10 +379,6 @@ public class AuditServiceTests
     [Fact]
     public async Task GetEntityLogsAsync_FiltersByEntityAndEntityId()
     {
-        // This verifies the query logic itself using rows that have Entity set directly.
-        // It does NOT reflect what happens for logs written through the normal
-        // AuditService.LogAsync path - see the companion "known bug" test below, which shows
-        // that path never populates Entity at all, so this query is unreachable in practice.
         var factory = CreateFactory(nameof(GetEntityLogsAsync_FiltersByEntityAndEntityId));
         await using (var db = factory.CreateDbContext())
         {
@@ -421,28 +395,22 @@ public class AuditServiceTests
     }
 
     /// <summary>
-    /// BUG: demonstrates that <see cref="AuditService.GetEntityLogsAsync"/> is unreachable for
-    /// any row created through the normal <see cref="AuditService.LogAsync"/> path. LogAsync
-    /// hands the caller's <c>entity</c> string to TamperProofAuditService as <c>entityType</c>,
-    /// which persists only <see cref="AuditLog.EntityType"/> - <see cref="AuditLog.Entity"/>
-    /// (the field this query filters on) is left at its default empty string. This means the
-    /// per-entity audit history feature (e.g. "show all audit events for Product #42") returns
-    /// nothing for real-world data, even though matching rows exist in the table.
+    /// <see cref="AuditService.GetEntityLogsAsync"/>'s per-entity audit history (e.g. "show all
+    /// audit events for Product #42") is now reachable for rows written through the normal
+    /// <see cref="AuditService.LogAsync"/> path, since TamperProofAuditService mirrors
+    /// <c>entityType</c> onto <see cref="AuditLog.Entity"/> (the field this query filters on).
     /// </summary>
     [Fact]
-    public async Task GetEntityLogsAsync_RealisticallyLoggedRow_NeverMatchesBecauseEntityFieldIsNeverSet()
+    public async Task GetEntityLogsAsync_RealisticallyLoggedRow_Matches()
     {
-        var factory = CreateFactory(nameof(GetEntityLogsAsync_RealisticallyLoggedRow_NeverMatchesBecauseEntityFieldIsNeverSet));
+        var factory = CreateFactory(nameof(GetEntityLogsAsync_RealisticallyLoggedRow_Matches));
         var sut = Build(factory, CreateAccessor(CreateAnonymousContext()));
 
         await sut.LogProductCreatedAsync(productId: 42, productName: "Widget");
 
-        await using var verify = factory.CreateDbContext();
-        (await verify.AuditLogs.CountAsync()).Should().Be(1, "the row must genuinely have been written");
-
         var logs = await sut.GetEntityLogsAsync("Product", 42);
 
-        logs.Should().BeEmpty("known bug: GetEntityLogsAsync filters on AuditLog.Entity, which LogAsync never populates");
+        logs.Should().ContainSingle().Which.Action.Should().Be("PRODUCT_CREATED");
     }
 
     [Fact]

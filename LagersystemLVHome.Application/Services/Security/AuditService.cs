@@ -54,7 +54,8 @@ public sealed class AuditService : IAuditService
                 entityType: entity,
                 entityId: entityId,
                 changes: changesJson,
-                ipAddress: GetIpAddress(httpContext)
+                ipAddress: GetIpAddress(httpContext),
+                severity: severity
             );
 
             _logger.LogDebug("Tamper-proof audit log created: {Action} on {Entity}", action, entity);

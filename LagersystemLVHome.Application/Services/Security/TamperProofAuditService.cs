@@ -31,7 +31,9 @@ public sealed class TamperProofAuditService
         string? entityType = null,
         int? entityId = null,
         string? changes = null,
-        string? ipAddress = null, CancellationToken cancellationToken = default)
+        string? ipAddress = null,
+        AuditSeverity severity = AuditSeverity.Info,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -43,7 +45,11 @@ public sealed class TamperProofAuditService
             // Convert userId=0 to NULL for consistent hashing
             int? actualUserId = userId == 0 ? null : userId;
 
-            // Hash is computed immediately (before SaveChanges), based only on known data (WITHOUT ID)
+            // Hash is computed immediately (before SaveChanges), based only on known data (WITHOUT ID).
+            // Deliberately NOT including Severity here: every already-stored log's hash was computed
+            // without it, so adding it now would retroactively "invalidate" every pre-existing entry
+            // in VerifyAuditLogIntegrityAsync. Severity persistence is the bug being fixed; folding it
+            // into the tamper-detection hash is a separate, bigger call this fix doesn't make.
             var hash = GenerateHashForData(timestamp, actualUserId, action, entityType, entityId, changes);
 
             var auditLog = new AuditLog
@@ -52,9 +58,11 @@ public sealed class TamperProofAuditService
                 UserId = actualUserId,
                 Action = action,
                 EntityType = entityType,
+                Entity = entityType ?? string.Empty,
                 EntityId = entityId,
                 Changes = changes,
                 IpAddress = ipAddress,
+                Severity = severity,
                 Hash = hash,
                 PreviousHash = null
             };

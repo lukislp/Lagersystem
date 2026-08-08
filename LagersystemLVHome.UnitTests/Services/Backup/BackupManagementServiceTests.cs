@@ -893,6 +893,65 @@ public sealed class BackupManagementServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateBackupAsync_EmailOnFailure_SendsFailureNotificationWithFailedSubject()
+    {
+        var factory = CreateFactory(nameof(CreateBackupAsync_EmailOnFailure_SendsFailureNotificationWithFailedSubject));
+        await SeedSettingsAsync(factory, new LagersystemLVHome.Domain.Models.BackupSettings
+        {
+            Enabled = true,
+            EncryptBackups = false,
+            VerifyBackups = false,
+            EmailOnFailure = true,
+            EmailRecipients = "admin@x.local"
+        });
+        // No providers configured at all -> overall Success stays false, exercising the
+        // "EmailOnFailure" branch (distinct from the EmailOnSuccess branch tested above).
+        var email = Substitute.For<IEmailService>();
+        var sut = CreateSut(factory, emailService: email);
+
+        var result = await sut.CreateBackupAsync();
+
+        result.Success.Should().BeFalse();
+        await email.Received(1).SendEmailAsync(
+            "admin@x.local",
+            Arg.Is<string>(s => s.Contains("Fehlgeschlagen")),
+            Arg.Any<string>(),
+            Arg.Any<bool>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateBackupAsync_VerifyBackupsAndEmailEnabled_NotificationIncludesValidationInfo()
+    {
+        var factory = CreateFactory(nameof(CreateBackupAsync_VerifyBackupsAndEmailEnabled_NotificationIncludesValidationInfo));
+        await SeedSettingsAsync(factory, new LagersystemLVHome.Domain.Models.BackupSettings
+        {
+            Enabled = true,
+            EncryptBackups = false,
+            VerifyBackups = true,
+            EmailOnSuccess = true,
+            EmailRecipients = "admin@x.local"
+        });
+        await SeedProviderAsync(factory, "Local1", BackupProviderType.Local, configuration: "");
+        var uploader = CreateUploader(BackupProviderType.Local);
+        uploader.UploadAsync(Arg.Any<BackupProvider>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
+        uploader.ValidateAsync(Arg.Any<BackupHistory>()).Returns(true);
+        var email = Substitute.For<IEmailService>();
+        var sut = CreateSut(factory, uploaders: new[] { uploader }, emailService: email);
+
+        var result = await sut.CreateBackupAsync();
+
+        result.Success.Should().BeTrue();
+        result.ValidatedBackups.Should().Be(1);
+        await email.Received(1).SendEmailAsync(
+            "admin@x.local",
+            Arg.Any<string>(),
+            Arg.Is<string>(body => body.Contains("Validierung") && body.Contains("Erfolgreich validiert")),
+            Arg.Any<bool>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task CreateBackupAsync_NoEmailRecipientsConfigured_SendsNoEmail()
     {
         var factory = CreateFactory(nameof(CreateBackupAsync_NoEmailRecipientsConfigured_SendsNoEmail));

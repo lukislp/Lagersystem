@@ -5,6 +5,7 @@ using System.Text.Json;
 using LagersystemLVHome.Application.Configuration;
 using LagersystemLVHome.Data;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -53,6 +54,7 @@ namespace LagersystemLVHome.UnitTests.Services.Backup;
 public sealed class DatabaseRestoreServiceTests : IDisposable
 {
     private readonly List<string> _tempPaths = new();
+    private readonly List<SqliteConnection> _sqliteConnections = new();
 
     public void Dispose()
     {
@@ -64,6 +66,10 @@ public sealed class DatabaseRestoreServiceTests : IDisposable
                 else if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
             }
             catch { /* best effort */ }
+        }
+        foreach (var connection in _sqliteConnections)
+        {
+            connection.Dispose();
         }
         GC.SuppressFinalize(this);
     }
@@ -98,6 +104,29 @@ public sealed class DatabaseRestoreServiceTests : IDisposable
     }
 
     private sealed class InMemoryContextFactory(DbContextOptions<InventoryDbContext> options)
+        : IDbContextFactory<InventoryDbContext>
+    {
+        public InventoryDbContext CreateDbContext() => new(options);
+    }
+
+    /// <summary>A real relational (SQLite, shared open in-memory connection) context factory -
+    /// unlike the EF Core InMemory provider, this supports <c>Database.GetDbConnection()</c>,
+    /// which <see cref="DatabaseRestoreService"/>'s final tally step (<c>CountTablesAsync</c>)
+    /// requires, making the true end-to-end "Success = true" happy path reachable.</summary>
+    private IDbContextFactory<InventoryDbContext> CreateSqliteFactory(string name)
+    {
+        var connection = new SqliteConnection("Data Source=:memory:");
+        connection.Open();
+        _sqliteConnections.Add(connection);
+        var options = new DbContextOptionsBuilder<InventoryDbContext>().UseSqlite(connection).Options;
+        using (var seed = new InventoryDbContext(options))
+        {
+            seed.Database.EnsureCreated();
+        }
+        return new SqliteContextFactoryImpl(options);
+    }
+
+    private sealed class SqliteContextFactoryImpl(DbContextOptions<InventoryDbContext> options)
         : IDbContextFactory<InventoryDbContext>
     {
         public InventoryDbContext CreateDbContext() => new(options);
@@ -322,6 +351,57 @@ public sealed class DatabaseRestoreServiceTests : IDisposable
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("ZIP");
         await backupService.DidNotReceiveWithAnyArgs().CreateBackupAsync(default);
+    }
+
+    [Fact]
+    public async Task RestoreFromBackupAsync_NonSeekableStream_CopiesToMemoryStreamFirst()
+    {
+        // Exercises the BrowserFileStream-style non-seekable copy branch at the very top of
+        // RestoreFromBackupAsync (separate from ValidateBackupAsync's own non-seekable handling),
+        // using an intentionally invalid payload so the test stays fast and focused on that one
+        // branch rather than re-testing the full happy path.
+        var backupService = Substitute.For<IBackupManagementService>();
+        var sut = CreateSut(CreateFactory(nameof(RestoreFromBackupAsync_NonSeekableStream_CopiesToMemoryStreamFirst)), NewTempDir(), backupService: backupService);
+
+        var result = await sut.RestoreFromBackupAsync(new ForwardOnlyStream(new byte[] { 1, 2, 3 }));
+
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("ZIP");
+    }
+
+    [Fact]
+    public async Task RestoreFromBackupAsync_ValidUnencryptedBackup_RelationalTargetProvider_CompletesSuccessfully()
+    {
+        // Unlike RestoreFromBackupAsync_ValidUnencryptedBackup_RunsImportButFailsAtRelationalOnlyTallyStep
+        // below (which documents the InMemory-provider seam), this test gives the target factory a
+        // real SQLite connection, so CountTablesAsync/CountRecordsAsync's GetDbConnection() calls
+        // succeed - proving the true end-to-end "Success = true" happy path.
+        var sourceFactory = CreateFactory(nameof(RestoreFromBackupAsync_ValidUnencryptedBackup_RelationalTargetProvider_CompletesSuccessfully) + "_src");
+        await using (var db = sourceFactory.CreateDbContext())
+        {
+            db.Warehouses.Add(new Warehouse { Id = 1, Name = "WH1", Address = "a", IsActive = true });
+            await db.SaveChangesAsync();
+        }
+        var exportHelper = new JsonBackupHelper(sourceFactory, NullLogger<JsonBackupHelper>.Instance,
+            Options.Create(new DatabaseSettings { Provider = DatabaseProvider.SQLite }));
+        var zipPath = Path.Combine(NewTempDir(), "src.zip");
+        await exportHelper.CreateJsonBackupAsync(zipPath);
+        var zipBytes = await File.ReadAllBytesAsync(zipPath);
+
+        var targetFactory = CreateSqliteFactory(nameof(RestoreFromBackupAsync_ValidUnencryptedBackup_RelationalTargetProvider_CompletesSuccessfully) + "_dst");
+        var backupService = Substitute.For<IBackupManagementService>();
+        var sut = CreateSut(targetFactory, NewTempDir(), backupService: backupService);
+        var progressEvents = new List<RestoreProgress>();
+        IProgress<RestoreProgress> progress = new SyncProgress<RestoreProgress>(p => progressEvents.Add(p));
+
+        var result = await sut.RestoreFromBackupAsync(new MemoryStream(zipBytes), progress: progress);
+
+        result.Success.Should().BeTrue(result.ErrorMessage);
+        result.TablesRestored.Should().BeGreaterThan(0);
+        result.RecordsRestored.Should().BeGreaterOrEqualTo(1);
+        progressEvents.Should().Contain(p => p.Step == RestoreStep.Complete);
+        await using var verifyDb = targetFactory.CreateDbContext();
+        (await verifyDb.Warehouses.CountAsync()).Should().Be(1);
     }
 
     [Fact]

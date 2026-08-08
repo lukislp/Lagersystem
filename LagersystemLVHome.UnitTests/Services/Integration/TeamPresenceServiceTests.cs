@@ -11,19 +11,16 @@ using UserSession = LagersystemLVHome.Domain.Models.UserSession;
 /// <summary>
 /// Covers <see cref="TeamPresenceService"/>.
 ///
-/// POTENTIAL BUG: <see cref="TeamPresenceService.SetCustomStatusAsync"/> is the only method that
-/// ever writes into the in-memory <c>_presenceCache</c>, and it keys new entries as
-/// <c>"{userId}_default"</c> whenever the user has no existing cache entry yet (the common case,
-/// since <c>GetOnlineUsersInWarehouseAsync</c>/<c>GetAllOnlineUsersAsync</c> only ever READ from
-/// the cache, never write to it). Those read paths look the entry up under
-/// <c>"{userId}_{session.SessionId}"</c> - the real session id, which is essentially never the
-/// literal string "default". As a result, a custom status set via <c>SetCustomStatusAsync</c> can
-/// never actually surface on a real active session's presence entry; it silently sits in a
-/// "1_default" bucket that no lookup ever reads. See
-/// <see cref="GetOnlineUsersInWarehouseAsync_CachedDoNotDisturbStatus_OverridesComputedStatus"/>,
-/// which documents this key mismatch directly, and
-/// <see cref="SetCustomStatusAsync_KeyCoincidentallyMatchesRealSession_OverrideIsApplied"/>, which
-/// proves the override mechanism itself works correctly once the keys happen to line up.
+/// <see cref="TeamPresenceService.SetCustomStatusAsync"/> is the only method that ever writes
+/// into the in-memory <c>_presenceCache</c>, and it keys new entries as <c>"{userId}_default"</c>
+/// whenever the user has no existing cache entry yet (the common case, since
+/// <c>GetOnlineUsersInWarehouseAsync</c>/<c>GetAllOnlineUsersAsync</c> only ever READ from the
+/// cache, never write to it). Those read paths look the entry up under
+/// <c>"{userId}_{session.SessionId}"</c> first and fall back to the <c>"{userId}_default"</c> key
+/// when no session-keyed entry exists yet, so a status set via <c>SetCustomStatusAsync</c> before
+/// the real session has ever been read still surfaces correctly. See
+/// <see cref="GetOnlineUsersInWarehouseAsync_CachedDoNotDisturbStatus_OverridesComputedStatus"/>
+/// and <see cref="SetCustomStatusAsync_KeyCoincidentallyMatchesRealSession_OverrideIsApplied"/>.
 /// </summary>
 public class TeamPresenceServiceTests
 {
@@ -249,16 +246,14 @@ public class TeamPresenceServiceTests
         var sut = Build(factory);
         await sut.SetCustomStatusAsync(1, PresenceStatus.DoNotDisturb, "In a meeting");
 
-        // Populate the cache under the exact key the service uses ("{UserId}_{SessionId}") by
-        // calling the real lookup once first so the default-keyed cache entry from
-        // SetCustomStatusAsync above is not relied upon (it is keyed "1_default").
+        // SetCustomStatusAsync above created a cache entry keyed "1_default" (no session-keyed
+        // entry existed yet). The lookup falls back to that key since "1_{sessionId}" isn't
+        // present, so the override applies on the very first read.
         var result = await sut.GetOnlineUsersInWarehouseAsync(1);
 
-        // SetCustomStatusAsync above created a cache entry keyed "1_default", which does not
-        // match "1_{sessionId}" used when a real session exists, so the override should NOT
-        // apply here - this documents the actual (non-)interaction between the two caches.
         result.Should().ContainSingle();
-        result[0].Status.Should().Be(PresenceStatus.Online);
+        result[0].Status.Should().Be(PresenceStatus.DoNotDisturb);
+        result[0].CustomStatus.Should().Be("In a meeting");
     }
 
     // ==================== GetAllOnlineUsersAsync ====================
@@ -410,12 +405,9 @@ public class TeamPresenceServiceTests
     [Fact]
     public async Task SetCustomStatusAsync_KeyCoincidentallyMatchesRealSession_OverrideIsApplied()
     {
-        // Regression/documentation test for the key-mismatch bug described in the class remarks:
-        // when a session's SessionId literally happens to be "default", SetCustomStatusAsync's
-        // "{userId}_default" cache key coincidentally matches the real lookup key
-        // "{userId}_{session.SessionId}", and the override IS applied - proving the override
-        // mechanism itself is correct; only the key derivation prevents it from ever firing for
-        // real (GUID-based) session ids.
+        // When a session's SessionId literally happens to be "default", SetCustomStatusAsync's
+        // "{userId}_default" cache key matches the real lookup key "{userId}_{session.SessionId}"
+        // directly (not via the fallback path) - the override still applies either way.
         var factory = CreateFactory(nameof(SetCustomStatusAsync_KeyCoincidentallyMatchesRealSession_OverrideIsApplied));
         await using (var db = factory.CreateDbContext())
         {

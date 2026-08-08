@@ -63,7 +63,11 @@ public sealed class TeamPresenceService : ITeamPresenceService
                 lock (_lock)
                 {
                     var cacheKey = $"{session.UserId}_{session.SessionId}";
-                    if (_presenceCache.TryGetValue(cacheKey, out var cached))
+                    // SetCustomStatusAsync writes under "{userId}_default" until a session-keyed
+                    // entry already exists, so a status set for a session we haven't read yet
+                    // (the common case) only surfaces via this fallback key.
+                    if (_presenceCache.TryGetValue(cacheKey, out var cached) ||
+                        _presenceCache.TryGetValue($"{session.UserId}_default", out cached))
                     {
                         presence.CustomStatus = cached.CustomStatus;
                         if (cached.Status == PresenceStatus.DoNotDisturb || cached.Status == PresenceStatus.Away)
@@ -131,7 +135,11 @@ public sealed class TeamPresenceService : ITeamPresenceService
                 lock (_lock)
                 {
                     var cacheKey = $"{session.UserId}_{session.SessionId}";
-                    if (_presenceCache.TryGetValue(cacheKey, out var cached))
+                    // SetCustomStatusAsync writes under "{userId}_default" until a session-keyed
+                    // entry already exists, so a status set for a session we haven't read yet
+                    // (the common case) only surfaces via this fallback key.
+                    if (_presenceCache.TryGetValue(cacheKey, out var cached) ||
+                        _presenceCache.TryGetValue($"{session.UserId}_default", out cached))
                     {
                         presence.CustomStatus = cached.CustomStatus;
                         if (cached.Status == PresenceStatus.DoNotDisturb || cached.Status == PresenceStatus.Away)

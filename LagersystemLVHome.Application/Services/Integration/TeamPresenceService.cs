@@ -25,10 +25,13 @@ public sealed class TeamPresenceService : ITeamPresenceService
         {
             using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
 
-            var fiveMinutesAgo = DateTime.UtcNow.AddMinutes(-5);
+            // Widened from the "online" 5-minute threshold so DeterminePresenceStatus's Idle
+            // (5-15 min) and Away (15-30 min) branches are actually reachable, instead of every
+            // recently-inactive teammate silently disappearing from the presence list.
+            var presenceWindowStart = DateTime.UtcNow.AddMinutes(-30);
 
             var activeSessions = await context.UserSessions
-                .Where(s => s.LastActivity >= fiveMinutesAgo &&
+                .Where(s => s.LastActivity >= presenceWindowStart &&
                     s.IsActive &&
                     s.WarehouseId == warehouseId &&
                     s.DeviceType != "API")
@@ -100,10 +103,13 @@ public sealed class TeamPresenceService : ITeamPresenceService
         {
             using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
 
-            var fiveMinutesAgo = DateTime.UtcNow.AddMinutes(-5);
+            // Widened from the "online" 5-minute threshold so DeterminePresenceStatus's Idle
+            // (5-15 min) and Away (15-30 min) branches are actually reachable, instead of every
+            // recently-inactive teammate silently disappearing from the presence list.
+            var presenceWindowStart = DateTime.UtcNow.AddMinutes(-30);
 
             var activeSessions = await context.UserSessions
-                .Where(s => s.LastActivity >= fiveMinutesAgo && s.IsActive && s.DeviceType != "API")
+                .Where(s => s.LastActivity >= presenceWindowStart && s.IsActive && s.DeviceType != "API")
                 .Include(s => s.User)
                 .ThenInclude(u => u!.Warehouse)
                 .OrderByDescending(s => s.LastActivity)

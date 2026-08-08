@@ -99,9 +99,27 @@ public class TeamPresenceServiceTests
     }
 
     [Fact]
-    public async Task GetOnlineUsersInWarehouseAsync_StaleSession_ExcludedByFiveMinuteWindow()
+    public async Task GetOnlineUsersInWarehouseAsync_StaleSession_ExcludedByPresenceWindow()
     {
-        var factory = CreateFactory(nameof(GetOnlineUsersInWarehouseAsync_StaleSession_ExcludedByFiveMinuteWindow));
+        var factory = CreateFactory(nameof(GetOnlineUsersInWarehouseAsync_StaleSession_ExcludedByPresenceWindow));
+        await using (var db = factory.CreateDbContext())
+        {
+            db.Warehouses.Add(MakeWarehouse());
+            db.Users.Add(MakeUser(1));
+            db.UserSessions.Add(MakeSession(1, 1, DateTime.UtcNow.AddMinutes(-40)));
+            await db.SaveChangesAsync();
+        }
+        var sut = Build(factory);
+
+        var result = await sut.GetOnlineUsersInWarehouseAsync(1);
+
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetOnlineUsersInWarehouseAsync_SessionInactiveTenMinutes_ReturnsIdleStatus()
+    {
+        var factory = CreateFactory(nameof(GetOnlineUsersInWarehouseAsync_SessionInactiveTenMinutes_ReturnsIdleStatus));
         await using (var db = factory.CreateDbContext())
         {
             db.Warehouses.Add(MakeWarehouse());
@@ -113,7 +131,25 @@ public class TeamPresenceServiceTests
 
         var result = await sut.GetOnlineUsersInWarehouseAsync(1);
 
-        result.Should().BeEmpty();
+        result.Should().ContainSingle().Which.Status.Should().Be(PresenceStatus.Idle);
+    }
+
+    [Fact]
+    public async Task GetOnlineUsersInWarehouseAsync_SessionInactiveTwentyMinutes_ReturnsAwayStatus()
+    {
+        var factory = CreateFactory(nameof(GetOnlineUsersInWarehouseAsync_SessionInactiveTwentyMinutes_ReturnsAwayStatus));
+        await using (var db = factory.CreateDbContext())
+        {
+            db.Warehouses.Add(MakeWarehouse());
+            db.Users.Add(MakeUser(1));
+            db.UserSessions.Add(MakeSession(1, 1, DateTime.UtcNow.AddMinutes(-20)));
+            await db.SaveChangesAsync();
+        }
+        var sut = Build(factory);
+
+        var result = await sut.GetOnlineUsersInWarehouseAsync(1);
+
+        result.Should().ContainSingle().Which.Status.Should().Be(PresenceStatus.Away);
     }
 
     [Fact]
@@ -462,7 +498,7 @@ public class TeamPresenceServiceTests
             db.Users.Add(MakeUser(1));
             db.Users.Add(MakeUser(2));
             db.UserSessions.Add(MakeSession(1, 1, DateTime.UtcNow)); // online
-            db.UserSessions.Add(MakeSession(2, 1, DateTime.UtcNow.AddMinutes(-10))); // stale -> excluded upstream already
+            db.UserSessions.Add(MakeSession(2, 1, DateTime.UtcNow.AddMinutes(-10))); // idle -> included in the presence list but not counted as "online" (UserPresence.IsOnline is a separate <5min check)
             await db.SaveChangesAsync();
         }
         var sut = Build(factory);
@@ -482,15 +518,12 @@ public class TeamPresenceServiceTests
     // ==================== DeterminePresenceStatus (private, invoked via reflection) ====================
 
     /// <summary>
-    /// POTENTIAL DEAD CODE: <c>DeterminePresenceStatus</c>'s Idle (5-15 min) and Away (15+ min)
-    /// branches can never be reached through either public entry point
-    /// (<see cref="TeamPresenceService.GetOnlineUsersInWarehouseAsync"/>/
-    /// <see cref="TeamPresenceService.GetAllOnlineUsersAsync"/>), because both queries already
-    /// filter sessions to <c>LastActivity &gt;= DateTime.UtcNow.AddMinutes(-5)</c> before this
-    /// method is ever called - so its input is always &lt; 5 minutes old, and it can only ever
-    /// return <see cref="PresenceStatus.Online"/> in practice. The method's own logic is correct
-    /// (verified directly below via reflection); the bug, if any, is that the two "idle"/"away"
-    /// states it computes for are unreachable dead branches given the current caller filtering.
+    /// <c>DeterminePresenceStatus</c>'s Idle (5-15 min) and Away (15-30 min) branches are reachable
+    /// through both public entry points (<see cref="TeamPresenceService.GetOnlineUsersInWarehouseAsync"/>/
+    /// <see cref="TeamPresenceService.GetAllOnlineUsersAsync"/>), which query sessions up to 30
+    /// minutes inactive - see
+    /// <see cref="GetOnlineUsersInWarehouseAsync_SessionInactiveTenMinutes_ReturnsIdleStatus"/> and
+    /// <see cref="GetOnlineUsersInWarehouseAsync_SessionInactiveTwentyMinutes_ReturnsAwayStatus"/>.
     /// </summary>
     [Theory]
     [InlineData(2, PresenceStatus.Online)]

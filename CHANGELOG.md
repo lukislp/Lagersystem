@@ -1,3 +1,13 @@
+## [1.2.5](https://github.com/lukislp/Lagersystem/compare/v1.2.4...v1.2.5) (2026-08-08)
+
+
+### Bug Fixes
+
+* eliminate the xUnit1031 warning tripping dotnet format's verify check ([8f14bfe](https://github.com/lukislp/Lagersystem/commit/8f14bfe7b7b17924694c582223745e4b6b720425))
+* make two backup-provider tests pass on Linux CI, fix formatting ([fc28bb4](https://github.com/lukislp/Lagersystem/commit/fc28bb450fe653d0895e51a631ac3ff14f0b5275))
+* raise unit-test coverage from 74.7% to 88.5% ([9097f42](https://github.com/lukislp/Lagersystem/commit/9097f42f8983e293e035223ab5cf7bbadf145420))
+* sort the last remaining using directive System-first ([6d16186](https://github.com/lukislp/Lagersystem/commit/6d161867d70a1ff74ba56f780903ebe3e9212919))
+
 ## [1.2.4](https://github.com/lukislp/Lagersystem/compare/v1.2.3...v1.2.4) (2026-08-07)
 
 

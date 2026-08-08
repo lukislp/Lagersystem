@@ -369,10 +369,10 @@ public sealed class SessionMonitorServiceTests
     // ==================== Dispose ====================
 
     [Fact]
-    public void Dispose_WithActiveMonitors_StopsThemAllSynchronously()
+    public async Task Dispose_WithActiveMonitors_StopsThemAllSynchronously()
     {
         var (sut, _, _) = Build();
-        sut.StartMonitoringAsync(1, "s1", "c1").GetAwaiter().GetResult();
+        await sut.StartMonitoringAsync(1, "s1", "c1");
 
         sut.Dispose();
 

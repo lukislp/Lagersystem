@@ -113,13 +113,19 @@ public sealed class DeviceFingerprintService : IDeviceFingerprintService
 
             if (linked)
             {
-                // One of the linked fingerprints has an active session
-                var allRelated = await dbContext.LinkedDeviceFingerprints
+                // One of the linked fingerprints has an active session.
+                // The SelectMany(l => new[] { ... }) flatten has to happen client-side (after
+                // materializing the rows) - EF Core cannot translate a per-row array literal
+                // into SQL and throws at execution time if it's chained directly onto the query.
+                var relatedRows = await dbContext.LinkedDeviceFingerprints
                     .Where(l => l.UserId == userId &&
                         (l.LinkedFingerprint == fingerprint || l.PrimaryFingerprint == fingerprint))
+                    .ToListAsync(cancellationToken);
+
+                var allRelated = relatedRows
                     .SelectMany(l => new[] { l.PrimaryFingerprint, l.LinkedFingerprint })
                     .Distinct()
-                    .ToListAsync(cancellationToken);
+                    .ToList();
 
                 return await dbContext.UserSessions
                     .AnyAsync(s => s.UserId == userId && s.IsActive &&

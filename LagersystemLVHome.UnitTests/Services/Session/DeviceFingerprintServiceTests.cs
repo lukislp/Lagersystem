@@ -139,37 +139,14 @@ public class DeviceFingerprintServiceTests
         result.Should().BeFalse();
     }
 
-    /// <summary>
-    /// BUG: <see cref="DeviceFingerprintService.IsKnownDeviceAsync"/>'s "linked fingerprint"
-    /// branch builds <c>allRelated</c> via
-    /// <c>.SelectMany(l =&gt; new[] { l.PrimaryFingerprint, l.LinkedFingerprint }).Distinct().ToListAsync()</c>.
-    /// That per-row array-literal projection cannot be translated by EF Core (confirmed here
-    /// against the InMemory provider, but this is a general EF Core LINQ-translation
-    /// limitation, not an InMemory-only quirk - the same shape fails against relational
-    /// providers too). The query throws <see cref="InvalidOperationException"/> ("could not
-    /// be translated ... insert a call to 'AsEnumerable'/'ToList'"), which is caught by
-    /// IsKnownDeviceAsync's outer catch-all and silently converted to <c>false</c>.
-    /// <para/>
-    /// Practical impact: ANY call to IsKnownDeviceAsync for a fingerprint that is only
-    /// recognized via a *linked* fingerprint (not a fingerprint with its own directly-matching
-    /// active session) unconditionally fails closed to "unknown device" - the linked-device
-    /// recognition feature this branch exists to implement never actually works. Depending on
-    /// what callers do with "unknown device" (e.g. trigger a new-device security
-    /// notification/email), this produces spurious alerts for a user's own already-linked
-    /// devices (a false positive on every call, not just occasionally).
-    /// <para/>
-    /// Fix would be to materialize the per-row values into memory first, e.g.
-    /// <c>.Select(l => new { l.PrimaryFingerprint, l.LinkedFingerprint }).ToListAsync()</c>
-    /// followed by an in-memory <c>SelectMany</c>/<c>Distinct</c>.
-    /// </summary>
     [Fact]
-    public async Task IsKnownDeviceAsync_LinkedFingerprintKnownBug_QueryThrowsAndFailsClosedToFalse()
+    public async Task IsKnownDeviceAsync_LinkedFingerprintWithActiveSessionOnPrimary_ReturnsTrue()
     {
         // A device was registered under "fp-primary" (e.g. desktop browser) and later linked
         // to "fp-pwa" (e.g. the same device's installed PWA). An active session only exists
-        // under the primary fingerprint. Correct behaviour would resolve "fp-pwa" as known
-        // (true); the actual, buggy behaviour is documented below.
-        var factory = CreateFactory(nameof(IsKnownDeviceAsync_LinkedFingerprintKnownBug_QueryThrowsAndFailsClosedToFalse));
+        // under the primary fingerprint. IsKnownDeviceAsync should resolve "fp-pwa" as known
+        // via the link.
+        var factory = CreateFactory(nameof(IsKnownDeviceAsync_LinkedFingerprintWithActiveSessionOnPrimary_ReturnsTrue));
         await using (var db = factory.CreateDbContext())
         {
             db.UserSessions.Add(new LagersystemLVHome.Domain.Models.UserSession

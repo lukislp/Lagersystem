@@ -213,9 +213,9 @@ public sealed class DeviceFingerprintService : IDeviceFingerprintService
             else if (userAgent.Contains("windows nt 6.2")) os = "Windows 8";
             else if (userAgent.Contains("windows nt 6.1")) os = "Windows 7";
             else if (userAgent.Contains("windows")) os = "Windows";
-            else if (userAgent.Contains("mac os x")) os = "macOS";
             else if (userAgent.Contains("iphone")) os = "iOS";
             else if (userAgent.Contains("ipad")) os = "iPadOS";
+            else if (userAgent.Contains("mac os x")) os = "macOS";
             else if (userAgent.Contains("android")) os = "Android";
             else if (userAgent.Contains("linux")) os = "Linux";
             else if (userAgent.Contains("cros")) os = "ChromeOS";

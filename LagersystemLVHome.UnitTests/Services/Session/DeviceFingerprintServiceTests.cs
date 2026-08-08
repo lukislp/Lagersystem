@@ -170,19 +170,13 @@ public class DeviceFingerprintServiceTests
 
         var result = await sut.IsKnownDeviceAsync(userId: 1, fingerprint: "fp-pwa");
 
-        result.Should().BeFalse(
-            "known bug: the allRelated SelectMany array-literal projection cannot be translated by EF Core " +
-            "and throws internally, so IsKnownDeviceAsync always fails closed for linked-only fingerprints " +
-            "(see this test's XML doc comment for full detail) - this SHOULD be true for a genuinely linked, active device");
+        result.Should().BeTrue(
+            "fp-pwa is linked to fp-primary, which has an active session, so the linked fingerprint should resolve as a known device");
     }
 
     [Fact]
     public async Task IsKnownDeviceAsync_LinkedButNoActiveSessionOnEitherFingerprint_ReturnsFalse()
     {
-        // NOTE: this happens to return false for the *correct* reason it should (no active
-        // session exists at all) - but because of the SelectMany bug documented in the test
-        // above, it would also return false even if an active session DID exist. This test
-        // only proves "false" is returned, not that it's returned for the right reason.
         var factory = CreateFactory(nameof(IsKnownDeviceAsync_LinkedButNoActiveSessionOnEitherFingerprint_ReturnsFalse));
         await using (var db = factory.CreateDbContext())
         {
@@ -304,25 +298,15 @@ public class DeviceFingerprintServiceTests
         session.DeviceInfo.Should().Be(expectedDeviceType);
     }
 
-    /// <summary>
-    /// BUG: real-world iPhone/iOS Safari user-agent strings always include the literal
-    /// substring "like Mac OS X" (Apple's standard UA format, e.g. "... CPU iPhone OS 17_0
-    /// like Mac OS X ... Mobile/15E148 Safari/604.1" - this is not a contrived example, every
-    /// iPhone sends exactly this). <c>ParseUserAgent</c>'s OS else-if chain checks
-    /// <c>Contains("mac os x")</c> BEFORE it checks <c>Contains("iphone")</c>, so every real
-    /// iPhone visitor is misclassified as <c>OperatingSystem = "macOS"</c> instead of
-    /// <c>"iOS"</c>. The device TYPE is still correctly detected as "Mobile" (that check looks
-    /// for "mobile"/"android" and runs independently), so this only corrupts the OS field -
-    /// but that field feeds device-list UI (<see cref="DeviceInfo"/>/session management pages)
-    /// and any OS-based analytics/reporting, silently merging all iPhone sessions into the Mac
-    /// bucket. Fix: check "iphone"/"ipad" before the "mac os x" branch.
-    /// </summary>
     [Fact]
-    public async Task SaveDeviceFingerprintAsync_RealisticIPhoneUserAgent_KnownBug_MisdetectsOsAsMacOsInsteadOfIOS()
+    public async Task SaveDeviceFingerprintAsync_RealisticIPhoneUserAgent_DetectsOsAsIOS()
     {
+        // Real-world iPhone/iOS Safari user-agent strings always include the literal substring
+        // "like Mac OS X" (Apple's standard UA format). ParseUserAgent's OS else-if chain checks
+        // "iphone"/"ipad" before "mac os x" so real iPhone UAs correctly resolve to "iOS".
         const string realisticIPhoneUserAgent =
             "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
-        var factory = CreateFactory(nameof(SaveDeviceFingerprintAsync_RealisticIPhoneUserAgent_KnownBug_MisdetectsOsAsMacOsInsteadOfIOS));
+        var factory = CreateFactory(nameof(SaveDeviceFingerprintAsync_RealisticIPhoneUserAgent_DetectsOsAsIOS));
         var sessionId = await SeedSessionAsync(factory);
         var sut = CreateSut(factory);
 
@@ -330,12 +314,8 @@ public class DeviceFingerprintServiceTests
 
         await using var db = factory.CreateDbContext();
         var session = await db.UserSessions.FindAsync(sessionId);
-        session!.DeviceType.Should().Be("Mobile", "device-type detection is unaffected by the bug");
-        session.OperatingSystem.Should().Be(
-            "macOS",
-            "known bug: the 'mac os x' branch is checked before 'iphone' in ParseUserAgent's else-if " +
-            "chain, so real iPhone UAs (which always contain 'like Mac OS X') are misclassified - this " +
-            "SHOULD be 'iOS'");
+        session!.DeviceType.Should().Be("Mobile");
+        session.OperatingSystem.Should().Be("iOS");
     }
 
     [Fact]

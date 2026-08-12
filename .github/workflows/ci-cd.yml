@@ -25,11 +25,11 @@ jobs:
   test-unit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-dotnet@v6.0.0
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-      - uses: actions/cache@v6
+      - uses: actions/cache@v6.1.0
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'LagersystemLVHome.sln') }}
@@ -41,7 +41,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libfontconfig1 libfreetype6 fonts-liberation
       - run: dotnet test LagersystemLVHome.UnitTests/LagersystemLVHome.UnitTests.csproj --configuration ${{ env.CONFIGURATION }} --logger "junit;LogFilePath=TestResults/unit-tests-junit.xml" --collect:"XPlat Code Coverage"
       - if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: test-results
           path: LagersystemLVHome.UnitTests/TestResults/unit-tests-junit.xml
@@ -62,7 +62,7 @@ jobs:
           -assemblyfilters:"-LagersystemLVHome"
           -filefilters:"-*.g.cs"
       - run: python3 scripts/generate_coverage_badge.py coverage-summary/Summary.json coverage-badge.json
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.1
         with:
           name: coverage-badge
           path: coverage-badge.json
@@ -71,11 +71,11 @@ jobs:
   test-lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-dotnet@v6.0.0
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-      - uses: actions/cache@v6
+      - uses: actions/cache@v6.1.0
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'LagersystemLVHome.sln') }}
@@ -91,11 +91,11 @@ jobs:
   test-security:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-dotnet@v6.0.0
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-      - uses: actions/cache@v6
+      - uses: actions/cache@v6.1.0
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'LagersystemLVHome.sln') }}
@@ -103,28 +103,52 @@ jobs:
             nuget-${{ runner.os }}-
       - run: dotnet restore LagersystemLVHome.sln
       - run: |
-          dotnet list LagersystemLVHome.sln package --vulnerable --include-transitive | tee nuget-vulnerabilities.txt
+          dotnet list LagersystemLVHome.sln package --vulnerable --include-transitive --format json > nuget-vulnerabilities.json
+          cat nuget-vulnerabilities.json
+          python3 -c "
+          import json, sys
+
           # SQLitePCLRaw.lib.e_sqlite3 (GHSA-2m69-gcr7-jv3q) is a documented, deliberately-accepted
           # risk - see the NuGetAuditSuppress block + comment in Directory.Build.props. No safe fix
           # exists yet: Microsoft's own EF Core Sqlite package still depends on the vulnerable
           # SQLitePCLRaw 2.1.x line as of its latest release, and forcing an isolated upgrade risks
           # a native-interop mismatch. Excluded from the severity gate here so CI doesn't
           # permanently fail on an already-accepted risk; any OTHER High/Critical finding still fails.
-          grep -v "SQLitePCLRaw" nuget-vulnerabilities.txt > nuget-vulnerabilities-filtered.txt || true
-          if grep -q "has the following vulnerable packages" nuget-vulnerabilities-filtered.txt; then
-            echo "NuGet advisory findings detected (excluding the accepted SQLitePCLRaw risk) - see nuget-vulnerabilities.txt artifact for details."
-            if grep -qE "^\s*>\s+\S+.*\s+(High|Critical)\s+http" nuget-vulnerabilities-filtered.txt; then
-              echo "::error::High or Critical severity vulnerability found among the findings above."
-              exit 1
-            fi
-          else
-            echo "No known vulnerable NuGet packages found (excluding the accepted SQLitePCLRaw risk)."
-          fi
+          ACCEPTED_RISK_SUBSTRING = 'SQLitePCLRaw'
+
+          def find_findings(obj, package_id=None):
+              if isinstance(obj, dict):
+                  current_id = obj.get('id', package_id)
+                  if 'severity' in obj:
+                      yield (current_id, obj['severity'])
+                  for v in obj.values():
+                      yield from find_findings(v, current_id)
+              elif isinstance(obj, list):
+                  for item in obj:
+                      yield from find_findings(item, package_id)
+
+          data = json.load(open('nuget-vulnerabilities.json'))
+          findings = list(find_findings(data))
+
+          accepted = [(pid, sev) for pid, sev in findings if pid and ACCEPTED_RISK_SUBSTRING in pid]
+          other = [(pid, sev) for pid, sev in findings if not (pid and ACCEPTED_RISK_SUBSTRING in pid)]
+
+          severities = {sev for _, sev in other}
+          high_or_critical = {'High', 'Critical'} & severities
+          suffix = ' (excluding the accepted SQLitePCLRaw risk)' if accepted else ''
+          if high_or_critical:
+              print(f'::error::High or Critical severity vulnerability found{suffix}: {sorted(high_or_critical)}')
+              sys.exit(1)
+          elif severities:
+              print(f'NuGet advisory findings detected{suffix} (severities: {sorted(severities)}) - none High/Critical, not failing the build.')
+          else:
+              print(f'No known vulnerable NuGet packages found{suffix}.')
+          "
       - if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: nuget-vulnerabilities
-          path: nuget-vulnerabilities.txt
+          path: nuget-vulnerabilities.json
           retention-days: 7
 
   test-db-providers:
@@ -168,11 +192,11 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-dotnet@v6.0.0
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-      - uses: actions/cache@v6
+      - uses: actions/cache@v6.1.0
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'LagersystemLVHome.sln') }}
@@ -229,7 +253,7 @@ jobs:
         name: Stop app
         run: kill "$(cat app.pid)" 2>/dev/null || true
       - if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: app-log-${{ matrix.provider }}
           path: app.log
@@ -241,11 +265,11 @@ jobs:
     needs: [test-unit, test-lint, test-security, test-db-providers]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-dotnet@v6.0.0
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-      - uses: actions/cache@v6
+      - uses: actions/cache@v6.1.0
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'LagersystemLVHome.sln') }}
@@ -275,7 +299,7 @@ jobs:
       next_version: ${{ steps.semrel.outputs.new_release_version }}
       published: ${{ steps.semrel.outputs.new_release_published }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
       - id: semrel
@@ -309,7 +333,7 @@ jobs:
     env:
       NEXT_VERSION: ${{ needs.get-version.outputs.next_version }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7.0.1
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
@@ -343,6 +367,9 @@ jobs:
     needs: [get-version, docker-build-push]
     if: github.event_name == 'push' && needs.get-version.outputs.published == 'true'
     runs-on: ubuntu-latest
+    concurrency:
+      group: lagersystem-release-chain
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: read
@@ -378,10 +405,10 @@ jobs:
       issues: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@v8.0.1
         with:
           name: coverage-badge
           path: coverage-artifact
@@ -400,8 +427,16 @@ jobs:
       # this job's checkout and its own push (the concurrency group above already serializes
       # overlapping runs of this workflow, so this only guards against a genuinely external push).
       - if: steps.semrel.outcome == 'failure'
+        name: "Diagnose before retrying (expected: an out-of-band push landed since checkout)"
         run: |
           git fetch origin main
+          BEFORE_SHA="$(git rev-parse HEAD)"
+          AFTER_SHA="$(git rev-parse origin/main)"
+          if [ "$BEFORE_SHA" != "$AFTER_SHA" ]; then
+            echo "origin/main moved since checkout ($BEFORE_SHA -> $AFTER_SHA) - this matches the out-of-band-push race this retry is designed for."
+          else
+            echo "::warning::origin/main did NOT move since checkout - this failure is likely NOT the expected out-of-band-push race. Retrying anyway, but check the semantic-release log above for the real cause before assuming this is just a race."
+          fi
           git checkout -B main origin/main
       - if: steps.semrel.outcome == 'failure'
         uses: cycjimmy/semantic-release-action@b12c8f6015dc215fe37bc154d4ad456dd3833c90 # v6.0.0

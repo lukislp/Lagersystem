@@ -1,0 +1,7 @@
+.modal-content--narrow {
+    max-width: 600px;
+}
+
+.product-thumbnail {
+    max-height: 150px;
+}

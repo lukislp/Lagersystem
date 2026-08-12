@@ -1,0 +1,253 @@
+﻿/* ============================================
+   TOAST NOTIFICATIONS
+   ============================================ */
+
+.toast-container {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: 420px;
+    pointer-events: none;
+}
+
+.toast {
+    pointer-events: all;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    background: white;
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    min-width: 320px;
+    max-width: 420px;
+    transform: translateX(450px);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    border-left: 4px solid;
+}
+
+.toast.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+/* Toast Types */
+.toast-success {
+    border-left-color: #10b981;
+}
+
+.toast-error {
+    border-left-color: #ef4444;
+}
+
+.toast-warning {
+    border-left-color: #f59e0b;
+}
+
+.toast-info {
+    border-left-color: #3b82f6;
+}
+
+/* Toast Icon */
+.toast-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    animation: icon-pop 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes icon-pop {
+    0% {
+        transform: scale(0);
+    }
+    50% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.toast-success .toast-icon {
+    color: #10b981;
+}
+
+.toast-error .toast-icon {
+    color: #ef4444;
+}
+
+.toast-warning .toast-icon {
+    color: #f59e0b;
+}
+
+.toast-info .toast-icon {
+    color: #3b82f6;
+}
+
+/* Toast Content */
+.toast-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.toast-title {
+    display: block;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: #1f2937;
+    margin-bottom: 0.25rem;
+}
+
+.toast-message {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #6b7280;
+    line-height: 1.5;
+}
+
+/* Toast Close Button */
+.toast-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: #9ca3af;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.toast-close:hover {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+/* Toast Progress Bar */
+.toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: currentColor;
+    animation: progress linear;
+}
+
+.toast-success .toast-progress {
+    background: #10b981;
+}
+
+.toast-error .toast-progress {
+    background: #ef4444;
+}
+
+.toast-warning .toast-progress {
+    background: #f59e0b;
+}
+
+.toast-info .toast-progress {
+    background: #3b82f6;
+}
+
+@keyframes progress {
+    from {
+    width: 100%;
+    }
+    to {
+        width: 0%;
+    }
+}
+
+/* Stacked Toasts */
+.toast:nth-last-child(2) {
+    opacity: 0.9;
+    transform: translateY(-8px) scale(0.98);
+}
+
+.toast:nth-last-child(3) {
+    opacity: 0.8;
+    transform: translateY(-16px) scale(0.96);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .toast-container {
+      bottom: 1rem;
+      right: 1rem;
+     left: 1rem;
+        max-width: none;
+    }
+
+    .toast {
+        min-width: auto;
+        max-width: none;
+        transform: translateY(100px);
+    }
+
+    .toast.show {
+        transform: translateY(0);
+    }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    .toast {
+     background: #1f2937;
+    }
+
+    .toast-title {
+        color: #f3f4f6;
+    }
+
+    .toast-message {
+        color: #9ca3af;
+    }
+
+    .toast-close:hover {
+        background: #374151;
+    }
+}
+
+/* Additional Toast Variants */
+.toast.large {
+    padding: 1.5rem;
+}
+
+.toast.large .toast-icon {
+    font-size: 2rem;
+}
+
+.toast.large .toast-title {
+    font-size: 1.125rem;
+}
+
+.toast.compact {
+    padding: 0.75rem 1rem;
+    min-width: 280px;
+}
+
+.toast.compact .toast-icon {
+    font-size: 1.25rem;
+}
+
+/* Toast with Action Button */
+.toast-action {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+.toast-action .btn {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+}

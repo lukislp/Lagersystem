@@ -1,0 +1,290 @@
+@using LagersystemLVHome.Infrastructure.ML.Services
+@using LagersystemLVHome.Infrastructure.ML.Models
+@using LagersystemLVHome.Domain.Models
+@inject ICategoryPredictionService CategoryPredictionService
+@inject ILogger<CategorySuggestionButton> Logger
+@inject I18nText I18nText
+
+<!-- Button with sparkle icon -->
+<button type="button"
+        class="btn @ButtonClass"
+        @onclick="OpenSuggestionsModal"
+        disabled="@(!CanSuggest())"
+        title="@GetButtonTitle()">
+    <i class="bi bi-stars"></i>
+    @ButtonText
+</button>
+
+@if (!CanSuggest() && !string.IsNullOrWhiteSpace(ProductName))
+{
+    <small class="text-muted d-block mt-1">
+        <i class="bi bi-info-circle"></i> @T.CategorySuggestion_Training
+    </small>
+}
+
+<!-- Suggestions modal -->
+@if (showModal)
+{
+    @* Portal pattern: render the modal outside the parent DOM tree *@
+    <CascadingValue Value="this">
+        <div class="modal-backdrop modal-backdrop-nested" @onclick:preventDefault="true" @onclick:stopPropagation="true">
+            <div class="modal-content category-suggestion-modal" @onclick:preventDefault="true" @onclick:stopPropagation="true">
+                <div class="modal-header">
+                    <h3 class="modal-title">
+                        <i class="bi bi-stars text-warning me-2"></i>
+                        @T.CategorySuggestion_Title
+                    </h3>
+                    <button type="button" class="modal-close" @onclick="CloseModalOnly" @onclick:preventDefault="true" @onclick:stopPropagation="true">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+ 
+                <div class="modal-body">
+                    @if (isLoading)
+                    {
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary mb-3" role="status">
+                                <span class="visually-hidden">@T.CategorySuggestion_Loading</span>
+                            </div>
+                            <p class="text-muted">@T.CategorySuggestion_Loading</p>
+                            <small class="text-muted">"@ProductName"</small>
+                        </div>
+                    }
+                    else if (errorMessage != null)
+                    {
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <strong>@T.CategorySuggestion_HintNote</strong> @errorMessage
+                        </div>
+                        <div class="text-center mt-3">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModalOnly" @onclick:preventDefault="true" @onclick:stopPropagation="true">
+                                <i class="bi bi-arrow-left"></i> @T.CategorySuggestion_Back
+                            </button>
+                        </div>
+                    }
+                    else if (suggestions.Any())
+                    {
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-lightbulb me-2"></i>
+                            <strong>@T.CategorySuggestion_ProductName</strong> "@ProductName"
+                        </div>
+      
+                        <div class="suggestions-list">
+                            @foreach (var suggestion in suggestions)
+                            {
+                                <div class="suggestion-card @(suggestion.CategoryId == tempSelectedCategoryId ? "selected" : "")"
+                                     @onclick="() => SelectCategory(suggestion)" @onclick:preventDefault="true" @onclick:stopPropagation="true">
+                                    <div class="suggestion-icon">
+                                        <CategoryIcon IconClass="@suggestion.CategoryIcon" />
+                                    </div>
+                                    <div class="suggestion-content">
+                                        <div class="suggestion-header">
+                                            <strong>@suggestion.CategoryName</strong>
+                                            @if (suggestion.CategoryId == tempSelectedCategoryId)
+                                            {
+                                                <span class="badge bg-success">
+                                                    <i class="bi bi-check-circle"></i> @T.CategorySuggestion_Selected
+                                                </span>
+                                            }
+                                        </div>
+                                        <div class="suggestion-confidence">
+                                            <div class="confidence-bar">
+                                                <div class="confidence-fill @GetConfidenceClass(suggestion.Confidence)"
+                                                     style="width: @((suggestion.Confidence).ToString("F0"))%">
+                                                </div>
+                                            </div>
+                                            <small class="confidence-text">
+                                                @string.Format(T.CategorySuggestion_Match, suggestion.Confidence.ToString("F0"))
+                                            </small>
+                                        </div>
+                                        @if (suggestion.Reasons.Any())
+                                        {
+                                            <div class="matched-keywords">
+                                                <small class="text-muted">@T.CategorySuggestion_Keywords</small>
+                                                <div class="keywords-tags">
+                                                    @foreach (var keyword in suggestion.Reasons.Take(3))
+                                                    {
+                                                        <span class="keyword-tag">@keyword</span>
+                                                    }
+                                                    @if (suggestion.Reasons.Count > 3)
+                                                    {
+                                                        <span class="keyword-tag">@string.Format(T.CategorySuggestion_More, suggestion.Reasons.Count - 3)</span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="suggestion-action">
+                                        @if (suggestion.CategoryId == tempSelectedCategoryId)
+                                        {
+                                            <i class="bi bi-check-circle-fill text-success" style="font-size: 1.5rem;"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-arrow-right-circle text-primary" style="font-size: 1.5rem;"></i>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        @if (tempSelectedCategoryId == 0 || tempSelectedCategoryId == SelectedCategoryId)
+                        {
+                            <div class="alert alert-info mt-3">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>@T.CategorySuggestion_Tip</strong> @T.CategorySuggestion_TipText
+                            </div>
+                        }
+                    }
+                </div>
+        
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModalOnly" @onclick:preventDefault="true" @onclick:stopPropagation="true">
+                        <i class="bi bi-x"></i> @T.CategorySuggestion_Close
+                    </button>
+                    @if (suggestions.Any() && tempSelectedCategoryId > 0 && tempSelectedCategoryId != SelectedCategoryId)
+                    {
+                        <button type="button" class="btn btn-primary" @onclick="ConfirmSelection" @onclick:preventDefault="true" @onclick:stopPropagation="true">
+                            <i class="bi bi-check"></i> @T.CategorySuggestion_Apply
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </CascadingValue>
+}
+
+
+@code {
+    [Parameter]
+    public string ProductName { get; set; } = string.Empty;
+
+    [Parameter]
+    public int SelectedCategoryId { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnCategorySelected { get; set; }
+
+    [Parameter]
+    public string ButtonText { get; set; } = "KI-Vorschläge";
+
+    [Parameter]
+    public string ButtonClass { get; set; } = "btn-outline-primary btn-sm";
+
+    private bool showModal = false;
+    private bool isLoading = false;
+    private string? errorMessage = null;
+    private List<CategorySuggestion> suggestions = new();
+    private int tempSelectedCategoryId = 0;
+
+    private LagersystemLVHome.I18nText.App T = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+    }
+
+    private bool CanSuggest()
+    {
+        return !string.IsNullOrWhiteSpace(ProductName) &&
+    CategoryPredictionService.IsModelReady;
+    }
+
+    private string GetButtonTitle()
+    {
+        if (string.IsNullOrWhiteSpace(ProductName))
+            return T.CategorySuggestion_EnterName;
+     
+        if (!CategoryPredictionService.IsModelReady)
+            return T.CategorySuggestion_ModelTraining;
+        
+        return T.CategorySuggestion_HoverHint;
+    }
+
+    private async Task OpenSuggestionsModal()
+    {
+        if (!CanSuggest() || showModal) return;  // Prevent duplicate invocation
+
+        showModal = true;
+        isLoading = true;
+        errorMessage = null;
+        suggestions.Clear();
+        tempSelectedCategoryId = SelectedCategoryId;
+        
+        try
+        {
+            // Invoke CategoryPredictionService
+            var result = await CategoryPredictionService.SuggestCategoriesAsync(ProductName);
+
+            if (result == null || !result.Suggestions.Any())
+            {
+                errorMessage = T.CategorySuggestion_NoMatch;
+            }
+            else
+            {
+                suggestions = result.Suggestions.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error getting category suggestions for product: {ProductName}", ProductName);
+            errorMessage = string.Format(T.CategorySuggestion_Error, ex.Message);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void CloseModalOnly()
+    {
+        showModal = false;
+        errorMessage = null;
+        suggestions.Clear();
+        // No StateHasChanged() here - prevents a re-render during close
+    }
+
+    private void HandleBackdropClick()
+    {
+        // A backdrop click does NOTHING - only explicit buttons close the modal
+        // This prevents accidental dismissal
+    }
+
+    private void SelectCategory(CategorySuggestion suggestion)
+    {
+        tempSelectedCategoryId = suggestion.CategoryId;
+        StateHasChanged(); // Only here to refresh the UI for the selection
+    }
+
+    private async Task ConfirmSelection()
+    {
+        if (tempSelectedCategoryId > 0 && tempSelectedCategoryId != SelectedCategoryId)
+        {
+            // REIHENFOLGE KRITISCH:
+            // 1. Reset modal state IMMEDIATELY
+            showModal = false;
+            errorMessage = null;
+            suggestions.Clear();
+          
+            // 2. THEN the callback (after a small delay so the modal can close)
+            await Task.Delay(10);
+            await OnCategorySelected.InvokeAsync(tempSelectedCategoryId);
+        }
+        else
+        {
+            // No change - just close the modal
+            showModal = false;
+        }
+    }
+
+    private string GetConfidenceClass(double confidence)
+    {
+        if (confidence >= 0.75)
+            return "high";
+        else if (confidence >= 0.5)
+            return "medium";
+        else
+            return "low";
+    }
+}

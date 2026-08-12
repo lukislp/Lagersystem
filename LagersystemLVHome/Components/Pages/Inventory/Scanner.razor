@@ -1,0 +1,951 @@
+@page "/scanner"
+@inherits CancellableComponentBase
+@using LagersystemLVHome.Data
+@using LagersystemLVHome.Domain.Models
+@using Microsoft.EntityFrameworkCore
+@rendermode InteractiveServer
+@inject LagersystemLVHome.Application.Services.IInventoryService InventoryService
+@inject LagersystemLVHome.Application.Services.ILocationQueryService LocationQueryService
+@inject LagersystemLVHome.Application.Services.IAuthService AuthService
+@inject LagersystemLVHome.Application.Services.IAuditService AuditService
+@inject NavigationManager NavigationManager
+@inject I18nText I18nText
+
+<PageTitle>@T.Scanner_PageTitle</PageTitle>
+
+<!-- BatchSelectionModal Component -->
+<BatchSelectionModal IsVisible="showBatchModal"
+                     Batches="existingBatches"
+                     SelectedBatchId="selectedBatchId"
+                     OnBatchSelected="HandleBatchSelected"
+                     OnClosed="() => showBatchModal = false" />
+
+<!-- PriceChangeModal Component -->
+<PriceChangeModal IsVisible="showPriceModal"
+                  IsNewProduct="@(scannedProduct?.Id == 0)"
+                  ProductId="scannedProduct?.Id"
+                  CurrentPrice="scannedProduct?.Price"
+                  OnPriceChanged="HandlePriceChanged"
+                  OnClosed="() => showPriceModal = false" />
+
+<div class="page-header">
+    <h1 class="page-title">@T.Scanner_Title</h1>
+    <p class="page-subtitle">@T.Scanner_Subtitle</p>
+</div>
+
+<!-- Toast Notification -->
+@if (showToast)
+{
+    <div class="toast-notification @toastClass">
+        <div class="toast-icon">
+            @if (toastSuccess)
+            {
+                <i class="bi bi-check-circle-fill"></i>
+            }
+            else
+            {
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            }
+        </div>
+        <div class="toast-content">
+            <div class="toast-title">@toastTitle</div>
+            <div class="toast-message">@toastMessage</div>
+        </div>
+    </div>
+}
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <!-- Scanner Mode Toggle -->
+        <div class="card mb-4">
+            <div class="card-body p-0">
+                <div class="d-flex">
+                    <button class="flex-fill btn @(scannerMode == ScannerMode.Manual ? "btn-primary" : "btn-light") rounded-0 rounded-start py-3"
+                            @onclick="() => SetScannerMode(ScannerMode.Manual)">
+                        <i class="bi bi-keyboard me-2"></i>@T.Scanner_Manual
+                    </button>
+                    <button class="flex-fill btn @(scannerMode == ScannerMode.Camera ? "btn-primary" : "btn-light") rounded-0 rounded-end py-3"
+                            @onclick="() => SetScannerMode(ScannerMode.Camera)">
+                        <i class="bi bi-camera me-2"></i>@T.Scanner_Camera
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        @if (scannerMode == ScannerMode.Manual)
+        {
+            <!-- Manual Input Scanner -->
+            <div class="scanner-container" style="min-height: 300px;">
+                <div class="scanner-icon">
+                    <i class="bi bi-upc-scan"></i>
+                </div>
+                <h2 class="scanner-title">@T.Scanner_BarcodeInput_Title</h2>
+                <p>@T.Scanner_BarcodeInput_Desc</p>
+           
+                <div class="scanner-input">
+                    <input type="text"
+                           @bind="barcodeInput"
+                           @bind:event="oninput"
+                           @onkeydown="HandleKeyDown"
+                           placeholder="@T.Scanner_BarcodeInput_Placeholder"
+                           autofocus />
+                </div>
+
+                <div class="mt-3 mb-3">
+                    <label class="text-white-50">@T.Scanner_Quantity</label>
+                    <div class="d-flex justify-content-center gap-2 mt-2">
+                        <button class="btn btn-secondary" @onclick="() => quantity = Math.Max(1, quantity - 1)">-</button>
+                        <input type="number" @bind="quantity" min="1" style="width: 80px; text-align: center;" class="form-control" />
+                        <button class="btn btn-secondary" @onclick="() => quantity++">+</button>
+                    </div>
+                </div>
+
+                @if (scannedProduct != null && availableStorageLocations.Any())
+                {
+                    <div class="mt-3 mb-3">
+                        <label class="text-white-50">@T.Scanner_DistributeStorage</label>
+
+                        <!-- Price change button -->
+                        <div class="mb-3">
+                            <button class="btn btn-outline-warning w-100" @onclick="OpenPriceModal">
+                                <i class="bi bi-tag"></i>
+                                @if (scannedProduct.Price > 0)
+                                {
+                                    <span>@(string.Format(T.Scanner_ChangePrice ?? "Preis ändern ({0})", scannedProduct.Price.ToString("C")))</span>
+                                }
+                                else
+                                {
+                                    <span>@T.Scanner_PriceRequired</span>
+                                }
+                            </button>
+                        </div>
+
+                        <!-- Batch input for food products -->
+                        @if (ShouldShowBatchInput())
+                        {
+                            <div class="batch-input-section mb-3">
+                                <div class="alert alert-info mb-2">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    <strong>@T.Scanner_FoodBatch</strong> @T.Scanner_SelectBatch
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="text-white-50 small">@T.Scanner_SelectBatch</label>
+                                    <div class="btn-group w-100 mb-2" role="group">
+                                        <button type="button"
+                                                class="btn @(!selectedBatchId.HasValue ? "btn-primary" : "btn-outline-primary")"
+                                                @onclick="() => { selectedBatchId = null; ClearBatchFields(); }">
+                                            <i class="bi bi-plus"></i> @T.Scanner_NewBatch
+                                            </button>
+                                        @if (existingBatches.Any())
+                                        {
+                                            <button type="button"
+                                                    class="btn @(selectedBatchId.HasValue ? "btn-primary" : "btn-outline-primary")"
+                                                    @onclick="OpenBatchSelectionModal">
+                                                <i class="bi bi-list-ul"></i> @(string.Format(T.Scanner_ExistingBatch ?? "Vorhandene Chargen ({0})", existingBatches.Count))
+                                                </button>
+                                        }
+                                    </div>
+
+                                    @if (selectedBatchId.HasValue)
+                                    {
+                                        var batch = existingBatches.FirstOrDefault(b => b.Id == selectedBatchId);
+                                        if (batch != null)
+                                        {
+                                            <div class="alert alert-success py-2">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <strong>@T.Scanner_BatchSelected</strong> @batch.BatchNumber<br />
+                                                        <small>MHD: @batch.ExpiryDate?.ToString("dd.MM.yyyy") | Aktuell: @batch.Quantity Stk.</small>
+                                                    </div>
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-secondary"
+                                                            @onclick="OpenBatchSelectionModal"
+                                                            title="@T.Scanner_OtherBatch">
+                                                        <i class="bi bi-arrow-repeat"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+
+                                @if (!selectedBatchId.HasValue)
+                                {
+                                    <!-- Create new batch -->
+                                    <div class="row g-2">
+                                        <div class="col-md-4">
+                                            <label class="text-white-50 small">@T.Scanner_BatchNumber</label>
+                                            <input type="text"
+                                                   @bind="batchNumber"
+                                                   class="form-control form-control-sm"
+                                                   placeholder="z.B. LOT-2025-001" />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="text-white-50 small">@T.Scanner_BatchMHD</label>
+                                            <input type="date"
+                                                   @bind="batchExpiryDate"
+                                                   class="form-control form-control-sm" />
+                                            @if (batchExpiryDate.HasValue)
+                                            {
+                                                var days = (batchExpiryDate.Value - DateTime.UtcNow).Days;
+                                                @if (days < 0)
+                                                {
+                                                    <small class="text-danger">@T.Scanner_Expired</small>
+                                                }
+                                                else if (days <= 7)
+                                                {
+                                                    <small class="text-warning">@(string.Format(T.Scanner_InDays ?? "In {0} Tagen", days))</small>
+                                                }
+                                                else
+                                                {
+                                                    <small class="text-success">@days Tage</small>
+                                                }
+                                            }
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="text-white-50 small">@T.Scanner_ManufactureDate</label>
+                                            <input type="date"
+                                                   @bind="batchManufactureDate"
+                                                   class="form-control form-control-sm" />
+                                        </div>
+                                    </div>
+ 
+                                    <div class="mt-2">
+                                        <label class="text-white-50 small">@T.Scanner_BatchNotes</label>
+                                        <input type="text"
+                                               @bind="batchNotes"
+                                               class="form-control form-control-sm"
+                                               placeholder="z.B. Lieferant, Lieferschein-Nr." />
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        <button class="auto-distribute-btn" @onclick="AutoDistribute">
+                            <i class="bi bi-magic"></i> @T.Scanner_AutoDistribute
+                        </button>
+
+                        <div class="storage-distribution mt-2">
+                            @foreach (var item in storageDistribution)
+                            {
+                                <div class="distribution-item">
+                                    <div class="distribution-info">
+                                        <code>@item.StorageLocation.Code</code>
+                                        <small class="d-block text-muted">@item.StorageLocation.Name</small>
+                                        @if (!string.IsNullOrEmpty(item.StorageLocation.Room))
+                                        {
+                                            <small class="badge bg-info">@item.StorageLocation.Room</small>
+                                        }
+                                        @if (item.IsAssigned)
+                                        {
+                                            <small class="text-success">@(string.Format(T.Scanner_CurrentStock ?? "Aktuell: {0}", item.CurrentStock))</small>
+                                        }
+                                        else
+                                        {
+                                            <small class="badge bg-warning">@T.Scanner_New</small>
+                                        }
+                                    </div>
+                                    <div class="distribution-quantity">
+                                        <button @onclick="() => DecreaseDistribution(item)">−</button>
+                                        <input type="number"
+                                               class="form-control form-control-sm"
+                                               @bind="item.Quantity"
+                                               min="0"
+                                               max="@quantity"
+                                               style="width: 70px;" />
+                                        <button @onclick="() => IncreaseDistribution(item)">+</button>
+                                    </div>
+                                </div>
+                            }
+          
+                            <div class="alert alert-info mt-2 mb-0">
+                                <small>
+                                    <strong>@T.Scanner_Distributed</strong> @GetDistributedQuantity() / @quantity @T.Common_Products
+                                    @if (GetDistributedQuantity() > quantity)
+                                    {
+                                        <span class="text-danger"> @T.Scanner_TooMany</span>
+                                    }
+                                    else if (GetDistributedQuantity() < quantity)
+                                    {
+                                        <span class="text-warning"> @(string.Format(T.Scanner_Rest ?? "Rest: {0}", quantity - GetDistributedQuantity()))</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-success"> ✓</span>
+                                    }
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <div class="scanner-actions">
+                    <button class="scanner-btn add" @onclick="AddStock" disabled="@isProcessing">
+                        <i class="bi bi-plus-lg"></i> @(string.Format(T.Scanner_AddStock ?? "Eingang (+{0})", quantity))
+                    </button>
+                    <button class="scanner-btn remove" @onclick="RemoveStock" disabled="@isProcessing">
+                        <i class="bi bi-dash-lg"></i> @(string.Format(T.Scanner_RemoveStock ?? "Ausgang (-{0})", quantity))
+                    </button>
+                </div>
+
+                @if (!string.IsNullOrEmpty(message))
+                {
+                    <div class="mt-4 p-3 rounded @(isSuccess ? "bg-success" : "bg-warning") bg-opacity-25">
+                        <span class="text-white">@message</span>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <!-- Camera Scanner -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="bi bi-camera-video me-2"></i>@T.Scanner_CameraScanner</h3>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(lastScannedBarcode))
+                    {
+                        <div class="alert alert-success mb-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-check-circle-fill fs-4"></i>
+                                <div class="flex-grow-1">
+                                    <strong>@T.Scanner_LastBarcode</strong>
+                                    <div class="mt-1">
+                                        <code class="fs-5">@lastScannedBarcode</code>
+                                        <span class="ms-2 text-muted">(@DateTime.Now.ToString("HH:mm:ss"))</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <SimpleZXingScanner OnScanned="HandleCameraScan" />
+
+                    <div class="mt-4">
+                        <label class="form-label fw-bold">@T.Scanner_QuantityPerScan</label>
+                        <div class="d-flex gap-2 align-items-center">
+                            <button class="btn btn-secondary" @onclick="() => quantity = Math.Max(1, quantity - 1)">-</button>
+                            <input type="number" @bind="quantity" min="1" style="width: 80px; text-align: center;" class="form-control" />
+                            <button class="btn btn-secondary" @onclick="() => quantity++">+</button>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-3 mt-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="cameraScanMode" id="camModeAdd"
+                                   checked="@(cameraScanAction == CameraScanAction.Add)"
+                                   @onchange="() => cameraScanAction = CameraScanAction.Add" />
+                            <label class="form-check-label text-success fw-bold" for="camModeAdd">
+                                <i class="bi bi-plus-circle me-1"></i>@T.Scanner_AddStock
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="cameraScanMode" id="camModeRemove"
+                                   checked="@(cameraScanAction == CameraScanAction.Remove)"
+                                   @onchange="() => cameraScanAction = CameraScanAction.Remove" />
+                            <label class="form-check-label text-danger fw-bold" for="camModeRemove">
+                                <i class="bi bi-dash-circle me-1"></i>@T.Scanner_RemoveStock
+                            </label>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(message))
+                    {
+                        <div class="alert @(isSuccess ? "alert-success" : "alert-warning") mt-3">
+                            @message
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (lastScannedProduct != null)
+        {
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h3 class="card-title">@T.Scanner_LastScanned</h3>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="product-icon" style="width: 60px; height: 60px; font-size: 2rem;">
+                            <CategoryIcon IconClass="@(lastScannedProduct.Category?.Icon ?? "bi-box")" />
+                        </div>
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">@lastScannedProduct.Name</h4>
+                            <p class="text-muted mb-1">@lastScannedProduct.Barcode</p>
+                            <p class="mb-0">
+                                <span class="stock-badge @GetStockClass(lastScannedProduct)">
+                                    @string.Format(T.Scanner_StockPieces ?? "{0} Stk.", lastScannedProduct.Quantity)
+                                </span>
+                                <span class="text-muted ms-2">@string.Format(T.Scanner_InCategory ?? "in {0}", lastScannedProduct.Category?.Name)</span>
+                            </p>
+                        </div>
+                        <div>
+                            <a href="@($"/products/{lastScannedProduct.Id}")" class="btn btn-secondary">
+                                <i class="bi bi-eye"></i> @T.Scanner_Details
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                    <h3 class="card-title">@T.Scanner_ScanHistory</h3>
+                <button class="btn btn-secondary btn-sm" @onclick="ClearHistory">@T.Common_ClearFilter</button>
+            </div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                @if (scanHistory.Any())
+                {
+                    @foreach (var scan in scanHistory)
+                    {
+                        <div class="movement-item">
+                            <div class="movement-icon @(scan.IsAdd ? "in" : "out")">
+                                <i class="bi @(scan.IsAdd ? "bi-arrow-down" : "bi-arrow-up")"></i>
+                            </div>
+                            <div class="movement-details">
+                                <div class="movement-product">@scan.ProductName</div>
+                                <div class="movement-time">@scan.Timestamp.ToString("HH:mm:ss")</div>
+                                @if (!string.IsNullOrEmpty(scan.Barcode))
+                                {
+                                    <div class="movement-barcode"><code>@scan.Barcode</code></div>
+                                }
+                            </div>
+                            <div class="movement-quantity @(scan.IsAdd ? "positive" : "negative")">
+                                @(scan.IsAdd ? "+" : "-")@scan.Quantity
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <EmptyState IconClass="bi bi-inbox"
+                                Title="@T.Scanner_ScanHistoryEmpty"
+                                AdditionalClass="compact" />
+                }
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h3 class="card-title">@T.Scanner_ProductNotFound?</h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">@T.Scanner_NotFoundHelp</p>
+                <button class="btn btn-primary w-100" @onclick="CreateProductFromLastScan" disabled="@(string.IsNullOrEmpty(lastUnknownBarcode))">
+                    <i class="bi bi-plus"></i> @T.Scanner_CreateProduct
+                    @if (!string.IsNullOrEmpty(lastUnknownBarcode))
+                    {
+                        <small class="d-block mt-1">Barcode: @lastUnknownBarcode</small>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@code {
+    private LagersystemLVHome.I18nText.App T = new();
+    private ScannerMode scannerMode = ScannerMode.Manual;
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+    }
+
+    private CameraScanAction cameraScanAction = CameraScanAction.Add;
+    
+    private string barcodeInput = string.Empty;
+    private string lastScannedBarcode = string.Empty;
+    private int quantity = 1;
+    private string message = string.Empty;
+    private bool isSuccess = false;
+    private bool isProcessing = false;
+    private LagersystemLVHome.Domain.Models.Product? lastScannedProduct;
+    private List<ScanHistoryItem> scanHistory = new();
+    private string lastUnknownBarcode = string.Empty;
+
+    // Storage location distribution
+    private Product? scannedProduct = null;
+    private List<StorageLocation> availableStorageLocations = new();
+    private List<StorageDistributionItem> storageDistribution = new();
+
+    // Batch / expiry fields
+    private string batchNumber = string.Empty;
+    private DateTime? batchExpiryDate = null;
+    private DateTime? batchManufactureDate = null;
+    private string batchNotes = string.Empty;
+    private List<ProductBatch> existingBatches = new();
+    private int? selectedBatchId = null;
+
+    // Toast notification
+    private bool showToast = false;
+    private bool toastSuccess = false;
+    private string toastTitle = string.Empty;
+    private string toastMessage = string.Empty;
+    private string toastClass => toastSuccess ? "success" : "error";
+
+    // Modal state
+    private bool showBatchModal = false;
+    private bool showPriceModal = false;
+
+    private void SetScannerMode(ScannerMode mode)
+    {
+        scannerMode = mode;
+        message = string.Empty;
+        lastScannedBarcode = string.Empty;
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(barcodeInput))
+        {
+            // Load product and storage locations
+            await LoadProductAndStorageLocations();
+        }
+    }
+
+    private async Task LoadProductAndStorageLocations()
+    {
+        var currentUser = await AuthService.GetCurrentUserAsync();
+        if (currentUser == null) return;
+
+        // Load product directly (storage location check removed)
+        scannedProduct = await InventoryService.GetProductByBarcodeAsync(barcodeInput);
+
+        if (scannedProduct == null)
+        {
+            // Product not found
+            message = $"@T.Scanner_ProductNotFound '{barcodeInput}'.";
+            isSuccess = false;
+            lastUnknownBarcode = barcodeInput;
+            return;
+        }
+
+        // Product found - load storage locations
+        var allStorageLocations = await LocationQueryService.GetActiveStorageLocationsForWarehouseAsync(currentUser.WarehouseId);
+
+        // Load existing assignments
+        var existingAssignments = await InventoryService.GetProductStorageLocationsAsync(scannedProduct.Id);
+
+        // Create dictionary for fast lookup
+        var assignmentDict = existingAssignments.ToDictionary(psl => psl.StorageLocationId, psl => psl.Quantity);
+
+        // Initialize distribution: existing with current quantity, new with 0
+        storageDistribution = allStorageLocations
+.Select(sl => new StorageDistributionItem
+{
+    StorageLocation = sl,
+    Quantity = 0,
+    CurrentStock = assignmentDict.ContainsKey(sl.Id) ? assignmentDict[sl.Id] : 0,
+    IsAssigned = assignmentDict.ContainsKey(sl.Id)
+})
+    .ToList();
+
+        availableStorageLocations = allStorageLocations.ToList();
+
+        // Load existing batches for this product
+        await LoadExistingBatches();
+
+        message = string.Format(T.Scanner_ProductFound ?? "gefunden - Bitte {0} Stück auf Lagerfächer verteilen", quantity) is var fmt ? $"{scannedProduct.Name} {fmt}" : "";
+        isSuccess = true;
+    }
+
+    private int GetDistributedQuantity()
+    {
+        return storageDistribution.Sum(sd => sd.Quantity);
+    }
+
+    private void IncreaseDistribution(StorageDistributionItem item)
+    {
+        if (GetDistributedQuantity() < quantity)
+        {
+            item.Quantity++;
+        }
+    }
+
+    private void DecreaseDistribution(StorageDistributionItem item)
+    {
+        if (item.Quantity > 0)
+        {
+            item.Quantity--;
+        }
+    }
+
+    private void AutoDistribute()
+    {
+        if (storageDistribution.Count == 0) return;
+
+        var perLocation = quantity / storageDistribution.Count;
+        var remainder = quantity % storageDistribution.Count;
+
+        for (int i = 0; i < storageDistribution.Count; i++)
+        {
+            storageDistribution[i].Quantity = perLocation + (i < remainder ? 1 : 0);
+        }
+    }
+
+    private async Task HandleCameraScan(string barcode)
+    {
+        if (string.IsNullOrEmpty(barcode)) return;
+
+        // Show the scanned barcode immediately
+        lastScannedBarcode = barcode;
+        barcodeInput = barcode;
+     
+        // Show toast notification
+        await ShowToast(T.Scanner_ToastBarcode, $"{T.Scanner_ToastCode} {barcode}", true);
+
+        StateHasChanged();
+
+        // Load product and storage locations (or navigate to storage location)
+        await LoadProductAndStorageLocations();
+    }
+
+    private async Task ShowToast(string title, string message, bool success)
+    {
+        toastTitle = title;
+        toastMessage = message;
+        toastSuccess = success;
+        showToast = true;
+        StateHasChanged();
+     
+        // Auto-hide after 3 seconds
+        await Task.Delay(3000);
+        showToast = false;
+        StateHasChanged();
+    }
+
+    private async Task AddStock()
+    {
+        if (string.IsNullOrWhiteSpace(barcodeInput)) return;
+
+        // If product is loaded, check distribution
+        if (scannedProduct != null && storageDistribution.Any())
+        {
+            await ProcessManualDistribution(true);
+        }
+        else
+        {
+            // No product loaded - scan first
+            message = T.Scanner_ScanFirst;
+            isSuccess = false;
+        }
+    }
+
+    private async Task ProcessManualDistribution(bool isAdd)
+    {
+        if (scannedProduct == null) return;
+
+        var distributed = GetDistributedQuantity();
+        if (distributed != quantity)
+        {
+            message = string.Format(T.Scanner_EnterQty, quantity, distributed);
+            isSuccess = false;
+            return;
+        }
+
+        // Price validation
+        if (scannedProduct.Price <= 0)
+        {
+            message = T.Scanner_MustEnterPrice;
+            isSuccess = false;
+            return;
+        }
+
+        // Validate batch input for food products
+        if (isAdd && ShouldShowBatchInput())
+        {
+            if (selectedBatchId.HasValue)
+            {
+                // Existing batch selected - no further validation needed
+            }
+            else
+            {
+                // New batch - validate
+                if (string.IsNullOrWhiteSpace(batchNumber))
+                {
+                    message = T.Scanner_EnterBatchNumber;
+                    isSuccess = false;
+                    return;
+                }
+    
+                if (!batchExpiryDate.HasValue)
+                {
+                    message = T.Scanner_EnterMHD;
+                    isSuccess = false;
+                    return;
+                }
+            }
+        }
+
+        isProcessing = true;
+
+        try
+        {
+            var notes = isAdd && ShouldShowBatchInput()
+                ? (selectedBatchId.HasValue
+                    ? string.Format(T.Scanner_Notes_AddedToBatch ?? "Zu Charge {0} hinzugefügt", existingBatches.FirstOrDefault(b => b.Id == selectedBatchId)?.BatchNumber)
+                    : string.Format(T.Scanner_Notes_NewBatch ?? "Neue Charge: {0}", batchNumber))
+                : T.Scanner_Notes_Distributed ?? "Manuell auf Lagerfächer verteilt";
+
+            var command = new ScannerMovementCommand(
+                ProductId: scannedProduct.Id,
+                IsAdd: isAdd,
+                Quantity: quantity,
+                Barcode: barcodeInput,
+                WarehouseId: AuthService.GetCurrentWarehouseId(),
+                Distribution: storageDistribution
+                    .Where(sd => sd.Quantity > 0)
+                    .Select(sd => new ProductStorageLocationAssignment(sd.StorageLocation.Id, sd.Quantity))
+                    .ToList(),
+                ProcessBatch: ShouldShowBatchInput(),
+                SelectedBatchId: selectedBatchId,
+                BatchNumber: batchNumber,
+                BatchExpiryDate: batchExpiryDate,
+                BatchManufactureDate: batchManufactureDate,
+                BatchNotes: batchNotes,
+                MovementNotes: notes);
+
+            var result = await InventoryService.ProcessScannerMovementAsync(command);
+
+            if (result.IsFailure)
+            {
+                message = string.Format(T.Scanner_Error_Result ?? "Fehler: {0}", result.ErrorMessage);
+                isSuccess = false;
+                return;
+            }
+
+            // Update local scannedProduct quantity for UI consistency
+            scannedProduct.Quantity = isAdd
+                ? scannedProduct.Quantity + quantity
+                : Math.Max(0, scannedProduct.Quantity - quantity);
+
+            // Audit Log + Gamification
+            await AuditService.LogStockMovementAsync(
+                scannedProduct.Id,
+                scannedProduct.Name,
+                isAdd ? quantity : -quantity,
+                isAdd ? nameof(MovementType.ScanAdd) : nameof(MovementType.ScanRemove));
+
+            // Success
+            message = $"{(isAdd ? T.Scanner_Success_Add : T.Scanner_Success_Remove)}: {scannedProduct.Name} - {quantity} {T.ProductDetail_Batch_Unit}";
+            isSuccess = true;
+            lastScannedProduct = scannedProduct;
+
+            scanHistory.Insert(0, new ScanHistoryItem
+            {
+                ProductName = scannedProduct.Name,
+                Barcode = barcodeInput,
+                Quantity = quantity,
+                IsAdd = isAdd,
+                Timestamp = DateTime.Now
+            });
+
+            await ShowToast(isAdd ? T.Scanner_Success_Add : T.Scanner_Success_Remove,
+            $"{scannedProduct.Name} {(isAdd ? "+" : "-")}{quantity}", true);
+
+            // Reset state
+            ResetScanState();
+        }
+        catch (Exception ex)
+        {
+            message = string.Format(T.Scanner_Error_Result ?? "Fehler: {0}", ex.Message);
+            isSuccess = false;
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task RemoveStock()
+    {
+        if (string.IsNullOrWhiteSpace(barcodeInput)) return;
+
+        // If product is loaded, check distribution
+        if (scannedProduct != null && storageDistribution.Any())
+        {
+            await ProcessManualDistribution(false);
+        }
+        else
+        {
+            // No product loaded - scan first
+            message = T.Scanner_ScanFirst;
+            isSuccess = false;
+        }
+    }
+
+    private void ResetScanState()
+    {
+        barcodeInput = string.Empty;
+        scannedProduct = null;
+        storageDistribution.Clear();
+        availableStorageLocations.Clear();
+        quantity = 1;
+      
+        // Reset batch fields
+        batchNumber = string.Empty;
+        batchExpiryDate = null;
+        batchManufactureDate = null;
+        batchNotes = string.Empty;
+        existingBatches.Clear();
+        selectedBatchId = null;
+    }
+
+    private async Task LoadExistingBatches()
+    {
+        if (scannedProduct == null) return;
+
+        try
+        {
+            // Only load batches with quantity > 0
+            existingBatches = (await InventoryService.GetActiveBatchesForProductAsync(scannedProduct.Id)).ToList();
+        }
+        catch
+        {
+            existingBatches = new();
+        }
+    }
+
+    private void OpenBatchSelectionModal()
+    {
+        showBatchModal = true;
+        StateHasChanged();
+    }
+
+    // Open price modal
+    private void OpenPriceModal()
+    {
+        showPriceModal = true;
+        StateHasChanged();
+    }
+
+    // Price changed callback
+    private async Task HandlePriceChanged(decimal newPrice)
+    {
+        if (scannedProduct != null)
+        {
+            scannedProduct.Price = newPrice;
+ 
+            // If the product is already in the DB, update it
+            if (scannedProduct.Id > 0)
+            {
+                try
+                {
+                    await InventoryService.UpdateProductAsync(scannedProduct);
+ 
+                    await ShowToast(T.Scanner_PriceChanged,
+                string.Format(T.Scanner_NewPrice, newPrice.ToString("C")), true);
+                }
+                catch (Exception ex)
+                {
+                    await ShowToast(T.Common_Error,
+                    $"{T.Scanner_PriceSaveError} {ex.Message}", false);
+                }
+            }
+            else
+            {
+                // New product - the price will be applied when saving
+                await ShowToast(T.Scanner_PriceSet,
+                string.Format(T.Scanner_Price, newPrice.ToString("C")), true);
+            }
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleBatchSelected(int? batchId)
+    {
+        selectedBatchId = batchId;
+      
+        if (batchId.HasValue)
+        {
+            var selectedBatch = existingBatches.FirstOrDefault(b => b.Id == batchId);
+            if (selectedBatch != null)
+            {
+                // Auto-fill batch info for display
+                batchNumber = selectedBatch.BatchNumber;
+                batchExpiryDate = selectedBatch.ExpiryDate;
+                batchManufactureDate = selectedBatch.ManufactureDate;
+                batchNotes = selectedBatch.Notes ?? string.Empty;
+            }
+        }
+        
+        StateHasChanged();
+    }
+
+    private void ClearBatchFields()
+    {
+        batchNumber = string.Empty;
+        batchExpiryDate = null;
+        batchManufactureDate = null;
+        batchNotes = string.Empty;
+    }
+
+    private bool ShouldShowBatchInput()
+    {
+        if (scannedProduct == null) return false;
+        
+        // ZENTRALE LOGIK: Verwende ExpiryHelper
+        return LagersystemLVHome.Application.Services.ExpiryHelper.ShouldTrackExpiry(
+                    scannedProduct.Category?.Name,
+            scannedProduct.TrackExpiryDate
+            );
+    }
+
+    private void CreateProductFromLastScan()
+    {
+        if (!string.IsNullOrEmpty(lastUnknownBarcode))
+        {
+            NavigationManager.NavigateTo($"/products/new?barcode={Uri.EscapeDataString(lastUnknownBarcode)}");
+        }
+    }
+
+    private void ClearHistory()
+    {
+        scanHistory.Clear();
+    }
+
+    private string GetStockClass(LagersystemLVHome.Domain.Models.Product product)
+    {
+        if (product.Quantity == 0) return "critical";
+        if (product.Quantity <= product.MinQuantity) return "low";
+        return "ok";
+    }
+
+    private enum ScannerMode
+    {
+        Manual,
+        Camera
+    }
+
+    private enum CameraScanAction
+    {
+        Add,
+        Remove
+    }
+
+    private class ScanHistoryItem
+    {
+        public string ProductName { get; set; } = string.Empty;
+        public string Barcode { get; set; } = string.Empty;
+        public int Quantity { get; set; }
+        public bool IsAdd { get; set; }
+        public DateTime Timestamp { get; set; }
+    }
+
+    private class StorageDistributionItem
+    {
+        public StorageLocation StorageLocation { get; set; } = null!;
+        public int Quantity { get; set; }
+        public int CurrentStock { get; set; }
+        public bool IsAssigned { get; set; }  // Already assigned?
+    }
+}

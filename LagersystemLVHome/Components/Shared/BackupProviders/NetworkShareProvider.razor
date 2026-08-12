@@ -1,0 +1,196 @@
+@using LagersystemLVHome.Application.Services
+@inject I18nText I18nText
+
+<div class="row g-3">
+    <!-- Shares -->
+    <div class="col-12">
+        <label class="form-label">
+            <i class="bi bi-hdd-network me-1"></i>
+            @(T.BackupProvider_Network_SharesLabel ?? "Network Shares * (mehrere möglich)")
+        </label>
+
+        @foreach (var (share, index) in Config.Paths.Select((s, i) => (s, i)))
+        {
+            <div class="card mb-2">
+                <div class="card-body">
+                    <div class="row g-2">
+                        <!-- UNC path full width -->
+                        <div class="col-12">
+                            <label class="form-label">@(T.BackupProvider_Network_UncLabel ?? "UNC-Pfad *")</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" @bind="share.UncPath" @bind:event="oninput"
+                                       placeholder="\\server\share\backups" />
+
+                                <button type="button" class="btn btn-outline-primary" @onclick="() => OnSelectFolder.InvokeAsync(index)"
+                                        title="@(T.BackupProvider_Network_SelectFolder ?? "Ordner auswählen")">
+                                    <i class="bi bi-folder2-open"></i>
+                                </button>
+
+                                <button type="button" class="btn btn-outline-info" @onclick="OnShowPathExamples"
+                                        title="@(T.BackupProvider_Network_PathExamples ?? "Pfad-Beispiele")">
+                                    <i class="bi bi-question-circle"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Description + enabled + delete in a single row -->
+                        <div class="col-md-6">
+                            <label class="form-label">@(T.BackupProvider_Network_DescLabel ?? "Beschreibung")</label>
+                            <input type="text" class="form-control" @bind="share.Description" placeholder="z.B. NAS 1" />
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label d-block">@(T.BackupProvider_Network_StatusLabel ?? "Status")</label>
+                            <div class="form-check form-switch">
+                                <input type="checkbox" class="form-check-input" @bind="share.Enabled" id="@($"shareEnabled_{index}")" />
+                                <label class="form-check-label" for="@($"shareEnabled_{index}")">
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    @(T.BackupProvider_Network_Enabled ?? "Aktiviert")
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="button" class="btn btn-outline-danger w-100" @onclick="() => RemoveShare(index)"
+                                    disabled="@(Config.Paths.Count <= 1)">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="AddShare">
+            <i class="bi bi-plus-circle me-1"></i>
+            @(T.BackupProvider_Network_AddShare ?? "Share hinzufügen")
+        </button>
+
+        <div class="alert alert-info mt-3 mb-0">
+            <div class="d-flex align-items-start">
+                <i class="bi bi-info-circle me-2 mt-1"></i>
+                <div>
+                    <strong><i class="bi bi-shield-check"></i> @(T.BackupProvider_Network_BrowserSecurity ?? "Browser-Sicherheit:")</strong>
+                    <p class="mb-2">@(T.BackupProvider_Network_BrowserSecurityText ?? "Moderne Browser geben keinen vollständigen UNC-Pfad zurück.")</p>
+                    <p class="mb-2"><strong>@(T.BackupProvider_Network_HowToFindPath ?? "So finden Sie den UNC-Pfad:")</strong></p>
+                    <ol class="mb-2">
+                        <li>@(T.BackupProvider_Network_Step1 ?? "Netzlaufwerk im Explorer öffnen")</li>
+                        <li>@(T.BackupProvider_Network_Step2 ?? "Adressleiste anklicken")</li>
+                        <li>@(T.BackupProvider_Network_Step4 ?? "Hier einfügen")</li>
+                    </ol>
+                    <p class="mb-0">
+                        @(T.BackupProvider_Network_Tip ?? "Tipp: Netzlaufwerk - Adressleiste zeigt UNC-Pfad")
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Credentials -->
+    <div class="col-md-4">
+        <label class="form-label">
+            <i class="bi bi-person me-1"></i>
+            @(T.BackupProvider_Network_UsernameLabel ?? "Benutzername (optional)")
+        </label>
+        <input type="text" class="form-control" @bind="Config.Username" placeholder="DOMAIN\user" />
+        <small class="text-muted">@(T.BackupProvider_Network_UsernameHint ?? "Leer lassen wenn nicht erforderlich")</small>
+    </div>
+
+    <div class="col-md-4">
+        <label class="form-label">
+            <i class="bi bi-lock me-1"></i>
+            @(T.BackupProvider_Network_PasswordLabel ?? "Passwort (optional)")
+        </label>
+        <input type="password" class="form-control" @bind="Config.Password" />
+        <small class="text-muted">@(T.BackupProvider_Network_PasswordHint ?? "Leer lassen wenn nicht erforderlich")</small>
+    </div>
+
+    <!-- Ordnerstruktur -->
+    <div class="col-12">
+        <label class="form-label d-block mb-2">
+            <i class="bi bi-folder-plus me-1"></i>
+            @(T.BackupProvider_Network_FolderStructure ?? "Ordnerstruktur-Optionen")
+        </label>
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" @bind="Config.CreateDateSubfolders" id="networkDateSubfolders" />
+                    <label class="form-check-label" for="networkDateSubfolders">
+                        <i class="bi bi-calendar-month me-1"></i>
+                        @(T.BackupProvider_Network_CreateDateSubfolders ?? "Datum-Unterordner erstellen")
+                    </label>
+                </div>
+                <small class="text-muted d-block ms-4">@(T.BackupProvider_Network_DateSubfoldersHint ?? "Erstellt Unterordner im Format: YYYY-MM")</small>
+            </div>
+
+            <div class="col-md-6">
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" @bind="Config.CreateWeekSubfolders"
+                           id="networkWeekSubfolders" disabled="@(!Config.CreateDateSubfolders)" />
+                    <label class="form-check-label" for="networkWeekSubfolders">
+                        <i class="bi bi-calendar-week me-1"></i>
+                        @(T.BackupProvider_Network_CreateWeekSubfolders ?? "Wochen-Unterordner erstellen")
+                    </label>
+                </div>
+                <small class="text-muted d-block ms-4">
+                    @if (Config.CreateDateSubfolders)
+                    {
+                        <text>@(T.BackupProvider_Network_WeekSubfolderHint_Active ?? "Erstellt Unterordner: YYYY-MM/Woche-XX")</text>
+                    }
+                    else
+                    {
+                        <text>@(T.BackupProvider_Network_WeekSubfolderHint_Inactive ?? "Benötigt aktivierte Datum-Unterordner")</text>
+                    }
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Max Backups -->
+    <div class="col-md-6">
+        <label class="form-label">
+            <i class="bi bi-clock-history me-1"></i>
+            @(T.BackupProvider_Network_MaxBackupsLabel ?? "Maximale Anzahl Backups")
+        </label>
+        <InputNumber class="form-control" @bind-Value="Config.MaxBackups"
+                     min="1" max="365" />
+        <small class="text-muted">
+            <i class="bi bi-info-circle me-1"></i>
+            @(T.BackupProvider_Network_MaxBackupsHint ?? "Älteste Backups werden automatisch gelöscht (Standard: 30)")
+        </small>
+    </div>
+</div>
+
+@code {
+    private LagersystemLVHome.I18nText.App T = new();
+    [Parameter] public NetworkShareConfig Config { get; set; } = new();
+    [Parameter] public EventCallback<NetworkShareConfig> ConfigChanged { get; set; }
+    [Parameter] public EventCallback<int> OnSelectFolder { get; set; }
+    [Parameter] public EventCallback OnShowPathExamples { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+    }
+
+    private void AddShare()
+    {
+        Config.Paths.Add(new NetworkSharePath
+        {
+            UncPath = "\\\\server\\share\\backups",
+            Enabled = true,
+            Description = $"Share {Config.Paths.Count + 1}"
+        });
+        ConfigChanged.InvokeAsync(Config);
+    }
+
+    private void RemoveShare(int index)
+    {
+        if (Config.Paths.Count > 1)
+        {
+            Config.Paths.RemoveAt(index);
+            ConfigChanged.InvokeAsync(Config);
+        }
+    }
+}

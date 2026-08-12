@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>LagersystemLVHome</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+
+  <!--
+    Persistence layer: InventoryDbContext, entity configurations and
+    repository implementations. References Domain for the POCOs.
+    Only pulls in the EF Core core package - concrete provider
+    packages (Sqlite / Npgsql / Pomelo) stay in the Web project where
+    the DbContext is registered.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.5" />
+    <!-- Required for HasDatabaseName() and other relational-specific fluent APIs used in OnModelCreating. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LagersystemLVHome.Domain\LagersystemLVHome.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

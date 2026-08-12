@@ -1,0 +1,180 @@
+@page "/category/{CategoryId:int}"
+@inherits CancellableComponentBase
+@rendermode InteractiveServer
+@inject LagersystemLVHome.Application.Services.IInventoryService InventoryService
+@inject NavigationManager NavigationManager
+@inject I18nText I18nText
+
+<PageTitle>@(category?.Name ?? T.CategoryDetail_Title) - LagerSystem</PageTitle>
+
+@if (category != null)
+{
+    <div class="page-header d-flex justify-content-between align-items-start">
+        <div class="d-flex align-items-center gap-3">
+            <div class="category-detail-icon">
+                <CategoryIcon IconClass="@category.Icon" />
+            </div>
+            <div>
+                <h1 class="page-title">@category.Name</h1>
+                <p class="page-subtitle">@category.Description</p>
+            </div>
+        </div>
+        <a href="/products/new" class="btn btn-primary">
+            <i class="bi bi-plus"></i> @T.CategoryDetail_NewProduct
+        </a>
+    </div>
+
+    <div class="stats-grid mb-4">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi bi-box"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@T.CategoryDetail_Stats_Products</h3>
+                <p class="stat-value">@products.Count</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-stack"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@T.CategoryDetail_Stats_TotalStock</h3>
+                <p class="stat-value">@products.Sum(p => p.Quantity)</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@T.CategoryDetail_Stats_LowStock</h3>
+                <p class="stat-value">@products.Count(p => p.Quantity <= p.MinQuantity)</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">@T.CategoryDetail_Stats_Products in @category.Name</h3>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>@T.CategoryDetail_Table_Product</th>
+                            <th>@T.CategoryDetail_Table_Barcode</th>
+                            <th>@T.CategoryDetail_Table_StorageLocation</th>
+                            <th>@T.CategoryDetail_Table_Stock</th>
+                            <th>@T.CategoryDetail_Table_Price</th>
+                            <th>@T.CategoryDetail_Table_Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (products.Any())
+                        {
+                            @foreach (var product in products)
+                            {
+                                <tr>
+                                    <td data-label="Produkt">
+                                        <div class="product-info">
+                                            <div class="product-icon">
+                                                <CategoryIcon IconClass="@category.Icon" />
+                                            </div>
+                                            <div>
+                                                <div class="product-name">@product.Name</div>
+                                                @if (!string.IsNullOrEmpty(product.Description))
+                                                {
+                                                    <div class="product-barcode">@(product.Description.Length > 40 ? product.Description[..40] + "..." : product.Description)</div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td data-label="Barcode"><code>@product.Barcode</code></td>
+                                    <td data-label="Lagerort">
+                                        @{
+                                            var storageCount = storageCounts.GetValueOrDefault(product.Id, 0);
+                                        }
+                                        @if (storageCount > 0)
+                                        {
+                                            <span class="badge bg-info">@(T.CategoryDetail_StorageCount != null ? string.Format(T.CategoryDetail_StorageCount, storageCount) : "")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">@T.CategoryDetail_NoStorage</span>
+                                        }
+                                    </td>
+                                    <td data-label="Bestand">
+                                        <span class="stock-badge @GetStockClass(product)">
+                                            @product.Quantity / @product.MinQuantity
+                                        </span>
+                                    </td>
+                                    <td data-label="Preis">@product.Price.ToString("C")</td>
+                                    <td data-label="Aktionen">
+                                        <a href="/products/@product.Id" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> @T.CategoryDetail_Details
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="6">
+                                    <div class="empty-state">
+                                        <div class="empty-state-icon">📦</div>
+                                        <div class="empty-state-title">@T.CategoryDetail_Empty_Title</div>
+                                        <p>@T.CategoryDetail_Empty_Desc</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        @T.CategoryDetail_NotFound
+        <a href="/categories">@T.CategoryDetail_BackToOverview</a>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int CategoryId { get; set; }
+ 
+    private LagersystemLVHome.I18nText.App T = new();
+    private LagersystemLVHome.Domain.Models.Category? category;
+    private List<LagersystemLVHome.Domain.Models.Product> products = new();
+    private Dictionary<int, int> storageCounts = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        category = await InventoryService.GetCategoryByIdAsync(CategoryId);
+        if (category != null)
+        {
+            products = (await InventoryService.GetProductsByCategoryAsync(CategoryId)).ToList();
+            storageCounts = await InventoryService.GetStorageLocationCountsForProductsAsync(products.Select(p => p.Id));
+        }
+    }
+
+    private string GetStockClass(LagersystemLVHome.Domain.Models.Product product)
+    {
+        if (product.Quantity == 0) return "critical";
+        if (product.Quantity <= product.MinQuantity) return "low";
+        return "ok";
+    }
+}

@@ -1,0 +1,210 @@
+@using LagersystemLVHome.Domain.Models
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@inject I18nText I18nText
+
+<!-- Column headers -->
+<div class="product-header">
+    <div class="product-cell product-info">
+        <!-- Icon/Thumbnail Platzhalter (unsichtbar) -->
+        <div style="width: 50px;"></div>
+        <strong>@T.ProductList_Col_Product</strong>
+    </div>
+    <div class="product-cell">
+        <strong>@T.ProductList_Col_Category</strong>
+    </div>
+    <div class="product-cell">
+        <strong>@T.ProductList_Col_Barcode</strong>
+    </div>
+    <div class="product-cell">
+        <strong>@T.ProductList_Col_Storage</strong>
+    </div>
+    <div class="product-cell">
+        <strong>@T.ProductList_Col_Stock</strong>
+    </div>
+    <div class="product-cell">
+        <strong>@T.ProductList_Col_Price</strong>
+    </div>
+    <div class="product-cell product-actions">
+        <strong>@T.ProductList_Col_Actions</strong>
+    </div>
+</div>
+
+<!-- Virtualized list for large product lists -->
+<VirtualizedList TItem="Product"
+                 Items="@Products"
+                 ItemSize="80"
+                 Height="calc(100vh - 450px)"
+                 OverscanCount="5">
+    <ItemTemplate Context="product">
+        <div class="product-row" @key="product.Id">
+            <div class="product-cell product-info">
+                @if (!string.IsNullOrEmpty(product.ThumbnailUrl))
+                {
+                    <img src="@product.ThumbnailUrl"
+                         alt="@product.Name"
+                         class="product-thumbnail"
+                         loading="lazy"
+                         decoding="async" />
+                }
+                else
+                {
+                    <div class="product-icon">
+                        <CategoryIcon IconClass="@(product.Category?.Icon ?? "bi-box")" />
+                    </div>
+                }
+                <div class="product-details">
+                    <div class="product-name">
+                        @product.Name
+                        @if (product.ExpiryDate.HasValue)
+                        {
+                            var daysUntilExpiry = (product.ExpiryDate.Value - DateTime.UtcNow).Days;
+                            @if (daysUntilExpiry < 0)
+                            {
+                                <span class="badge bg-danger ms-2">
+                                    <i class="bi bi-exclamation-triangle"></i> @T.ProductList_Expired
+                                </span>
+                            }
+                            else if (daysUntilExpiry <= 7)
+                            {
+                                <span class="badge bg-warning ms-2">
+                                    <i class="bi bi-clock"></i> @daysUntilExpiry @T.ProductVirtualized_Days
+                                </span>
+                            }
+                        }
+                    </div>
+                    @if (!string.IsNullOrEmpty(product.Description))
+                    {
+                        <div class="product-description">
+                            @(product.Description.Length > 50 ? product.Description[..50] + "..." : product.Description)
+                        </div>
+                    }
+                </div>
+            </div>
+      
+            <div class="product-cell">@product.Category?.Name</div>
+   
+            <div class="product-cell">
+                <code>@product.Barcode</code>
+            </div>
+     
+            <div class="product-cell">
+                @{
+                    var storageCount = product.ProductStorageLocations?.Count ?? 0;
+                }
+                @if (storageCount > 0)
+                {
+                    <span class="badge bg-info">@string.Format(T.ProductList_StorageCount, storageCount)</span>
+                }
+                else
+                {
+                    <span class="text-muted">@T.ProductList_NoStorage</span>
+                }
+            </div>
+     
+            <div class="product-cell">
+                <span class="stock-badge @GetStockClass(product)">
+                    @product.Quantity / @product.MinQuantity
+                </span>
+            </div>
+  
+            <div class="product-cell">
+                <div class="d-flex flex-column">
+                    <strong>@product.Price.ToString("C")</strong>
+                    @if (PriceHistoryCounts.TryGetValue(product.Id, out var changeCount) && changeCount > 1)
+                    {
+                        <small class="text-muted">
+                            <i class="bi bi-clock-history"></i> @string.Format(T.ProductList_PriceChanges, changeCount - 1)
+                        </small>
+                    }
+                </div>
+            </div>
+   
+            <div class="product-cell product-actions">
+                <!-- PDF button (if applicable) -->
+                @if (!string.IsNullOrEmpty(product.SpecificationPdfPath))
+                {
+                    <a href="@product.SpecificationPdfPath"
+                           target="_blank"
+                           class="btn btn-icon btn-sm btn-secondary"
+                           title="@T.ProductVirtualized_PdfTitle">
+                        <i class="bi bi-file-earmark-pdf"></i>
+                    </a>
+                }
+  
+                <button class="btn btn-icon btn-sm btn-secondary"
+                        title="@T.ProductVirtualized_PriceHistory"
+                        @onclick="() => OnNavigateToPriceHistory.InvokeAsync(product.Id)">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </button>
+     
+                <button class="btn btn-icon btn-sm btn-secondary"
+                        title="@T.ProductVirtualized_Edit"
+                        @onclick="() => OnEditProduct.InvokeAsync(product)">
+                    <i class="bi bi-pencil"></i>
+                </button>
+  
+                <button class="btn btn-icon btn-sm btn-danger"
+                        title="@T.ProductVirtualized_Delete"
+                        @onclick="() => OnDeleteProduct.InvokeAsync(product)">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+    </ItemTemplate>
+
+    <PlaceholderTemplate>
+        <div class="product-row skeleton-row">
+            <div class="skeleton-image"></div>
+            <div class="skeleton-text"></div>
+            <div class="skeleton-text short"></div>
+            <div class="skeleton-text short"></div>
+            <div class="skeleton-text short"></div>
+            <div class="skeleton-text short"></div>
+            <div class="skeleton-text short"></div>
+        </div>
+    </PlaceholderTemplate>
+    
+    <EmptyTemplate>
+        <EmptyState IconClass="bi bi-inbox"
+                    Title="@T.ProductList_EmptyTitle"
+                    Description="@T.ProductList_EmptyDesc"
+                    ShowAction="true"
+                    ActionText="@T.ProductList_CreateBtn"
+                    ActionIcon="bi bi-plus"
+                    OnActionClick="OnCreateProduct" />
+    </EmptyTemplate>
+</VirtualizedList>
+
+@code {
+    [Parameter, EditorRequired]
+    public List<Product> Products { get; set; } = new();
+
+    [Parameter]
+    public Dictionary<int, int> PriceHistoryCounts { get; set; } = new();
+
+    [Parameter]
+    public EventCallback OnCreateProduct { get; set; }
+
+    [Parameter]
+    public EventCallback<Product> OnEditProduct { get; set; }
+
+    [Parameter]
+    public EventCallback<Product> OnDeleteProduct { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnNavigateToPriceHistory { get; set; }
+
+    private LagersystemLVHome.I18nText.App T = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+    }
+
+    private string GetStockClass(Product product)
+    {
+        if (product.Quantity == 0) return "critical";
+        if (product.Quantity <= product.MinQuantity) return "low";
+        return "ok";
+    }
+}

@@ -1,0 +1,483 @@
+@page "/price-history/{ProductId:int}"
+@inherits CancellableComponentBase
+@using ApexCharts
+@inject IPriceHistoryService PriceHistoryService
+@inject IInventoryService InventoryService
+@inject NavigationManager NavigationManager
+@inject ILogger<PriceHistory> Logger
+@inject I18nText I18nText
+@rendermode InteractiveServer
+
+<PageTitle>@T.PriceHistory_PageTitle - @product?.Name</PageTitle>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h2>
+                    <i class="bi bi-graph-up-arrow"></i>
+                    @T.PriceHistory_Title
+                </h2>
+                @if (product != null)
+                {
+                    <p class="text-muted mb-0">
+                        @T.PriceHistory_Product: <strong>@product.Name</strong>
+                        @if (!string.IsNullOrEmpty(product.Barcode))
+                        {
+                            <span class="ms-2">(@product.Barcode)</span>
+                        }
+                    </p>
+                }
+            </div>
+            <button class="btn btn-outline-secondary" @onclick="GoBack">
+                <i class="bi bi-arrow-left"></i> @T.PriceHistory_Back
+            </button>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">@T.PriceHistory_Loading</p>
+        </div>
+    }
+    else if (priceHistory.Any())
+    {
+        <!-- Current Price Banner -->
+        <div class="alert alert-success d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h4 class="mb-0">
+                    @T.PriceHistory_CurrentPrice: <strong>@currentPrice?.Price.ToString("C")</strong>
+                </h4>
+                <small class="text-muted">
+                    @T.PriceHistory_ValidSince: @currentPrice?.ValidFrom.ToString("dd.MM.yyyy HH:mm")
+                </small>
+            </div>
+            @if (statistics.PriceChange.HasValue)
+            {
+                <div class="text-end">
+                    <span class="badge @(statistics.PriceChange > 0 ? "bg-danger" : "bg-success") fs-6">
+                        <i class="bi bi-@(statistics.PriceChange > 0 ? "arrow-up" : "arrow-down")"></i>
+                        @statistics.PriceChange?.ToString("+0.00;-0.00")
+                        (@statistics.PriceChangePercent?.ToString("+0.0;-0.0")%)
+                    </span>
+                    <div class="small text-muted mt-1">@T.PriceHistory_VsPreviousPrice</div>
+                </div>
+            }
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card bg-light h-100">
+                    <div class="card-body text-center">
+                        <small class="text-muted d-block">@T.PriceHistory_HighestPrice</small>
+                        <h4 class="mb-0">@statistics.MaxPrice?.ToString("C")</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light h-100">
+                    <div class="card-body text-center">
+                        <small class="text-muted d-block">@T.PriceHistory_LowestPrice</small>
+                        <h4 class="mb-0">@statistics.MinPrice?.ToString("C")</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light h-100">
+                    <div class="card-body text-center">
+                        <small class="text-muted d-block">@T.PriceHistory_Average</small>
+                        <h4 class="mb-0">@statistics.AveragePrice?.ToString("C")</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light h-100">
+                    <div class="card-body text-center">
+                        <small class="text-muted d-block">@T.PriceHistory_Changes</small>
+                        <h4 class="mb-0">@statistics.TotalChanges</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* Monthly & yearly statistics *@
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-calendar-month"></i>
+                            @T.PriceHistory_MonthlyDevelopment
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        @if (monthlyStats.HasData)
+                        {
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <small class="text-muted d-block">@monthlyStats.MonthName</small>
+                                    <h3 class="mb-0">@monthlyStats.EndPrice.ToString("C")</h3>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge @(monthlyStats.PriceChange >= 0 ? "bg-success" : "bg-danger") fs-5">
+                                        <i class="bi bi-@(monthlyStats.PriceChange >= 0 ? "arrow-up" : "arrow-down")"></i>
+                                        @monthlyStats.PriceChangePercent.ToString("+0.0;-0.0")%
+                                    </span>
+                                </div>
+                            </div>
+                            <hr />
+                            <div class="row">
+                                <div class="col-6">
+                                    <small class="text-muted d-block">@T.PriceHistory_StartPrice</small>
+                                    <strong>@monthlyStats.StartPrice.ToString("C")</strong>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block">@T.PriceHistory_Changes</small>
+                                    <strong>@monthlyStats.ChangesCount</strong>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info mb-0">
+                                <i class="bi bi-info-circle"></i>
+                                @T.PriceHistory_NoDataMonth
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-calendar-year"></i>
+                            @T.PriceHistory_YearlyDevelopment
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        @if (yearlyStats.HasData)
+                        {
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <small class="text-muted d-block">@yearlyStats.Year</small>
+                                    <h3 class="mb-0">@yearlyStats.EndPrice.ToString("C")</h3>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge @(yearlyStats.PriceChange >= 0 ? "bg-success" : "bg-danger") fs-5">
+                                        <i class="bi bi-@(yearlyStats.PriceChange >= 0 ? "arrow-up" : "arrow-down")"></i>
+                                        @yearlyStats.PriceChangePercent.ToString("+0.0;-0.0")%
+                                    </span>
+                                </div>
+                            </div>
+                            <hr />
+                            <div class="row">
+                                <div class="col-4">
+                                    <small class="text-muted d-block">@T.PriceHistory_StartPrice</small>
+                                    <strong>@yearlyStats.StartPrice.ToString("C")</strong>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-muted d-block">@T.PriceHistory_MaxMin</small>
+                                    <strong>@yearlyStats.MaxPrice.ToString("C") / @yearlyStats.MinPrice.ToString("C")</strong>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-muted d-block">@T.PriceHistory_Changes</small>
+                                    <strong>@yearlyStats.ChangesCount</strong>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info mb-0">
+                                <i class="bi bi-info-circle"></i>
+                                @T.PriceHistory_NoDataYear
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Price Chart -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-graph-up"></i>
+                    @T.PriceHistory_PriceDevelopment
+                </h5>
+            </div>
+            <div class="card-body">
+                @if (priceChartData.Any())
+                {
+                    <ApexChart TItem="PriceChartPoint"
+                               Title=""
+                               Height="300"
+                               Options="chartOptions">
+     
+                        <ApexPointSeries TItem="PriceChartPoint"
+                                         Items="priceChartData"
+                                         Name="@T.PriceHistory_PriceSeries"
+                                         SeriesType="SeriesType.Line"
+                                         XValue="@(e => e.DateTimestamp)"
+                                         YValue="@(e => (decimal)e.Price)"
+                                         OrderBy="e => e.X" />
+                    </ApexChart>
+                }
+                else
+                {
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        @T.PriceHistory_NotEnoughData
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Price History Timeline -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history"></i>
+                    @T.PriceHistory_Timeline
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    @foreach (var price in priceHistory.OrderByDescending(p => p.ValidFrom))
+                    {
+                        <div class="timeline-item @(price.IsActive ? "active" : "")">
+                            <div class="timeline-marker">
+                                @if (price.IsActive)
+                                {
+                                    <i class="bi bi-circle-fill text-success"></i>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-circle"></i>
+                                }
+                            </div>
+                            <div class="timeline-content">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <h6 class="mb-1">
+                                            @price.Price.ToString("C")
+                                            @if (price.IsActive)
+                                            {
+                                                <span class="badge bg-success ms-2">@T.PriceHistory_Current</span>
+                                            }
+                                        </h6>
+                                        <small class="text-muted">
+                                            <i class="bi bi-calendar-event"></i>
+                                            @price.ValidFrom.ToString("dd.MM.yyyy HH:mm")
+                                            @if (price.ValidTo.HasValue)
+                                            {
+                                                <span> bis @price.ValidTo.Value.ToString("dd.MM.yyyy HH:mm")</span>
+                                            }
+                                        </small>
+                                        @if (!string.IsNullOrEmpty(price.Reason))
+                                        {
+                                            <p class="mb-1 mt-2">
+                                                <i class="bi bi-info-circle text-primary"></i>
+                                                <strong>@T.PriceHistory_Reason:</strong> @price.Reason
+                                            </p>
+                                        }
+                                        @if (!string.IsNullOrEmpty(price.Notes))
+                                        {
+                                            <p class="mb-1 text-muted">
+                                                <small>@price.Notes</small>
+                                            </p>
+                                        }
+                                        @if (!string.IsNullOrEmpty(price.CreatedBy))
+                                        {
+                                            <small class="text-muted">
+                                                <i class="bi bi-person"></i> @price.CreatedBy
+                                            </small>
+                                        }
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        @{
+                                            var previousPrice = priceHistory
+                                                .Where(p => p.ValidFrom < price.ValidFrom)
+                                                .OrderByDescending(p => p.ValidFrom)
+                                        .FirstOrDefault();
+              
+                                            if (previousPrice != null)
+                                            {
+                                                var change = price.Price - previousPrice.Price;
+                                                var changePercent = (change / previousPrice.Price) * 100;
+                                                var badgeClass = change > 0 ? "danger" : "success";
+                                                var icon = change > 0 ? "arrow-up" : "arrow-down";
+           
+                                                <span class="badge bg-@badgeClass">
+                                                    <i class="bi bi-@icon"></i>
+                                                    @change.ToString("+0.00;-0.00")
+                                                </span>
+                                                <div class="small text-muted mt-1">
+                                                    @changePercent.ToString("+0.0;-0.0")%
+                                                </div>
+                                            }
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            <strong>@T.PriceHistory_NoPrice</strong> - @T.PriceHistory_NoPriceDesc
+        </div>
+    }
+</div>
+
+
+@code {
+    private LagersystemLVHome.I18nText.App T = new();
+    [Parameter] public int ProductId { get; set; }
+    
+    private Product? product;
+    private List<ProductPrice> priceHistory = new();
+    private ProductPrice? currentPrice;
+    private PriceStatistics statistics = new();
+    private MonthlyPriceStatistics monthlyStats = new();
+    private YearlyPriceStatistics yearlyStats = new();
+    private bool isLoading = true;
+
+    // Chart data
+    private List<PriceChartPoint> priceChartData = new();
+
+    // Chart options
+    private ApexChartOptions<PriceChartPoint> chartOptions = new()
+    {
+        Chart = new Chart
+        {
+            Toolbar = new Toolbar { Show = true },
+            Zoom = new Zoom { Enabled = true }
+        },
+        Xaxis = new XAxis
+        {
+            Title = new AxisTitle { Text = "Datum & Uhrzeit" },
+            Type = XAxisType.Datetime, // Datetime for unix timestamps
+            Labels = new XAxisLabels
+            {
+                DatetimeFormatter = new DatetimeFormatter
+                {
+                    Year = "yyyy",
+                    Month = "MMM yyyy",
+                    Day = "dd MMM",
+                    Hour = "HH:mm"
+                },
+                RotateAlways = true,
+                Rotate = -45
+            }
+        },
+        Yaxis = new List<YAxis>
+    {
+    new YAxis
+{
+Title = new AxisTitle { Text = "Preis (€)" },
+Labels = new YAxisLabels
+    {
+        Formatter = "function(value) { return '€ ' + value.toFixed(2); }"
+    }
+}
+    },
+        Tooltip = new Tooltip
+        {
+            Enabled = true,
+            X = new TooltipX
+            {
+                Format = "dd.MM.yyyy HH:mm" // German date format in tooltip
+            }
+        },
+        Stroke = new Stroke
+        {
+            Curve = Curve.Smooth,
+            Width = 3
+        },
+        Colors = new List<string> { "#3b82f6" },
+        DataLabels = new DataLabels { Enabled = false },
+        Grid = new Grid { Show = true },
+        Legend = new Legend { Show = true, Position = LegendPosition.Top }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+        chartOptions.Xaxis!.Title!.Text = T.PriceHistory_XAxisTitle;
+        chartOptions.Yaxis![0].Title!.Text = T.PriceHistory_YAxisTitle;
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+
+            // Load product
+            product = await InventoryService.GetProductByIdAsync(ProductId);
+
+            // Load price history
+            priceHistory = await PriceHistoryService.GetPriceHistoryAsync(ProductId);
+
+            // Current price
+            currentPrice = priceHistory.FirstOrDefault(p => p.IsActive);
+
+            // Statistics
+            statistics = await PriceHistoryService.GetPriceStatisticsAsync(ProductId);
+
+            // Monthly & yearly statistics
+            monthlyStats = await PriceHistoryService.GetMonthlyStatisticsAsync(ProductId);
+            yearlyStats = await PriceHistoryService.GetYearlyStatisticsAsync(ProductId);
+
+            // Prepare chart data
+            PrepareChartData();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading price history for product {ProductId}", ProductId);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    // Chart data helper
+    private void PrepareChartData()
+    {
+        priceChartData = priceHistory
+    .OrderBy(p => p.ValidFrom)
+            .Select(p => new PriceChartPoint
+            {
+                DateLabel = p.ValidFrom.ToString("yyyy-MM-ddTHH:mm:ss"), // ISO 8601 format for ApexCharts
+                DateTimestamp = new DateTimeOffset(p.ValidFrom).ToUnixTimeMilliseconds(), // Unix timestamp
+                Price = (double)p.Price
+            })
+            .ToList();
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/products");
+    }
+
+    // Chart data model
+    private class PriceChartPoint
+    {
+        public string DateLabel { get; set; } = string.Empty;
+        public long DateTimestamp { get; set; } // Unix timestamp for X-axis
+        public double Price { get; set; }
+    }
+}

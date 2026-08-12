@@ -1,0 +1,41 @@
+@* Time Period Filter Component *@
+
+<div class="btn-group" role="group" aria-label="Time period selection">
+    <button type="button"
+            class="btn btn-outline-primary @(SelectedPeriod == "24h" ? "active" : "")"
+            @onclick="@(async () => await HandlePeriodClick(24))"
+            disabled="@IsLoading">
+        24h
+    </button>
+    <button type="button"
+            class="btn btn-outline-primary @(SelectedPeriod == "7d" ? "active" : "")"
+            @onclick="@(async () => await HandlePeriodClick(168))"
+            disabled="@IsLoading">
+        7d
+    </button>
+    <button type="button"
+            class="btn btn-outline-primary @(SelectedPeriod == "30d" ? "active" : "")"
+            @onclick="@(async () => await HandlePeriodClick(720))"
+            disabled="@IsLoading">
+        30d
+    </button>
+</div>
+
+@code {
+    [Parameter]
+    public string SelectedPeriod { get; set; } = "24h";
+
+    [Parameter]
+    public bool IsLoading { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnPeriodChanged { get; set; }
+
+    private async Task HandlePeriodClick(int hours)
+    {
+        if (OnPeriodChanged.HasDelegate)
+        {
+            await OnPeriodChanged.InvokeAsync(hours);
+        }
+    }
+}

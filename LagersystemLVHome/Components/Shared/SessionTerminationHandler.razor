@@ -1,0 +1,57 @@
+@using LagersystemLVHome.Application.Services
+@inject ISessionMonitorService SessionMonitor
+@inject IJSRuntime JSRuntime
+@inject ILogger<SessionTerminationHandler> Logger
+@implements IDisposable
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Subscribe to the SessionTerminated event
+        SessionMonitor.SessionTerminated += OnSessionTerminated;
+        Logger.LogInformation("SessionTerminationHandler: Event handler registered");
+    }
+
+    private async void OnSessionTerminated(object? sender, SessionTerminatedEventArgs e)
+    {
+        try
+        {
+            Logger.LogWarning("SessionTerminationHandler: Session terminated event received");
+            Logger.LogInformation("   UserId: {UserId}, CircuitId: {CircuitId}, Reason: {Reason}",
+            e.UserId, e.CircuitId, e.Reason);
+
+            // Wait briefly until the circuit is ready
+            await Task.Delay(100);
+
+            // Delete the session cookie
+            await InvokeAsync(async () =>
+                {
+                    try
+                    {
+                        Logger.LogInformation("SessionTerminationHandler: Deleting session cookie");
+           
+                        // Delete cookie via JavaScript
+                        await JSRuntime.InvokeVoidAsync("cookieHelper.deleteCookie", "LagerSystem.SessionId");
+        
+                        // NOTE: the redirect is now handled by SessionBlockingOverlay.
+                        // The overlay shows a modal and offers a "Sign in again" button.
+                        Logger.LogInformation("SessionTerminationHandler: Cookie deleted, UI blocking handled by SessionBlockingOverlay");
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError(ex, "SessionTerminationHandler: Error during cleanup");
+                    }
+                });
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "SessionTerminationHandler: Error handling session termination");
+        }
+    }
+
+    public void Dispose()
+    {
+        SessionMonitor.SessionTerminated -= OnSessionTerminated;
+        Logger.LogInformation("SessionTerminationHandler: Event handler unregistered");
+    }
+}

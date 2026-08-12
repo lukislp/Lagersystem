@@ -1,0 +1,907 @@
+@page "/qr-generator"
+@inherits CancellableComponentBase
+@using LagersystemLVHome.Application.Services
+@using LagersystemLVHome.Domain.Models
+@using LagersystemLVHome.Data
+@using Microsoft.EntityFrameworkCore
+@inject IQRCodeService QRCodeService
+@inject IInventoryService InventoryService
+@inject StorageLocationService StorageLocationService
+@inject ILocationQueryService LocationQueryService
+@inject IRoomService RoomService
+@inject IAuthService AuthService
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject I18nText I18nText
+@rendermode InteractiveServer
+
+<PageTitle>@T.QRGenerator_PageTitle</PageTitle>
+
+<div class="container-fluid">
+    <div class="page-header">
+        <div>
+                <h1 class="page-title">
+                <i class="bi bi-qr-code"></i>
+                @T.QRGenerator_Title_Full
+            </h1>
+            <p class="page-description">
+                @T.QRGenerator_Subtitle_Full
+            </p>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Generator Panel -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-gear"></i>
+                        @T.QRGenerator_Create_Header
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- QR-Code Type Selection -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">@T.QRGenerator_TypeLabel</label>
+                        <div class="btn-group w-100" role="group">
+                            <button type="button"
+                                    class="btn @(qrCodeType == QRCodeType.StorageLocation ? "btn-primary" : "btn-outline-primary")"
+                                    @onclick="() => ChangeQRCodeType(QRCodeType.StorageLocation)">
+                                <i class="bi bi-geo-alt"></i> @T.QRGenerator_Type_Storage
+                            </button>
+                            <button type="button"
+                                    class="btn @(qrCodeType == QRCodeType.NewStorageLocation ? "btn-primary" : "btn-outline-primary")"
+                                    @onclick="() => ChangeQRCodeType(QRCodeType.NewStorageLocation)">
+                                <i class="bi bi-geo-alt-fill"></i> @T.QRGenerator_Type_NewStorage
+                            </button>
+                            <button type="button"
+                                    class="btn @(qrCodeType == QRCodeType.Product ? "btn-primary" : "btn-outline-primary")"
+                                    @onclick="() => ChangeQRCodeType(QRCodeType.Product)">
+                                <i class="bi bi-box"></i> @T.QRGenerator_Type_Product
+                            </button>
+                            <button type="button"
+                                    class="btn @(qrCodeType == QRCodeType.Custom ? "btn-primary" : "btn-outline-primary")"
+                                    @onclick="() => ChangeQRCodeType(QRCodeType.Custom)">
+                                <i class="bi bi-pencil"></i> @T.QRGenerator_Type_Custom
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Storage Location Selection -->
+                    @if (qrCodeType == QRCodeType.StorageLocation)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Lagerplatz auswählen</label>
+                            <select class="form-select" @bind="selectedStorageLocationId">
+                                <option value="0">-- Bitte wählen --</option>
+                                @foreach (var location in storageLocations)
+                                {
+                                    <option value="@location.Id">@location.Code - @location.Name</option>
+                                }
+                            </select>
+                        </div>
+                    }
+
+                    <!-- New Storage Location Input -->
+                    @if (qrCodeType == QRCodeType.NewStorageLocation)
+                    {
+                        <div class="alert alert-success">
+                            <i class="bi bi-magic"></i>
+                            <strong>Neuer Lagerplatz mit Auto-Erstellung:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Geben Sie die Lagerfach-Daten ein</li>
+                                <li>Beim Generieren wird das Lagerfach <strong>automatisch erstellt</strong></li>
+                                <li>Der QR-Code wird sofort generiert</li>
+                            </ul>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Lagerplatz-Code <span class="text-danger">*</span></label>
+                            <input type="text"
+                                   class="form-control @(showNewLocationValidation && string.IsNullOrWhiteSpace(newLocationCode) ? "is-invalid" : "")"
+                                   @bind="newLocationCode"
+                                   placeholder="z.B. A1-R1-F3"
+                                   maxlength="50" />
+                            @if (showNewLocationValidation && string.IsNullOrWhiteSpace(newLocationCode))
+                            {
+                                <div class="invalid-feedback">Bitte geben Sie einen Lagerplatz-Code ein</div>
+                            }
+                            @if (codeExists)
+                            {
+                                <div class="alert alert-warning mt-2 mb-0">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    Dieser Code existiert bereits. Das Lagerfach wird nicht neu erstellt, aber der QR-Code wird generiert.
+                                </div>
+                            }
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Name</label>
+                            <input type="text"
+                                   class="form-control"
+                                   @bind="newLocationName"
+                                   placeholder="z.B. Gang 1, Regal 1, Fach 3"
+                                   maxlength="200" />
+                            <small class="form-text text-muted">Wird als Name für das neue Lagerfach verwendet (falls leer: Code wird verwendet)</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Beschreibung</label>
+                            <textarea class="form-control"
+                                      @bind="newLocationDescription"
+                                      rows="2"
+                                      placeholder="Optionale Beschreibung..."
+                                      maxlength="500"></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label class="form-label">Gang</label>
+                                <input type="text"
+                                       class="form-control"
+                                       @bind="newLocationAisle"
+                                       placeholder="z.B. A"
+                                       maxlength="50" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Regal</label>
+                                <input type="text"
+                                       class="form-control"
+                                       @bind="newLocationRack"
+                                       placeholder="z.B. 1"
+                                       maxlength="50" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Fach</label>
+                                <input type="text"
+                                       class="form-control"
+                                       @bind="newLocationShelf"
+                                       placeholder="z.B. 1"
+                                       maxlength="50" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Box</label>
+                                <input type="text"
+                                       class="form-control"
+                                       @bind="newLocationBin"
+                                       placeholder="Optional"
+                                       maxlength="50" />
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Max. Kapazität (Stück)</label>
+                                    <input type="number"
+                                           class="form-control"
+                                           @bind="newLocationMaxCapacity"
+                                           min="0"
+                                           placeholder="z.B. 100" />
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">Breite (cm)</label>
+                                    <input type="number"
+                                           class="form-control"
+                                           @bind="newLocationWidth"
+                                           step="0.01"
+                                           min="0"
+                                           placeholder="z.B. 50" />
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">Höhe (cm)</label>
+                                    <input type="number"
+                                           class="form-control"
+                                           @bind="newLocationHeight"
+                                           step="0.01"
+                                           min="0"
+                                           placeholder="z.B. 40" />
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">Tiefe (cm)</label>
+                                    <input type="number"
+                                           class="form-control"
+                                           @bind="newLocationDepth"
+                                           step="0.01"
+                                           min="0"
+                                           placeholder="z.B. 30" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Raum *</label>
+                            <div class="d-flex gap-2">
+                                <select class="form-select @(showNewLocationValidation && newLocationRoomId == 0 ? "is-invalid" : "")"
+                                        @bind="newLocationRoomId">
+                                    <option value="0">-- Raum wählen (erforderlich) --</option>
+                                    @foreach (var room in rooms)
+                                    {
+                                        <option value="@room.Id">@room.Name (@room.Code)</option>
+                                    }
+                                </select>
+                                <button type="button" class="btn btn-secondary" @onclick="OpenCreateRoomModalQR" title="Neuen Raum anlegen">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                            </div>
+                            @if (showNewLocationValidation && newLocationRoomId == 0)
+                            {
+                                <div class="invalid-feedback d-block">Raum ist erforderlich</div>
+                            }
+                            @if (!rooms.Any())
+                            {
+                                <div class="alert alert-warning mt-2 py-2">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    <strong>Kein Raum vorhanden!</strong> Bitte legen Sie zuerst einen Raum an.
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <!-- Product Selection -->
+                    @if (qrCodeType == QRCodeType.Product)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Produkt auswählen</label>
+                            <select class="form-select" @bind="selectedProductId">
+                                <option value="0">-- Bitte wählen --</option>
+                                @foreach (var product in products)
+                                {
+                                    <option value="@product.Id">@product.Name (@product.Barcode)</option>
+                                }
+                            </select>
+                        </div>
+                    }
+
+                    <!-- Custom Text Input -->
+                    @if (qrCodeType == QRCodeType.Custom)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">QR-Code Inhalt</label>
+                            <textarea class="form-control"
+                                      rows="4"
+                                      @bind="customContent"
+                                      placeholder="Geben Sie den Text oder die URL ein, die im QR-Code codiert werden soll..."></textarea>
+                            <small class="form-text text-muted">
+                                Tipp: Sie können Text, URLs, vCard, WiFi-Credentials oder andere Daten eingeben
+                            </small>
+                        </div>
+                    }
+
+                    <!-- QR Code Size -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Größe (px)</label>
+                        <input type="range"
+                               class="form-range"
+                               min="200"
+                               max="800"
+                               step="50"
+                               @bind="qrCodeSize"
+                               @bind:after="OnSizeChange" />
+                        <div class="text-center">
+                            <span class="badge bg-primary fs-6">@qrCodeSize px</span>
+                        </div>
+                        <div class="d-flex justify-content-between text-muted small mt-1">
+                            <span>Klein (200px)</span>
+                            <span>Mittel (500px)</span>
+                            <span>Groß (800px)</span>
+                        </div>
+                    </div>
+
+                    <!-- Label Text -->
+                    <div class="mb-3">
+                        <label class="form-label">Beschriftung (optional)</label>
+                        <input type="text"
+                               class="form-control"
+                               @bind="qrCodeLabel"
+                               placeholder="z.B. Lagerplatz A1-R1-F3" />
+                    </div>
+
+                    <!-- Generate Button -->
+                    <button class="btn btn-primary w-100"
+                            @onclick="GenerateQRCode"
+                            disabled="@(!CanGenerate())">
+                        <i class="bi bi-arrow-clockwise"></i>
+                        QR-Code generieren
+                    </button>
+                </div>
+            </div>
+
+            <!-- Batch Generation -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-layers"></i>
+                        Mehrere QR-Codes erstellen
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Erstellen Sie QR-Codes für mehrere Elemente gleichzeitig</p>
+   
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary" @onclick="GenerateAllStorageLocations">
+                            <i class="bi bi-geo-alt"></i>
+                            Alle Lagerplätze (@storageLocations.Count)
+                        </button>
+                        <button class="btn btn-outline-primary" @onclick="GenerateAllProducts">
+                            <i class="bi bi-box"></i>
+                            Alle Produkte (@products.Count)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview Panel -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-eye"></i>
+                        Vorschau
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    @if (!string.IsNullOrEmpty(generatedQRCode))
+                    {
+                        @if (locationWasCreated)
+                        {
+                            <div class="alert alert-success mb-3">
+                                <i class="bi bi-check-circle-fill me-2"></i>
+                                <strong>Lagerfach erfolgreich erstellt!</strong>
+                                <div class="mt-1">
+                                    Das Lagerfach '<strong>@currentQRContent</strong>' wurde in der Datenbank angelegt und ist jetzt verfügbar.
+                                </div>
+                            </div>
+                        }
+    
+                        <div class="qr-code-preview mb-3">
+                            <img src="data:image/png;base64,@generatedQRCode"
+                                 alt="QR Code"
+                                 style="max-width: 100%; height: auto; border: 1px solid #ddd; padding: 10px; background: white;" />
+                            @if (!string.IsNullOrEmpty(qrCodeLabel))
+                            {
+                                <div class="mt-2 fw-bold">@qrCodeLabel</div>
+                            }
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-success btn-lg" @onclick="DownloadQRCode">
+                                <i class="bi bi-download"></i>
+                                Als PNG herunterladen
+                            </button>
+                            <button class="btn btn-outline-primary" @onclick="PrintQRCode">
+                                <i class="bi bi-printer"></i>
+                                Drucken
+                            </button>
+                            <button class="btn btn-outline-secondary" @onclick="CopyToClipboard">
+                                <i class="bi bi-clipboard"></i>
+                                In Zwischenablage kopieren
+                            </button>
+                        </div>
+
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle"></i>
+                                Codiert: @currentQRContent
+                            </small>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty-state py-5">
+                            <i class="bi bi-qr-code" style="font-size: 4rem; color: #ddd;"></i>
+                            <p class="text-muted mt-3">
+                                Wählen Sie einen Typ und generieren Sie einen QR-Code
+                            </p>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Batch Preview -->
+            @if (batchQRCodes.Any())
+            {
+                <div class="card shadow-sm mt-4">
+                    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-layers"></i>
+                            Batch QR-Codes (@batchQRCodes.Count)
+                        </h5>
+                        <button class="btn btn-sm btn-light" @onclick="ClearBatch">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                        <div class="row g-3">
+                            @foreach (var qr in batchQRCodes)
+                            {
+                                <div class="col-6 col-md-4">
+                                    <div class="card">
+                                        <img src="data:image/png;base64,@qr.Base64Image"
+                                             class="card-img-top p-2"
+                                             alt="@qr.Label" />
+                                        <div class="card-body p-2 text-center">
+                                            <small class="text-truncate d-block">@qr.Label</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <div class="d-grid gap-2 mt-3">
+                            <button class="btn btn-primary" @onclick="DownloadBatchZip">
+                                <i class="bi bi-download"></i>
+                                Alle als ZIP herunterladen
+                            </button>
+                            <button class="btn btn-outline-primary" @onclick="PrintBatch">
+                                <i class="bi bi-printer"></i>
+                                Alle drucken
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Create Room Modal (for QR Generator) -->
+@if (showCreateRoomModalQR)
+{
+    <div class="modal-backdrop" @onclick="CloseCreateRoomModalQR">
+        <div class="modal-content modal-content--narrow" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3 class="modal-title">Neuen Raum anlegen</h3>
+                <button class="modal-close" @onclick="CloseCreateRoomModalQR">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <EditForm Model="newRoomQR" OnValidSubmit="SaveNewRoomQR">
+                    <DataAnnotationsValidator />
+        
+                    <div class="form-group">
+                        <label class="form-label">Raum-Name *</label>
+                        <InputText class="form-control" @bind-Value="newRoomQR!.Name"
+                                   placeholder="z.B. Hauptlager, Keller, Halle A" />
+                        <ValidationMessage For="() => newRoomQR.Name" />
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Raum-Code *</label>
+                        <InputText class="form-control" @bind-Value="newRoomQR!.Code"
+                                   placeholder="z.B. HL, KEL, HA" />
+                        <ValidationMessage For="() => newRoomQR.Code" />
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Typ</label>
+                        <InputSelect class="form-select" @bind-Value="newRoomQR.Type">
+                            <option value="@RoomType.StorageRoom">Lagerraum</option>
+                            <option value="@RoomType.Workshop">Werkstatt</option>
+                            <option value="@RoomType.Office">Büro</option>
+                            <option value="@RoomType.Warehouse">Warenlager</option>
+                            <option value="@RoomType.ColdStorage">Kühlraum</option>
+                            <option value="@RoomType.Archive">Archiv</option>
+                            <option value="@RoomType.LoadingBay">Verladezone</option>
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Beschreibung</label>
+                        <InputTextArea class="form-control" @bind-Value="newRoomQR.Description"
+                                       rows="2" placeholder="Optionale Beschreibung..." />
+                    </div>
+                </EditForm>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseCreateRoomModalQR">Abbrechen</button>
+                <button class="btn btn-primary" @onclick="SaveNewRoomQR">
+                    <i class="bi bi-check"></i> Raum erstellen
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private LagersystemLVHome.I18nText.App T = new();
+    private enum QRCodeType
+    {
+        StorageLocation,
+        NewStorageLocation,
+        Product,
+        Custom
+    }
+
+    private QRCodeType qrCodeType = QRCodeType.StorageLocation;
+    private int selectedStorageLocationId = 0;
+    private int selectedProductId = 0;
+    private string customContent = string.Empty;
+    private int qrCodeSize = 400;
+    private string qrCodeLabel = string.Empty;
+
+    // New Storage Location fields
+    private string newLocationCode = string.Empty;
+    private string newLocationName = string.Empty;
+    private string newLocationDescription = string.Empty;
+    private string newLocationAisle = string.Empty;
+    private string newLocationRack = string.Empty;
+    private string newLocationShelf = string.Empty;
+    private string newLocationBin = string.Empty;
+    private int newLocationRoomId = 0;
+    private int? newLocationMaxCapacity = null;
+    private double? newLocationWidth = null;
+    private double? newLocationHeight = null;
+    private double? newLocationDepth = null;
+    private bool showNewLocationValidation = false;
+    private bool codeExists = false;
+    private bool locationWasCreated = false;
+
+    private string generatedQRCode = string.Empty;
+    private string currentQRContent = string.Empty;
+
+    private List<StorageLocation> storageLocations = new();
+    private List<Product> products = new();
+    private List<Room> rooms = new();
+    private List<BatchQRCode> batchQRCodes = new();
+
+    // Room creation modal for the QR generator
+    private bool showCreateRoomModalQR = false;
+    private Room? newRoomQR;
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        var currentUser = await AuthService.GetCurrentUserAsync();
+        if (currentUser == null) return;
+
+        storageLocations = (await StorageLocationService.GetAllAsync()).ToList();
+        products = (await InventoryService.GetAllProductsAsync()).ToList();
+        rooms = (await LocationQueryService.GetActiveRoomsForWarehouseAsync(currentUser.WarehouseId)).ToList();
+    }
+
+    private void ChangeQRCodeType(QRCodeType type)
+    {
+        qrCodeType = type;
+        generatedQRCode = string.Empty;
+        currentQRContent = string.Empty;
+        showNewLocationValidation = false;
+        codeExists = false;
+        locationWasCreated = false;
+    }
+
+    private bool CanGenerate()
+    {
+        return qrCodeType switch
+        {
+            QRCodeType.StorageLocation => selectedStorageLocationId > 0,
+            QRCodeType.NewStorageLocation => !string.IsNullOrWhiteSpace(newLocationCode) && newLocationRoomId > 0,
+            QRCodeType.Product => selectedProductId > 0,
+            QRCodeType.Custom => !string.IsNullOrWhiteSpace(customContent),
+            _ => false
+        };
+    }
+
+    // Open the Create Room modal in the QR generator
+    private void OpenCreateRoomModalQR()
+    {
+        var currentUser = AuthService.GetCurrentUserAsync().Result;
+        if (currentUser == null) return;
+
+        newRoomQR = new Room
+        {
+            WarehouseId = currentUser.WarehouseId,
+            Type = RoomType.StorageRoom,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        showCreateRoomModalQR = true;
+    }
+
+    // Close the Create Room modal in the QR generator
+    private void CloseCreateRoomModalQR()
+    {
+        showCreateRoomModalQR = false;
+        newRoomQR = null;
+    }
+
+    // Save the new room in the QR generator
+    private async Task SaveNewRoomQR()
+    {
+        if (newRoomQR == null || string.IsNullOrWhiteSpace(newRoomQR.Name) || string.IsNullOrWhiteSpace(newRoomQR.Code))
+            return;
+
+        var result = await RoomService.CreateRoomAsync(newRoomQR);
+        if (result.IsFailure)
+        {
+            if (result.ErrorCode == "room.codeexists")
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Dieser Raum-Code existiert bereits!");
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Fehler: {result.ErrorMessage ?? "Unbekannter Fehler"}");
+            }
+            return;
+        }
+
+        // Set newly created room as selected
+        newLocationRoomId = result.Value!.Id;
+
+        // Reload rooms
+        await LoadDataAsync();
+      
+        CloseCreateRoomModalQR();
+    }
+
+    private string GetBaseUrl()
+    {
+        var uri = new Uri(NavigationManager.Uri);
+        return $"{uri.Scheme}://{uri.Authority}";
+    }
+
+    private async Task GenerateQRCode()
+    {
+        if (!CanGenerate()) return;
+
+        string content = string.Empty;
+        var baseUrl = GetBaseUrl();
+
+        switch (qrCodeType)
+        {
+            case QRCodeType.StorageLocation:
+                var location = storageLocations.FirstOrDefault(l => l.Id == selectedStorageLocationId);
+                if (location != null)
+                {
+                    // Use storage location code as QR code content
+                    content = location.Code;
+                    if (string.IsNullOrEmpty(qrCodeLabel))
+                        qrCodeLabel = $"{location.Code} - {location.Name}";
+                }
+                break;
+
+            case QRCodeType.NewStorageLocation:
+                showNewLocationValidation = true;
+                if (string.IsNullOrWhiteSpace(newLocationCode))
+                {
+                    return;
+                }
+
+                // Check if code already exists
+                codeExists = storageLocations.Any(l => l.Code.ToUpper() == newLocationCode.ToUpper());
+
+                if (!codeExists)
+                {
+                    // Auto-create storage location if code doesn't exist
+                    await CreateNewStorageLocation();
+                }
+
+                // Use the new storage location code directly
+                content = newLocationCode;
+ 
+                if (string.IsNullOrEmpty(qrCodeLabel))
+                {
+                    qrCodeLabel = $"Lagerplatz: {newLocationCode}";
+                }
+                break;
+
+            case QRCodeType.Product:
+                var product = products.FirstOrDefault(p => p.Id == selectedProductId);
+                if (product != null)
+                {
+                    content = product.Barcode ?? $"{baseUrl}/products/{product.Id}";
+                    if (string.IsNullOrEmpty(qrCodeLabel))
+                        qrCodeLabel = product.Name;
+                }
+                break;
+
+            case QRCodeType.Custom:
+                content = customContent;
+                break;
+        }
+
+        if (!string.IsNullOrEmpty(content))
+        {
+            generatedQRCode = QRCodeService.GenerateQRCode(content, qrCodeSize);
+            currentQRContent = content;
+        }
+    }
+    
+    private async Task CreateNewStorageLocation()
+    {
+        try
+        {
+            var currentUser = await AuthService.GetCurrentUserAsync();
+            if (currentUser == null)
+            {
+                return;
+            }
+
+            // Find room name by RoomId (required field)
+            string? roomName = null;
+            if (newLocationRoomId > 0)
+            {
+                var room = rooms.FirstOrDefault(r => r.Id == newLocationRoomId);
+                roomName = room?.Name;
+            }
+   
+            // Validate that room is set
+            if (string.IsNullOrEmpty(roomName))
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Raum ist erforderlich!");
+                return;
+            }
+
+            // Create new storage location
+            var newLocation = new StorageLocation
+            {
+                Code = newLocationCode,
+                Name = string.IsNullOrWhiteSpace(newLocationName)
+                ? newLocationCode
+        : newLocationName,
+                Description = string.IsNullOrWhiteSpace(newLocationDescription)
+            ? $"Automatisch erstellt via QR-Code Generator am {DateTime.Now:dd.MM.yyyy HH:mm}"
+            : newLocationDescription,
+                Aisle = newLocationAisle,
+                Rack = newLocationRack,
+                Shelf = newLocationShelf,
+                Bin = newLocationBin,
+                Room = roomName,
+                MaxCapacity = newLocationMaxCapacity,
+                Width = newLocationWidth,
+                Height = newLocationHeight,
+                Depth = newLocationDepth,
+                IsActive = true,
+                WarehouseId = currentUser.WarehouseId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await StorageLocationService.CreateAsync(newLocation);
+
+            // Reload data
+            await LoadDataAsync();
+
+            // Set flags
+            locationWasCreated = true;
+            codeExists = false;
+   
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert",
+                            $"Fehler beim Erstellen: {ex.Message}");
+        }
+    }
+
+    private async Task DownloadQRCode()
+    {
+        if (string.IsNullOrEmpty(generatedQRCode)) return;
+
+        var fileName = $"QRCode_{DateTime.Now:yyyyMMdd_HHmmss}.png";
+        await JSRuntime.InvokeVoidAsync("downloadBase64Image", generatedQRCode, fileName);
+    }
+
+    private async Task PrintQRCode()
+    {
+        if (string.IsNullOrEmpty(generatedQRCode)) return;
+
+        await JSRuntime.InvokeVoidAsync("printQRCode", generatedQRCode, qrCodeLabel);
+    }
+
+    private async Task CopyToClipboard()
+    {
+        if (string.IsNullOrEmpty(currentQRContent)) return;
+
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", currentQRContent);
+    }
+
+    private void GenerateAllStorageLocations()
+    {
+        batchQRCodes.Clear();
+
+        foreach (var location in storageLocations)
+        {
+            // Use storage location code as QR code content
+            var content = location.Code;
+            // Use configured size instead of fixed 300px
+            var qrCode = QRCodeService.GenerateQRCode(content, qrCodeSize);
+
+            batchQRCodes.Add(new BatchQRCode
+            {
+                Label = $"{location.Code} - {location.Name}",
+                Base64Image = qrCode,
+                Content = content
+            });
+        }
+        
+        StateHasChanged();
+    }
+
+    private void GenerateAllProducts()
+    {
+        batchQRCodes.Clear();
+        var baseUrl = GetBaseUrl();
+
+        foreach (var product in products)
+        {
+            var content = product.Barcode ?? $"{baseUrl}/products/{product.Id}";
+            // Use configured size instead of fixed 300px
+            var qrCode = QRCodeService.GenerateQRCode(content, qrCodeSize);
+
+            batchQRCodes.Add(new BatchQRCode
+            {
+                Label = product.Name,
+                Base64Image = qrCode,
+                Content = content
+            });
+        }
+        
+        StateHasChanged();
+    }
+
+    private void ClearBatch()
+    {
+        batchQRCodes.Clear();
+    }
+
+    private async Task DownloadBatchZip()
+    {
+        var qrCodeData = batchQRCodes.Select(qr => new
+        {
+            FileName = $"{SanitizeFileName(qr.Label)}.png",
+            Data = Convert.FromBase64String(qr.Base64Image)
+        }).ToList();
+
+        await JSRuntime.InvokeVoidAsync("downloadQRCodesAsZip", qrCodeData, $"QRCodes_{DateTime.Now:yyyyMMdd_HHmmss}.zip");
+    }
+
+    private async Task PrintBatch()
+    {
+        var printData = batchQRCodes.Select(qr => new
+        {
+            Image = qr.Base64Image,
+            Label = qr.Label
+        }).ToArray();
+
+        await JSRuntime.InvokeVoidAsync("printBatchQRCodes", printData);
+    }
+
+    private string SanitizeFileName(string fileName)
+    {
+        var invalids = System.IO.Path.GetInvalidFileNameChars();
+        return string.Join("_", fileName.Split(invalids, StringSplitOptions.RemoveEmptyEntries)).TrimEnd('.');
+    }
+    
+    private void OnSizeChange()
+    {
+        // If a QR code was already generated, regenerate with new size
+        if (!string.IsNullOrEmpty(generatedQRCode) && !string.IsNullOrEmpty(currentQRContent))
+        {
+            generatedQRCode = QRCodeService.GenerateQRCode(currentQRContent, qrCodeSize);
+        }
+    }
+
+    private class BatchQRCode
+    {
+        public string Label { get; set; } = string.Empty;
+        public string Base64Image { get; set; } = string.Empty;
+        public string Content { get; set; } = string.Empty;
+    }
+}

@@ -1,0 +1,192 @@
+.ai-container {
+  max-width: 800px;
+  margin: 1rem auto;
+  padding: 0.5rem;
+}
+
+.ai-header {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+  .ai-header h2 {
+    color: #0d6efd;
+    margin-bottom: 0.25rem;
+    font-size: 1.5rem;
+  }
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 2rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.status-ok {
+  background: #d1e7dd;
+  color: #0f5132;
+}
+
+.status-error {
+  background: #f8d7da;
+  color: #842029;
+}
+
+.chat-box {
+  background: #f8f9fa;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  min-height: 300px;
+  max-height: calc(100vh - 350px);
+  overflow-y: auto;
+  margin-bottom: 0.75rem;
+}
+
+.message {
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+}
+
+.message-user {
+  background: #0d6efd;
+  color: white;
+  margin-left: 2rem;
+}
+
+.message-ai {
+  background: white;
+  border: 1px solid #dee2e6;
+  margin-right: 2rem;
+}
+
+  /* Markdown Styling in AI Messages */
+  .message-ai .markdown-content h1,
+  .message-ai .markdown-content h2,
+  .message-ai .markdown-content h3 {
+    margin-top: 0.75rem;
+    margin-bottom: 0.4rem;
+    font-weight: 600;
+  }
+
+  .message-ai .markdown-content h1 {
+    font-size: 1.3rem;
+  }
+
+  .message-ai .markdown-content h2 {
+    font-size: 1.15rem;
+  }
+
+  .message-ai .markdown-content h3 {
+    font-size: 1rem;
+  }
+
+  .message-ai .markdown-content ul,
+  .message-ai .markdown-content ol {
+    margin-left: 1.5rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .message-ai .markdown-content li {
+    margin-bottom: 0.2rem;
+  }
+
+  .message-ai .markdown-content strong {
+    font-weight: 600;
+    color: #0d6efd;
+  }
+
+  .message-ai .markdown-content code {
+    background: #f8f9fa;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+  }
+
+  .message-ai .markdown-content p {
+    margin-bottom: 0.4rem;
+    line-height: 1.5;
+  }
+
+  .message-ai .markdown-content hr {
+    border: none;
+    border-top: 1px solid #dee2e6;
+    margin: 0.75rem 0;
+  }
+
+.message-time {
+  font-size: 0.7rem;
+  opacity: 0.7;
+  margin-top: 0.4rem;
+}
+
+.input-group-wrapper {
+  display: flex;
+  gap: 0.75rem;
+}
+
+  .input-group-wrapper textarea {
+    flex: 1;
+    padding: 0.75rem;
+    border: 2px solid #dee2e6;
+    border-radius: 0.5rem;
+    font-size: 0.95rem;
+    resize: none;
+  }
+
+    .input-group-wrapper textarea:focus {
+      outline: none;
+      border-color: #0d6efd;
+    }
+
+.btn-send {
+  min-width: 100px;
+  height: 80px;
+  background: #0d6efd;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+  .btn-send:hover:not(:disabled) {
+    background: #0b5ed7;
+    transform: translateY(-2px);
+  }
+
+  .btn-send:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+  }
+
+.thinking {
+  text-align: center;
+  padding: 0.75rem;
+  color: #6c757d;
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #6c757d;
+}
+
+  .empty-state i {
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+    opacity: 0.5;
+  }
+
+.hint-text {
+  text-align: center;
+  margin-top: 0.4rem;
+  color: #6c757d;
+  font-size: 0.8rem;
+}

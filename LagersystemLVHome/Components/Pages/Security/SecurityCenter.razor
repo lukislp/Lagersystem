@@ -1,0 +1,728 @@
+@page "/security-center"
+@inherits CancellableComponentBase
+@using LagersystemLVHome.Domain.Models
+@using LagersystemLVHome.Application.Services
+@using LagersystemLVHome.Infrastructure.ML.Services
+@using LagersystemLVHome.Infrastructure.ML.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+@rendermode InteractiveServer
+@inject IAuditService AuditService
+@inject ISecurityRiskService SecurityRiskService
+@inject IAnomalyDetectionService AnomalyDetectionService
+@inject IToastService ToastService
+@inject I18nText I18nText
+
+<PageTitle>@T.SecurityCenter_PageTitle</PageTitle>
+
+<div class="page-header mb-4">
+    <div>
+        <h1 class="page-title">
+            <i class="bi bi-shield-lock me-2"></i>
+            Security Center
+        </h1>
+        <p class="page-subtitle">@(T.SecurityCenter_Subtitle ?? "Umfassende Sicherheitsüberwachung")</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-primary" @onclick="RefreshAll" disabled="@isLoading">
+            <i class="bi bi-arrow-clockwise @(isLoading ? "rotating" : "")"></i>
+            @(T.SecurityCenter_Refresh ?? "Aktualisieren")
+        </button>
+        <a href="/audit-dashboard" class="btn btn-outline-secondary">
+            <i class="bi bi-clock-history"></i>
+            @(T.SecurityCenter_AuditLogs ?? "Audit Logs")
+        </a>
+    </div>
+</div>
+
+@if (isLoading && !isInitialized)
+{
+    <div class="loading-container">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">@(T.SecurityCenter_Loading ?? "Security Dashboard wird geladen...")</span>
+            </div>
+            <p>@(T.SecurityCenter_Loading ?? "Security Dashboard wird geladen...")</p>
+    </div>
+}
+else
+{
+    <!-- Security Status Overview -->
+    <div class="row g-4 mb-4">
+        <!-- Overall Security Score -->
+        <div class="col-lg-3 col-md-6">
+            <div class="security-card @GetOverallSecurityClass()">
+                <div class="security-icon">
+                    <i class="bi bi-shield-@(overallSecurityScore >= 80 ? "check" : overallSecurityScore >= 60 ? "exclamation" : "x")"></i>
+                </div>
+                <div class="security-content">
+                    <h3 class="security-score">@overallSecurityScore<span class="score-max">/100</span></h3>
+                    <p class="security-label">@(T.SecurityCenter_SecurityLevel ?? "Sicherheitslevel")</p>
+                    <small class="security-status">@GetSecurityStatusText()</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- High Risk Users -->
+        <div class="col-lg-3 col-md-6">
+            <div class="security-card card-danger">
+                <div class="security-icon">
+                    <i class="bi bi-person-x"></i>
+                </div>
+                <div class="security-content">
+                    <h3 class="security-score">@highRiskUsersCount</h3>
+                    <p class="security-label">@(T.SecurityCenter_RiskUsers ?? "Risiko-Benutzer")</p>
+                    <small class="security-status">@(T.SecurityCenter_ElevatedMonitoring ?? "Erhöhte Überwachung")</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Anomalies -->
+        <div class="col-lg-3 col-md-6">
+            <div class="security-card @(activeAnomaliesCount > 0 ? "card-warning" : "card-success")">
+                <div class="security-icon">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+                <div class="security-content">
+                    <h3 class="security-score">@activeAnomaliesCount</h3>
+                    <p class="security-label">@(T.SecurityCenter_ActiveAnomalies ?? "Aktive Anomalien")</p>
+                    <small class="security-status">@string.Format(T.SecurityCenter_UnresolvedNew ?? "{0} ungelöst, {1} neu (24h)", unresolvedAnomaliesCount, newAnomalies24h)</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Events -->
+        <div class="col-lg-3 col-md-6">
+            <div class="security-card @(criticalEventsCount > 0 ? "card-critical" : "card-info")">
+                <div class="security-icon">
+                    <i class="bi bi-bell"></i>
+                </div>
+                <div class="security-content">
+                    <h3 class="security-score">@criticalEventsCount</h3>
+                    <p class="security-label">@(T.SecurityCenter_CriticalEvents ?? "Kritische Events")</p>
+                    <small class="security-status">@(T.SecurityCenter_ImmediateAttention ?? "Sofortige Aufmerksamkeit")</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content: 3 Columns -->
+    <div class="row g-4 mb-4">
+        <!-- Left Column: High Risk Users -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-person-exclamation me-2"></i>
+                        @(T.SecurityCenter_HighRiskUsersHeader ?? "Hochrisiko-Benutzer")
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    @if (highRiskUsers.Any())
+                    {
+                        <div class="risk-users-list">
+                            @foreach (var assessment in highRiskUsers.Take(5))
+                            {
+                                <div class="risk-user-item @GetRiskLevelClass(assessment.RiskLevel)">
+                                    <div class="risk-user-info">
+                                        <div class="risk-user-header">
+                                            <strong>@assessment.Username</strong>
+                                            <span class="badge @GetRiskBadgeClass(assessment.RiskLevel)">
+                                                @assessment.RiskLevel
+                                            </span>
+                                        </div>
+                                        <div class="risk-score">
+                                            Risk Score: <strong>@assessment.RiskScore.ToString("F1")</strong>/100
+                                        </div>
+                                        <div class="risk-factors-mini">
+                                            @foreach (var factor in assessment.RiskFactors.Take(2))
+                                            {
+                                                <span class="risk-factor-tag" title="@factor.Description">
+                                                    <i class="bi bi-exclamation-circle"></i>
+                                                    @factor.Factor
+                                                </span>
+                                            }
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => ShowUserDetails(assessment.UserId)">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                        @if (highRiskUsers.Count > 5)
+                        {
+                            <div class="card-footer text-center">
+                                <a href="/ml-test/security" class="btn btn-sm btn-outline-danger">
+                                    +@(highRiskUsers.Count - 5) weitere anzeigen
+                                </a>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="empty-state-mini">
+                            <i class="bi bi-shield-check text-success"></i>
+                            <p>@(T.SecurityCenter_NoHighRiskUsers ?? "Keine Hochrisiko-Benutzer")</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Column: Active Anomalies -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        @(T.SecurityCenter_ActiveAnomaliesHeader ?? "Aktive Anomalien")
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    @if (recentAnomalies.Any())
+                    {
+                        <div class="anomalies-list">
+                            @foreach (var anomaly in recentAnomalies.Take(5))
+                            {
+                                <div class="anomaly-item @GetAnomalyLevelClass(anomaly.RiskLevel)">
+                                    <div class="anomaly-icon">
+                                        <i class="bi @GetAnomalyIcon(anomaly.RiskLevel)"></i>
+                                    </div>
+                                    <div class="anomaly-content">
+                                        <div class="anomaly-header">
+                                            <strong>@anomaly.Username</strong>
+                                            <span class="badge @GetAnomalyBadgeClass(anomaly.RiskLevel)">
+                                                @anomaly.RiskLevel
+                                            </span>
+                                        </div>
+                                        <div class="anomaly-score">
+                                            Anomalie-Score: <strong>@anomaly.AnomalyScore.ToString("F1")</strong>
+                                        </div>
+                                        <small class="text-muted">
+                                            <i class="bi bi-clock"></i> @anomaly.AnalyzedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                                        </small>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        @if (recentAnomalies.Count > 5)
+                        {
+                            <div class="card-footer text-center">
+                                <a href="/ml-test/anomaly" class="btn btn-sm btn-outline-warning">
+                                    +@(recentAnomalies.Count - 5) weitere anzeigen
+                                </a>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="empty-state-mini">
+                            <i class="bi bi-check-circle text-success"></i>
+                            <p>@(T.SecurityCenter_NoAnomalies ?? "Keine Anomalien erkannt")</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Recent Security Events -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-shield-exclamation me-2"></i>
+                        @(T.SecurityCenter_SecurityEventsHeader ?? "Sicherheitsereignisse")
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    @if (recentSecurityEvents.Any())
+                    {
+                        <div class="events-list">
+                            @foreach (var log in recentSecurityEvents.Take(5))
+                            {
+                                <div class="event-item @GetEventSeverityClass(log.Severity)">
+                                    <div class="event-icon">
+                                        <i class="bi @GetEventIcon(log.Action)"></i>
+                                    </div>
+                                    <div class="event-content">
+                                        <div class="event-header">
+                                            <strong>@(log.Username ?? "System")</strong>
+                                            <span class="badge @GetSeverityBadgeClass(log.Severity)">
+                                                @log.Severity
+                                            </span>
+                                        </div>
+                                        <div class="event-action">
+                                            @GetActionDisplayName(log.Action)
+                                        </div>
+                                        <small class="text-muted">
+                                            <i class="bi bi-clock"></i> @log.Timestamp.ToLocalTime().ToString("HH:mm:ss")
+                                            @if (!string.IsNullOrEmpty(log.IpAddress))
+                                            {
+                                                <span>→ <code>@log.IpAddress</code></span>
+                                            }
+                                        </small>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <div class="card-footer text-center">
+                            <a href="/audit-dashboard" class="btn btn-sm btn-outline-secondary">
+                                @(T.SecurityCenter_AllEvents ?? "Alle Events anzeigen")
+                            </a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty-state-mini">
+                            <i class="bi bi-shield-check text-success"></i>
+                            <p>@(T.SecurityCenter_NoCriticalEvents ?? "Keine kritischen Events")</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Security Recommendations -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-lightbulb me-2"></i>
+                        @(T.SecurityCenter_RecommendationsHeader ?? "Sicherheitsempfehlungen")
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (securityRecommendations.Any())
+                    {
+                        <div class="row g-3">
+                            @foreach (var recommendation in securityRecommendations)
+                            {
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="recommendation-card @recommendation.Priority">
+                                        <div class="recommendation-icon">
+                                            <i class="bi @recommendation.Icon"></i>
+                                        </div>
+                                        <div class="recommendation-content">
+                                            <h6>@recommendation.Title</h6>
+                                            <p>@recommendation.Description</p>
+                                            @if (!string.IsNullOrEmpty(recommendation.ActionLink))
+                                            {
+                                                <a href="@recommendation.ActionLink" class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-arrow-right"></i>
+                                                    @recommendation.ActionText
+                                                </a>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-success mb-0">
+                            <i class="bi bi-shield-check me-2"></i>
+                            @(T.SecurityCenter_NoRecommendations ?? "Keine dringenden Sicherheitsempfehlungen - Ihr System ist gut geschützt!")
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ML Model Status -->
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-cpu me-2"></i>
+                        ML Model Status
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="model-status-grid">
+                        <div class="model-status-item">
+                            <div class="model-status-icon @(SecurityRiskService.IsModelReady ? "status-active" : "status-inactive")">
+                                <i class="bi bi-shield-lock"></i>
+                            </div>
+                            <div class="model-status-info">
+                                <strong>Security Risk Model</strong>
+                                <span class="badge @(SecurityRiskService.IsModelReady ? "bg-success" : "bg-secondary")">
+                                    @(SecurityRiskService.IsModelReady ? "Aktiv" : "Inaktiv")
+                                </span>
+                            </div>
+                        </div>
+                        <div class="model-status-item">
+                            <div class="model-status-icon @(AnomalyDetectionService.IsModelReady ? "status-active" : "status-inactive")">
+                                <i class="bi bi-exclamation-triangle"></i>
+                            </div>
+                            <div class="model-status-info">
+                                <strong>Anomaly Detection Model</strong>
+                                <span class="badge @(AnomalyDetectionService.IsModelReady ? "bg-success" : "bg-secondary")">
+                                    @(AnomalyDetectionService.IsModelReady ? "Aktiv" : "Inaktiv")
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    @if (!SecurityRiskService.IsModelReady || !AnomalyDetectionService.IsModelReady)
+                    {
+                        <div class="alert alert-warning mt-3 mb-0">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Einige ML-Modelle sind nicht trainiert. <a href="/ml-test/setup">Jetzt trainieren</a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-graph-up me-2"></i>
+                        Sicherheitstrends
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="trend-item">
+                        <span class="trend-label">Durchschn. Risk Score (Letzte 7 Tage)</span>
+                        <span class="trend-value @(avgRiskScoreTrend >= 0 ? "text-danger" : "text-success")">
+                            @avgRiskScore.ToString("F1")
+                            <i class="bi bi-arrow-@(avgRiskScoreTrend >= 0 ? "up" : "down")"></i>
+                            @Math.Abs(avgRiskScoreTrend).ToString("F1")%
+                        </span>
+                    </div>
+                    <div class="trend-item">
+                        <span class="trend-label">Erkannte Anomalien (Heute vs. Gestern)</span>
+                        <span class="trend-value @(anomaliesTrend >= 0 ? "text-warning" : "text-success")">
+                            @todayAnomalies
+                            <i class="bi bi-arrow-@(anomaliesTrend >= 0 ? "up" : "down")"></i>
+                            @Math.Abs(anomaliesTrend).ToString("F0")%
+                        </span>
+                    </div>
+                    <div class="trend-item">
+                        <span class="trend-label">Fehlgeschlagene Logins (Letzte 24h)</span>
+                        <span class="trend-value @(failedLoginsTrend >= 0 ? "text-danger" : "text-success")">
+                            @failedLogins24h
+                            <i class="bi bi-arrow-@(failedLoginsTrend >= 0 ? "up" : "down")"></i>
+                            @Math.Abs(failedLoginsTrend).ToString("F0")%
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    private LagersystemLVHome.I18nText.App T = new();
+    // Loading State
+    private bool isLoading = true;
+    private bool isInitialized = false;
+
+    // Security Overview
+    private int overallSecurityScore = 0;
+    private int highRiskUsersCount = 0;
+    private int activeAnomaliesCount = 0;
+    private int unresolvedAnomaliesCount = 0;
+    private int newAnomalies24h = 0;
+    private int criticalEventsCount = 0;
+
+    // Data Lists
+    private List<SecurityRiskAssessment> highRiskUsers = new();
+    private List<AnomalyAnalysisResult> recentAnomalies = new();
+    private List<AuditLog> recentSecurityEvents = new();
+    private List<SecurityRecommendation> securityRecommendations = new();
+
+    // Trends
+    private double avgRiskScore = 0;
+    private double avgRiskScoreTrend = 0;
+    private int todayAnomalies = 0;
+    private double anomaliesTrend = 0;
+    private int failedLogins24h = 0;
+    private double failedLoginsTrend = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+        await LoadSecurityData();
+        isInitialized = true;
+    }
+
+    private async Task LoadSecurityData()
+    {
+        try
+        {
+            isLoading = true;
+
+            // Load High Risk Users
+            highRiskUsers = await SecurityRiskService.GetHighRiskUsersAsync();
+            highRiskUsersCount = highRiskUsers.Count;
+
+            // Load Recent Anomalies
+            var from = DateTime.UtcNow.AddDays(-7);
+            var to = DateTime.UtcNow;
+            var allAnomalies = await AnomalyDetectionService.DetectAnomaliesAsync(from, to);
+    
+            // Filter: unresolved OR new within the last 24h (best practice for security dashboards)
+            recentAnomalies = allAnomalies
+        .Where(p => p.RiskLevel >= AnomalyRiskLevel.Medium)
+.OrderByDescending(p => p.AnomalyScore)
+.ToList();
+    
+            // Statistics for the detailed view
+            activeAnomaliesCount = recentAnomalies.Count;  // Alle Medium+ der letzten 7 Tage
+            unresolvedAnomaliesCount = recentAnomalies.Count(a => a.IsHighRisk);  // Approximation for "unresolved"
+            newAnomalies24h = recentAnomalies.Count(a => a.AnalyzedAt >= DateTime.UtcNow.AddHours(-24));
+
+
+            // Load Security Events
+            recentSecurityEvents = await AuditService.GetSecurityEventsAsync(20);
+            criticalEventsCount = recentSecurityEvents.Count(e => e.Severity >= AuditSeverity.Error);
+
+            // Calculate Overall Security Score
+            overallSecurityScore = CalculateOverallSecurityScore();
+
+            // Load Trends
+            await LoadSecurityTrends();
+
+            // Generate Recommendations
+            GenerateSecurityRecommendations();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error loading: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadSecurityTrends()
+    {
+        try
+        {
+            // Average Risk Score
+            if (highRiskUsers.Any())
+            {
+                avgRiskScore = highRiskUsers.Average(u => u.RiskScore);
+            }
+
+            // Anomalies Trend
+            var yesterdayAnomalies = recentAnomalies.Count(a =>
+                a.AnalyzedAt >= DateTime.UtcNow.Date.AddDays(-1) && a.AnalyzedAt < DateTime.UtcNow.Date);
+            todayAnomalies = recentAnomalies.Count(a => a.AnalyzedAt >= DateTime.UtcNow.Date);
+            if (yesterdayAnomalies > 0)
+            {
+                anomaliesTrend = ((todayAnomalies - yesterdayAnomalies) / (double)yesterdayAnomalies) * 100;
+            }
+
+            // Failed Logins
+            var logs = await AuditService.GetRecentLogsAsync(1000);
+            var yesterday24h = DateTime.UtcNow.AddDays(-2);
+            failedLogins24h = logs.Count(l => l.Action == "LOGIN_FAILED" && l.Timestamp >= DateTime.UtcNow.AddDays(-1));
+            var failedLoginsYesterday = logs.Count(l => l.Action == "LOGIN_FAILED" && l.Timestamp >= yesterday24h && l.Timestamp < DateTime.UtcNow.AddDays(-1));
+
+            if (failedLoginsYesterday > 0)
+            {
+                failedLoginsTrend = ((failedLogins24h - failedLoginsYesterday) / (double)failedLoginsYesterday) * 100;
+            }
+        }
+        catch { }
+    }
+
+    private int CalculateOverallSecurityScore()
+    {
+        int score = 100;
+
+        // High risk users penalty
+        score -= Math.Min(highRiskUsersCount * 10, 40);
+
+        // Active anomalies penalty
+        score -= Math.Min(activeAnomaliesCount * 5, 30);
+
+        // Critical events penalty
+        score -= Math.Min(criticalEventsCount * 8, 30);
+
+        // ML models not ready penalty
+        if (!SecurityRiskService.IsModelReady) score -= 10;
+        if (!AnomalyDetectionService.IsModelReady) score -= 10;
+
+        return Math.Max(score, 0);
+    }
+
+    private void GenerateSecurityRecommendations()
+    {
+        securityRecommendations.Clear();
+
+        if (highRiskUsersCount > 0)
+        {
+            securityRecommendations.Add(new SecurityRecommendation
+            {
+                Title = "Hochrisiko-Benutzer überprüfen",
+                Description = $"{highRiskUsersCount} Benutzer mit erhöhtem Sicherheitsrisiko erfordern sofortige Aufmerksamkeit.",
+                Icon = "bi-person-exclamation",
+                Priority = "high-priority",
+                ActionLink = "/ml-test/security",
+                ActionText = "Benutzer prüfen"
+            });
+        }
+
+        if (activeAnomaliesCount > 0)
+        {
+            securityRecommendations.Add(new SecurityRecommendation
+            {
+                Title = "Anomalien untersuchen",
+                Description = $"{activeAnomaliesCount} ungewöhnliche Lagerbewegungen wurden erkannt.",
+                Icon = "bi-exclamation-triangle",
+                Priority = "medium-priority",
+                ActionLink = "/ml-test/anomaly",
+                ActionText = "Anomalien anzeigen"
+            });
+        }
+
+        if (!SecurityRiskService.IsModelReady || !AnomalyDetectionService.IsModelReady)
+        {
+            securityRecommendations.Add(new SecurityRecommendation
+            {
+                Title = "ML-Modelle trainieren",
+                Description = "Einige Sicherheitsmodelle sind nicht trainiert. Trainieren Sie sie für besseren Schutz.",
+                Icon = "bi-cpu",
+                Priority = "medium-priority",
+                ActionLink = "/ml-test/setup",
+                ActionText = "Jetzt trainieren"
+            });
+        }
+
+        if (failedLogins24h > 10)
+        {
+            securityRecommendations.Add(new SecurityRecommendation
+            {
+                Title = "Viele fehlgeschlagene Logins",
+                Description = $"{failedLogins24h} fehlgeschlagene Login-Versuche in den letzten 24h.",
+                Icon = "bi-shield-x",
+                Priority = "high-priority",
+                ActionLink = "/audit-dashboard",
+                ActionText = "Logs prüfen"
+            });
+        }
+    }
+
+    private async Task RefreshAll()
+    {
+        await LoadSecurityData();
+        ToastService.ShowSuccess("Security dashboard refreshed");
+    }
+
+    private void ShowUserDetails(int userId)
+    {
+        ToastService.ShowInfo($"User details for ID {userId}");
+    }
+
+    // Helper Methods
+    private string GetOverallSecurityClass()
+    {
+        if (overallSecurityScore >= 80) return "card-success";
+        if (overallSecurityScore >= 60) return "card-warning";
+        if (overallSecurityScore >= 40) return "card-danger";
+        return "card-critical";
+    }
+
+    private string GetSecurityStatusText()
+    {
+        if (overallSecurityScore >= 80) return "Ausgezeichnet";
+        if (overallSecurityScore >= 60) return "Gut";
+        if (overallSecurityScore >= 40) return "Verbesserungsbedarf";
+        return "Kritisch";
+    }
+
+    private string GetRiskLevelClass(RiskLevel level) => level switch
+    {
+        RiskLevel.Critical => "border-danger",
+        RiskLevel.High => "border-warning",
+        _ => ""
+    };
+
+    private string GetRiskBadgeClass(RiskLevel level) => level switch
+    {
+        RiskLevel.Critical => "bg-danger",
+        RiskLevel.High => "bg-warning",
+        RiskLevel.Medium => "bg-info",
+        _ => "bg-success"
+    };
+
+    private string GetAnomalyLevelClass(AnomalyRiskLevel level) => level switch
+    {
+        AnomalyRiskLevel.Critical => "border-danger",
+        AnomalyRiskLevel.High => "border-warning",
+        _ => ""
+    };
+
+    private string GetAnomalyIcon(AnomalyRiskLevel level) => level switch
+    {
+        AnomalyRiskLevel.Critical => "bi-x-circle-fill",
+        AnomalyRiskLevel.High => "bi-exclamation-circle-fill",
+        AnomalyRiskLevel.Medium => "bi-exclamation-triangle-fill",
+        _ => "bi-info-circle-fill"
+    };
+
+    private string GetAnomalyBadgeClass(AnomalyRiskLevel level) => level switch
+    {
+        AnomalyRiskLevel.Critical => "bg-danger",
+        AnomalyRiskLevel.High => "bg-warning",
+        AnomalyRiskLevel.Medium => "bg-info",
+        _ => "bg-secondary"
+    };
+
+    private string GetEventSeverityClass(AuditSeverity severity) => severity switch
+    {
+        AuditSeverity.Critical => "border-danger",
+        AuditSeverity.Error => "border-warning",
+        _ => ""
+    };
+
+    private string GetSeverityBadgeClass(AuditSeverity severity) => severity switch
+    {
+        AuditSeverity.Critical => "bg-dark",
+        AuditSeverity.Error => "bg-danger",
+        AuditSeverity.Warning => "bg-warning",
+        _ => "bg-success"
+    };
+
+    private string GetEventIcon(string action) => action switch
+    {
+        "LOGIN_FAILED" => "bi-x-circle",
+        "LOGIN_SUCCESS" => "bi-check-circle",
+        "DATA_EXPORT" => "bi-download",
+        "PASSWORD_CHANGED" => "bi-key",
+        "2FA_DISABLED" => "bi-shield-x",
+        _ => "bi-info-circle"
+    };
+
+    private string GetActionDisplayName(string action) => action switch
+    {
+        "LOGIN_FAILED" => "Login Fehlgeschlagen",
+        "LOGIN_SUCCESS" => "Login",
+        "DATA_EXPORT" => "Daten Export",
+        "PASSWORD_CHANGED" => "Passwort Geändert",
+        "2FA_DISABLED" => "2FA Deaktiviert",
+        "USER_DELETED" => "Benutzer Gelöscht",
+        _ => action
+    };
+
+    // Model Classes
+    public class SecurityRecommendation
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string Icon { get; set; } = string.Empty;
+        public string Priority { get; set; } = string.Empty;
+        public string ActionLink { get; set; } = string.Empty;
+        public string ActionText { get; set; } = string.Empty;
+    }
+}

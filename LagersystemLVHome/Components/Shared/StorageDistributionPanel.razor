@@ -1,0 +1,225 @@
+@using LagersystemLVHome.Domain.Models
+@using LagersystemLVHome.Application.Services
+@inject IStorageDistributionService StorageDistributionService
+@inject IAuthService AuthService
+@inject I18nText I18nText
+
+<div class="storage-distribution-container">
+    @if (AllStorageLocations.Any())
+    {
+        <div class="mb-3">
+            <label class="form-label fw-bold">@string.Format(T.StorageDistribution_Label, TotalQuantity)</label>
+            
+            <button class="btn btn-sm btn-primary w-100 mb-2" @onclick="AutoDistribute">
+                <i class="bi bi-magic"></i> @T.StorageDistribution_AutoDistribute
+            </button>
+        </div>
+
+        <div class="storage-distribution-list">
+            @foreach (var item in DistributionItems)
+            {
+                <div class="distribution-item @(item.Quantity > 0 ? "active" : "")">
+                    <div class="distribution-info">
+                        <div class="d-flex align-items-center gap-2">
+                            <code class="storage-code">@item.StorageLocation.Code</code>
+                            @if (item.IsAssigned)
+                            {
+                                <span class="badge bg-success">@T.StorageDistribution_Assigned</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning">@T.StorageDistribution_New</span>
+                            }
+                        </div>
+                        <small class="text-muted d-block">@item.StorageLocation.Name</small>
+                        @if (!string.IsNullOrEmpty(item.StorageLocation.Room))
+                        {
+                            <small class="badge bg-info">@item.StorageLocation.Room</small>
+                        }
+                        @if (item.IsAssigned)
+                        {
+                            <small class="text-muted">@string.Format(T.StorageDistribution_Current, item.CurrentStock)</small>
+                        }
+                    </div>
+                    <div class="distribution-controls">
+                        <button class="btn btn-sm btn-outline-secondary"
+                                @onclick="() => DecreaseQuantity(item)"
+                                disabled="@(item.Quantity == 0)">
+                            <i class="bi bi-dash"></i>
+                        </button>
+                        <input type="number"
+                               class="form-control form-control-sm text-center"
+                               @bind="item.Quantity"
+                               @bind:event="oninput"
+                               @bind:after="OnQuantityChanged"
+                               min="0"
+                               max="@TotalQuantity"
+                               style="width: 70px;" />
+                        <button class="btn btn-sm btn-outline-secondary"
+                                @onclick="() => IncreaseQuantity(item)"
+                                disabled="@(GetDistributedQuantity() >= TotalQuantity)">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="distribution-summary mt-3 p-3 rounded @GetSummaryClass()">
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="fw-bold">@T.StorageDistribution_Distributed</span>
+                <span class="fs-5">@GetDistributedQuantity() / @TotalQuantity</span>
+            </div>
+            @if (GetDistributedQuantity() < TotalQuantity)
+            {
+                <small class="text-warning">
+                    <i class="bi bi-exclamation-triangle"></i> @string.Format(T.StorageDistribution_Remaining, TotalQuantity - GetDistributedQuantity())
+                </small>
+            }
+            else if (GetDistributedQuantity() > TotalQuantity)
+            {
+                <small class="text-danger">
+                    <i class="bi bi-x-circle"></i> @string.Format(T.StorageDistribution_TooMany, GetDistributedQuantity() - TotalQuantity)
+                </small>
+            }
+            else
+            {
+                <small class="text-success">
+                    <i class="bi bi-check-circle"></i> @T.StorageDistribution_Complete
+                </small>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i>
+            @T.StorageDistribution_NoLocations
+        </div>
+    }
+</div>
+
+
+@code {
+    [Parameter]
+    public int ProductId { get; set; }
+
+    [Parameter]
+    public int TotalQuantity { get; set; }
+
+    [Parameter]
+    public List<StorageDistributionItem> DistributionItems { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<List<StorageDistributionItem>> DistributionItemsChanged { get; set; }
+
+    private List<StorageLocation> AllStorageLocations { get; set; } = new();
+
+    private LagersystemLVHome.I18nText.App T = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+        await LoadStorageLocations();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ProductId > 0 && !AllStorageLocations.Any())
+        {
+            await LoadStorageLocations();
+        }
+    }
+
+    private async Task LoadStorageLocations()
+    {
+        var currentUser = await AuthService.GetCurrentUserAsync();
+        if (currentUser == null) return;
+
+        var data = await StorageDistributionService.GetDistributionDataAsync(
+            ProductId,
+            currentUser.WarehouseId);
+
+        AllStorageLocations = data.Locations.ToList();
+
+        // Initialize distribution items
+        DistributionItems = AllStorageLocations
+            .Select(sl => new StorageDistributionItem
+            {
+                StorageLocation = sl,
+                Quantity = 0,
+                CurrentStock = data.ExistingAssignments.TryGetValue(sl.Id, out var qty) ? qty : 0,
+                IsAssigned = data.ExistingAssignments.ContainsKey(sl.Id)
+            })
+            .ToList();
+
+        await DistributionItemsChanged.InvokeAsync(DistributionItems);
+    }
+
+    private int GetDistributedQuantity()
+    {
+        return DistributionItems.Sum(x => x.Quantity);
+    }
+
+    private void IncreaseQuantity(StorageDistributionItem item)
+    {
+        if (GetDistributedQuantity() < TotalQuantity)
+        {
+            item.Quantity++;
+            OnQuantityChanged();
+        }
+    }
+
+    private void DecreaseQuantity(StorageDistributionItem item)
+    {
+        if (item.Quantity > 0)
+        {
+            item.Quantity--;
+            OnQuantityChanged();
+        }
+    }
+
+    private void AutoDistribute()
+    {
+        if (!DistributionItems.Any()) return;
+
+        // Reset all
+        foreach (var item in DistributionItems)
+        {
+            item.Quantity = 0;
+        }
+
+        // Distribute evenly
+        var perLocation = TotalQuantity / DistributionItems.Count;
+        var remainder = TotalQuantity % DistributionItems.Count;
+
+        for (int i = 0; i < DistributionItems.Count; i++)
+        {
+            DistributionItems[i].Quantity = perLocation + (i < remainder ? 1 : 0);
+        }
+
+        OnQuantityChanged();
+    }
+
+    private async void OnQuantityChanged()
+    {
+        await DistributionItemsChanged.InvokeAsync(DistributionItems);
+        StateHasChanged();
+    }
+
+    private string GetSummaryClass()
+    {
+        var distributed = GetDistributedQuantity();
+        if (distributed == TotalQuantity) return "valid";
+        if (distributed != TotalQuantity) return "invalid";
+        return "";
+    }
+
+    public class StorageDistributionItem
+    {
+        public StorageLocation StorageLocation { get; set; } = null!;
+        public int Quantity { get; set; }
+        public int CurrentStock { get; set; }
+        public bool IsAssigned { get; set; }
+    }
+}

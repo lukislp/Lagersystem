@@ -1,0 +1,107 @@
+@using LagersystemLVHome.Application.Services
+@inject I18nText I18nText
+
+<div class="row g-3">
+    <div class="col-12">
+        <label class="form-label">
+            <i class="bi bi-microsoft me-1"></i>
+            Client ID (Application ID) *
+        </label>
+        <input type="text" class="form-control" @bind="Config.ClientId"
+               placeholder="12345678-1234-1234-1234-123456789012" />
+        <small class="text-muted">@(T.BackupProvider_OneDrive_ClientIdHint ?? "Azure AD Application (Client) ID")</small>
+    </div>
+
+    <div class="col-12">
+        <label class="form-label">
+            <i class="bi bi-key me-1"></i>
+            Client Secret *
+        </label>
+        <input type="password" class="form-control" @bind="Config.ClientSecret"
+               placeholder="..." />
+        <small class="text-muted">@(T.BackupProvider_OneDrive_ClientSecretHint ?? "Azure AD Client Secret (Value, nicht Secret ID)")</small>
+    </div>
+
+    <div class="col-12">
+        <label class="form-label">
+            <i class="bi bi-shield-lock me-1"></i>
+            Refresh Token *
+        </label>
+        <input type="password" class="form-control" @bind="Config.RefreshToken"
+               placeholder="M.C123..." />
+        <small class="text-muted">OAuth2 Refresh Token (wird automatisch erneuert)</small>
+    </div>
+
+    <div class="col-md-8">
+        <label class="form-label">
+            <i class="bi bi-folder me-1"></i>
+            @(T.BackupProvider_OneDrive_FolderLabel ?? "Ordnerpfad")
+        </label>
+        <input type="text" class="form-control" @bind="Config.FolderPath"
+               placeholder="/LagerSystem/Backups" />
+        <small class="text-muted">@(T.BackupProvider_OneDrive_FolderHint ?? "Pfad im OneDrive (beginnt mit /)")</small>
+    </div>
+
+    <div class="col-md-4">
+        <label class="form-label">
+            <i class="bi bi-link me-1"></i>
+            Folder ID (optional)
+        </label>
+        <input type="text" class="form-control" @bind="Config.FolderId"
+               placeholder="01BYE5..." />
+        <small class="text-muted">@(T.BackupProvider_OneDrive_FolderIdHint ?? "Leer lassen für Pfad-basiert")</small>
+    </div>
+
+    <!-- Max Backups -->
+    <div class="col-md-6">
+        <label class="form-label">
+            <i class="bi bi-clock-history me-1"></i>
+            Maximale Anzahl Backups
+        </label>
+        <InputNumber class="form-control" @bind-Value="Config.MaxBackups"
+                     min="1" max="365" />
+        <small class="text-muted">
+            <i class="bi bi-info-circle me-1"></i>
+            @(T.BackupProvider_OneDrive_MaxBackupsHint ?? "Älteste Backups werden automatisch gelöscht (Standard: 30)")
+        </small>
+    </div>
+
+    <div class="col-12">
+        <div class="alert alert-info mb-0">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>@(T.BackupProvider_OneDrive_SetupTitle ?? "OneDrive Setup:")</strong>
+            <ol class="mb-0 mt-2">
+                <li>@(T.BackupProvider_OneDrive_Step1 ?? "Gehe zu Azure Portal - Azure Active Directory")</li>
+                <li>@(T.BackupProvider_OneDrive_Step2 ?? "Erstelle App Registration")</li>
+                <li>@(T.BackupProvider_OneDrive_Step3 ?? "Notiere Application (Client) ID")</li>
+                <li>@(T.BackupProvider_OneDrive_Step4 ?? "Erstelle Client Secret")</li>
+                <li>
+                    @(T.BackupProvider_OneDrive_Step5 ?? "Füge API Permissions hinzu:")
+                    <ul class="mt-1">
+                        <li><code>Files.ReadWrite.All</code> @(T.BackupProvider_OneDrive_Step5a ?? "(Delegated)")</li>
+                        <li>@(T.BackupProvider_OneDrive_Step5b ?? "Oder: Files.ReadWrite (Application)")</li>
+                    </ul>
+                </li>
+                <li>
+                    @(T.BackupProvider_OneDrive_Step6 ?? "Generiere Refresh Token mit OAuth2 Flow:")
+                    <ul class="mt-1">
+                        <li><code>https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=YOUR_CLIENT_ID&amp;response_type=code&amp;redirect_uri=http://localhost&amp;scope=Files.ReadWrite.All offline_access</code></li>
+                        <li>@(T.BackupProvider_OneDrive_Step6b ?? "Tausche Code gegen Token:") <code>POST https://login.microsoftonline.com/common/oauth2/v2.0/token</code></li>
+                    </ul>
+                </li>
+                <li>@(T.BackupProvider_OneDrive_Step7 ?? "Trage Client ID, Secret und Refresh Token hier ein")</li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LagersystemLVHome.I18nText.App T = new();
+    [Parameter] public OneDriveConfig Config { get; set; } = new();
+    [Parameter] public EventCallback<OneDriveConfig> ConfigChanged { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+    }
+}

@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="de">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Offline - LagerSystem</title>
+        <link rel="stylesheet" href="/app.css" />
+        <link rel="stylesheet" href="/bootstrap/bootstrap.min.css" />
+        <style>
+            body {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    "Helvetica Neue", Arial, sans-serif;
+            }
+
+            .offline-container {
+                text-align: center;
+                padding: 3rem;
+                background: white;
+                border-radius: 16px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                max-width: 500px;
+                margin: 2rem;
+            }
+
+            .offline-icon {
+                font-size: 5rem;
+                color: #667eea;
+                margin-bottom: 1.5rem;
+                animation: pulse 2s ease-in-out infinite;
+            }
+
+            @keyframes pulse {
+                0%,
+                100% {
+                    transform: scale(1);
+                    opacity: 1;
+                }
+                50% {
+                    transform: scale(1.1);
+                    opacity: 0.8;
+                }
+            }
+
+            .offline-title {
+                font-size: 2rem;
+                font-weight: 700;
+                color: #1a202c;
+                margin-bottom: 1rem;
+            }
+
+            .offline-message {
+                color: #718096;
+                margin-bottom: 2rem;
+                font-size: 1.1rem;
+            }
+
+            .retry-button {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border: none;
+                padding: 1rem 2rem;
+                border-radius: 8px;
+                font-size: 1rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition:
+                    transform 0.2s,
+                    box-shadow 0.2s;
+            }
+
+            .retry-button:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+            }
+
+            .retry-button:active {
+                transform: translateY(0);
+            }
+
+            .connection-status {
+                margin-top: 2rem;
+                padding: 1rem;
+                background: #f7fafc;
+                border-radius: 8px;
+                font-size: 0.9rem;
+                color: #4a5568;
+            }
+
+            .spinner {
+                display: inline-block;
+                width: 1rem;
+                height: 1rem;
+                border: 2px solid #e2e8f0;
+                border-top-color: #667eea;
+                border-radius: 50%;
+                animation: spin 0.8s linear infinite;
+                margin-right: 0.5rem;
+            }
+
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+
+            .cached-info {
+                margin-top: 2rem;
+                padding: 1rem;
+                background: #edf2f7;
+                border-left: 4px solid #667eea;
+                border-radius: 4px;
+                text-align: left;
+            }
+
+            .cached-info h4 {
+                font-size: 1rem;
+                margin-bottom: 0.5rem;
+                color: #2d3748;
+            }
+
+            .cached-info ul {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+            }
+
+            .cached-info li {
+                padding: 0.25rem 0;
+                color: #4a5568;
+            }
+
+            .cached-info li:before {
+                content: "✓ ";
+                color: #48bb78;
+                font-weight: bold;
+                margin-right: 0.5rem;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="offline-container">
+            <div class="offline-icon">📡</div>
+
+            <h1 class="offline-title">Keine Verbindung</h1>
+
+            <p class="offline-message">
+                Sie sind momentan offline. Bitte überprüfen Sie Ihre
+                Internetverbindung und versuchen Sie es erneut.
+            </p>
+
+            <button class="retry-button" onclick="retryConnection()">
+                🔄 Erneut versuchen
+            </button>
+
+            <div class="connection-status" id="status">
+                <span class="spinner"></span>
+                Verbindung wird überprüft...
+            </div>
+
+            <div class="cached-info">
+                <h4>📴 Offline-Funktionen</h4>
+                <ul>
+                    <li>Gecachte Seiten sind weiterhin verfügbar</li>
+                    <li>QR-Code Scanner funktioniert lokal</li>
+                    <li>
+                        Änderungen werden synchronisiert, sobald Sie online sind
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <script>
+            // Verbindungsstatus prüfen
+            function checkConnection() {
+                const statusEl = document.getElementById("status");
+
+                if (navigator.onLine) {
+                    statusEl.innerHTML =
+                        "✅ Online - Verbindung wiederhergestellt!";
+                    statusEl.style.background = "#c6f6d5";
+                    statusEl.style.color = "#22543d";
+
+                    // Automatisch zur letzten Seite navigieren nach 2 Sekunden
+                    setTimeout(() => {
+                        window.location.href = "/";
+                    }, 2000);
+                } else {
+                    statusEl.innerHTML =
+                        "❌ Offline - Keine Internetverbindung";
+                    statusEl.style.background = "#fed7d7";
+                    statusEl.style.color = "#742a2a";
+                }
+            }
+
+            // Retry Button
+            function retryConnection() {
+                const statusEl = document.getElementById("status");
+                statusEl.innerHTML =
+                    '<span class="spinner"></span> Verbindung wird überprüft...';
+                statusEl.style.background = "#f7fafc";
+                statusEl.style.color = "#4a5568";
+
+                setTimeout(() => {
+                    checkConnection();
+                }, 1000);
+            }
+
+            // Online/Offline Events
+            window.addEventListener("online", () => {
+                checkConnection();
+            });
+
+            window.addEventListener("offline", () => {
+                checkConnection();
+            });
+
+            // Initial check
+            checkConnection();
+
+            // Periodische Überprüfung alle 5 Sekunden
+            setInterval(checkConnection, 5000);
+        </script>
+    </body>
+</html>

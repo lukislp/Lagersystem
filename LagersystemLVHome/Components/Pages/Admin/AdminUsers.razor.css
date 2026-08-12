@@ -1,0 +1,227 @@
+/* Prevent horizontal scrolling */
+* {
+    box-sizing: border-box;
+}
+
+.page-header,
+.card,
+.card-body,
+.table-container {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* Pending users section header */
+.card-header-pending {
+    background: rgba(251, 191, 36, 0.1);
+}
+
+.card-header-pending .card-title {
+    color: #f59e0b;
+}
+
+/* Rejected users section header */
+.card-header-rejected {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.card-header-rejected .card-title {
+    color: var(--danger-color);
+}
+
+/* Profile image in user management */
+.profile-avatar-small {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #e5e7eb;
+    flex-shrink: 0;
+}
+
+.profile-avatar-small-placeholder {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: #6b7280;
+    flex-shrink: 0;
+}
+
+/* Table container allows horizontal scrolling */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.data-table {
+    width: 100%;
+    min-width: 800px; /* minimum width for desktop tables */
+}
+
+/* Mobile optimizations (up to 767px) */
+@media (max-width: 767px) {
+    .page-header {
+        padding: 0.5rem;
+    }
+
+    /* Tables collapse into cards */
+    .table-container {
+        overflow-x: visible;
+    }
+
+    .data-table {
+        border: none;
+        min-width: 100%;
+    }
+
+    .data-table thead {
+        display: none;
+    }
+
+    .data-table tbody,
+    .data-table tr {
+        display: block;
+        width: 100%;
+    }
+
+    .data-table tr {
+        margin-bottom: 1rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1rem;
+        background: white;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .data-table td {
+        display: block;
+        text-align: left;
+        padding: 0.5rem 0;
+        border: none;
+    }
+
+    .data-table td:before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: #6b7280;
+        display: block;
+        margin-bottom: 0.25rem;
+        font-size: 0.875rem;
+    }
+
+    /* First column (username) acts as a header */
+    .data-table td:first-child {
+        font-size: 1.1rem;
+        font-weight: 600;
+        border-bottom: 2px solid #e5e7eb;
+        padding-bottom: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .data-table td:first-child:before {
+        display: none;
+    }
+
+    /* Actions column */
+    .data-table td:last-child {
+        border-top: 1px solid #e5e7eb;
+        padding-top: 0.75rem;
+        margin-top: 0.5rem;
+    }
+
+    .data-table td:last-child:before {
+        display: none;
+    }
+
+    /* Buttons in mobile view */
+    .data-table td .d-flex {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .data-table td .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Badges */
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    /* Modals on mobile */
+    .modal-content {
+        max-width: 95vw !important;
+        margin: 1rem;
+    }
+
+    .modal-body {
+        font-size: 0.875rem;
+    }
+
+    .form-control,
+    .form-select {
+        font-size: 0.875rem;
+    }
+}
+
+/* Tablet optimizations (768px-991px) */
+@media (min-width: 768px) and (max-width: 991px) {
+    .data-table {
+        font-size: 0.875rem;
+    }
+
+    .data-table td .btn {
+        font-size: 0.8rem;
+        padding: 0.375rem 0.5rem;
+    }
+}
+
+/* Desktop: optimized column widths */
+@media (min-width: 992px) {
+    .data-table {
+        table-layout: fixed;
+    }
+
+    /* Pending users table */
+    .card:nth-of-type(1) .data-table th:nth-child(1),
+    .card:nth-of-type(1) .data-table td:nth-child(1) { width: 20%; }
+    .card:nth-of-type(1) .data-table th:nth-child(2),
+    .card:nth-of-type(1) .data-table td:nth-child(2) { width: 20%; }
+    .card:nth-of-type(1) .data-table th:nth-child(3),
+    .card:nth-of-type(1) .data-table td:nth-child(3) { width: 25%; }
+    .card:nth-of-type(1) .data-table th:nth-child(4),
+    .card:nth-of-type(1) .data-table td:nth-child(4) { width: 15%; }
+    .card:nth-of-type(1) .data-table th:nth-child(5),
+    .card:nth-of-type(1) .data-table td:nth-child(5) { width: 20%; }
+
+    /* Approved users table */
+    .card:nth-of-type(2) .data-table th:nth-child(1),
+    .card:nth-of-type(2) .data-table td:nth-child(1) { width: 15%; }
+    .card:nth-of-type(2) .data-table th:nth-child(2),
+    .card:nth-of-type(2) .data-table td:nth-child(2) { width: 15%; }
+    .card:nth-of-type(2) .data-table th:nth-child(3),
+    .card:nth-of-type(2) .data-table td:nth-child(3) { width: 18%; }
+    .card:nth-of-type(2) .data-table th:nth-child(4),
+    .card:nth-of-type(2) .data-table td:nth-child(4) { width: 10%; }
+    .card:nth-of-type(2) .data-table th:nth-child(5),
+    .card:nth-of-type(2) .data-table td:nth-child(5) { width: 12%; }
+    .card:nth-of-type(2) .data-table th:nth-child(6),
+    .card:nth-of-type(2) .data-table td:nth-child(6) { width: 10%; }
+    .card:nth-of-type(2) .data-table th:nth-child(7),
+    .card:nth-of-type(2) .data-table td:nth-child(7) { width: 12%; }
+    .card:nth-of-type(2) .data-table th:nth-child(8),
+    .card:nth-of-type(2) .data-table td:nth-child(8) { width: 8%; }
+
+    .data-table td {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}

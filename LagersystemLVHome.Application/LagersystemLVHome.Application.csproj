@@ -1,0 +1,88 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <!--
+    Services depend on the full ASP.NET Core surface (ILogger, IConfiguration,
+    IHttpContextAccessor, IJSRuntime, AuthenticationStateProvider, IHostedService, ...).
+    A FrameworkReference is the supported way to opt into that surface from a
+    classlib without pulling in dozens of individual NuGet packages.
+  -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!-- Match the implicit usings the moved code was relying on under Sdk.Web. -->
+  <ItemGroup>
+    <Using Include="Microsoft.Extensions.Logging" />
+    <Using Include="Microsoft.Extensions.Configuration" />
+    <Using Include="Microsoft.Extensions.DependencyInjection" />
+    <Using Include="Microsoft.Extensions.Hosting" />
+    <Using Include="Microsoft.AspNetCore.Http" />
+    <Using Include="Microsoft.AspNetCore.Hosting" />
+    <Using Include="Microsoft.AspNetCore.Components" />
+    <Using Include="Microsoft.AspNetCore.Components.Authorization" />
+    <Using Include="Microsoft.JSInterop" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LagersystemLVHome.Domain\LagersystemLVHome.Domain.csproj" />
+    <ProjectReference Include="..\LagersystemLVHome.Data\LagersystemLVHome.Data.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Auth / Crypto -->
+    <PackageReference Include="BCrypt.Net-Next" Version="4.1.0" />
+    <PackageReference Include="GoogleAuthenticator" Version="3.2.0" />
+    <PackageReference Include="Otp.NET" Version="1.4.1" />
+
+    <!-- EF Core providers (services use IDbContextFactory + provider-specific operations e.g. DatabaseHealthService) -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.5" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.5" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.5" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
+    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
+
+    <!-- Caching backends -->
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.5" />
+
+    <!-- Inventory / QR -->
+    <PackageReference Include="QRCoder" Version="1.7.0" />
+    <PackageReference Include="ZXing.Net" Version="0.16.11" />
+
+    <!-- Reporting / Export -->
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
+    <PackageReference Include="Markdig" Version="1.1.1" />
+    <PackageReference Include="QuestPDF" Version="2026.2.4" />
+
+    <!-- Notification / Email / Teams / Push -->
+    <PackageReference Include="Lib.Net.Http.WebPush" Version="3.3.1" />
+    <PackageReference Include="Microsoft.Graph" Version="5.103.0" />
+    <PackageReference Include="Microsoft.Identity.Client" Version="4.83.1" />
+    <!-- Pinned above Microsoft.Graph's transitive 1.21.1 to patch GHSA-7j59-v9qr-6fq9 (header leak on cross-host redirect) -->
+    <PackageReference Include="Microsoft.Kiota.Abstractions" Version="1.22.0" />
+
+    <!-- Backup providers -->
+    <PackageReference Include="AWSSDK.S3" Version="4.0.19.1" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.27.0" />
+    <PackageReference Include="Google.Apis.Drive.v3" Version="1.73.0.4081" />
+
+    <!-- Security -->
+    <PackageReference Include="MaxMind.GeoIP2" Version="5.4.1" />
+
+    <!-- Image processing (ImageService) -->
+    <PackageReference Include="SkiaSharp" Version="3.119.2" />
+    <!-- Native libSkiaSharp for Linux containers (matches SkiaSharp version) -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.2" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+
+    <!-- Browser fingerprinting (DeviceFingerprintService uses IThumbmarkjsInterop) -->
+    <PackageReference Include="Soenneker.Blazor.Thumbmarkjs" Version="4.0.187" />
+
+    <!-- System -->
+    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.5" />
+  </ItemGroup>
+
+</Project>

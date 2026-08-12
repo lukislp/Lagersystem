@@ -1,0 +1,526 @@
+@using LagersystemLVHome.Domain.Models
+@using LagersystemLVHome.Application.Services
+@inject IUserIpAccessService IpAccessService
+@inject IToastService ToastService
+@inject I18nText I18nText
+
+<div class="card mb-4">
+    <div class="card-header bg-secondary text-white">
+        <h5 class="card-title mb-0">
+            <i class="bi bi-shield-lock me-2"></i>
+            @T.IpAccessRules_Title
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-warning mb-3">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <strong>Optional:</strong> @T.IpAccessRules_Warning
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h6 class="mb-1">@T.IpAccessRules_Restrictions</h6>
+                @if (User.IpRestrictionsEnabled)
+                {
+                    <span class="badge bg-success">@T.IpAccessRules_Active</span>
+                    <small class="text-muted ms-2">@T.IpAccessRules_Active_Desc</small>
+                }
+                else
+                {
+                    <span class="badge bg-secondary">@T.IpAccessRules_Disabled</span>
+                    <small class="text-muted ms-2">@T.IpAccessRules_Disabled_Desc</small>
+                }
+            </div>
+            <div>
+                @if (User.IpRestrictionsEnabled)
+                {
+                    <button class="btn btn-warning btn-sm" @onclick="DisableIpRestrictions" disabled="@isProcessing">
+                        <i class="bi bi-toggle-off me-1"></i> @T.IpAccessRules_Deactivate
+                    </button>
+                }
+                else
+                {
+                    <button class="btn btn-success btn-sm" @onclick="EnableIpRestrictions" disabled="@isProcessing">
+                        <i class="bi bi-toggle-on me-1"></i> @T.IpAccessRules_Activate
+                    </button>
+                }
+            </div>
+        </div>
+
+        @if (User.IpRestrictionsEnabled)
+        {
+            <hr>
+            
+            <!-- Regeln anzeigen -->
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0">
+                    <i class="bi bi-list-check me-1"></i>
+                    @string.Format(T.IpAccessRules_Rules, ipRules?.Count ?? 0)
+                </h6>
+                <button class="btn btn-primary btn-sm" @onclick="ShowAddRuleModal">
+                    <i class="bi bi-plus-circle me-1"></i> @T.IpAccessRules_AddRule
+                </button>
+            </div>
+
+            @if (isLoading)
+            {
+                <div class="text-center py-3">
+                    <span class="spinner-border spinner-border-sm"></span>
+                    @T.IpAccessRules_Loading
+                </div>
+            }
+            else if (ipRules == null || !ipRules.Any())
+            {
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    @T.IpAccessRules_NoRules
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>@T.IpAccessRules_Table_Pattern</th>
+                                <th>@T.IpAccessRules_Table_Desc</th>
+                                <th>@T.IpAccessRules_Table_Type</th>
+                                <th>@T.IpAccessRules_Table_Status</th>
+                                <th>@T.IpAccessRules_Table_Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var rule in ipRules.OrderByDescending(r => r.Priority))
+                            {
+                                <tr class="@(rule.IsActive ? "" : "table-secondary")">
+                                    <td><code>@rule.IpPattern</code></td>
+                                    <td>@(rule.Description ?? "-")</td>
+                                    <td>
+                                        @if (rule.IsAllowed)
+                                        {
+                                            <span class="badge bg-success">@T.IpAccessRules_Allowed</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger">@T.IpAccessRules_Blocked</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (rule.IsActive)
+                                        {
+                                            <span class="badge bg-primary">@T.IpAccessRules_StatusActive</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">@T.IpAccessRules_StatusInactive</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary me-1"
+                                                @onclick="() => EditRule(rule)"
+                                                title="@(T.IpAccessRules_EditBtn ?? "Bearbeiten")">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger"
+                                                @onclick="() => DeleteRule(rule)"
+                                                title="@(T.IpAccessRules_DeleteBtn ?? "Löschen")">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            <!-- Hilfe-Text -->
+            <div class="alert alert-light border mt-3">
+                <h6><i class="bi bi-lightbulb me-1"></i> @(T.IpAccessRules_PatternExamples ?? "IP-Pattern Beispiele:")</h6>
+                <ul class="mb-0 small">
+                    <li><code>192.168.1.100</code> - @(T.IpAccessRules_PatternExact ?? "Exakte IP-Adresse")</li>
+                    <li><code>192.168.1.*</code> - @(T.IpAccessRules_PatternRange ?? "Alle IPs im Bereich 192.168.1.0-255")</li>
+                    <li><code>10.0.0.0/24</code> - @(T.IpAccessRules_PatternCidr ?? "CIDR-Notation (10.0.0.0 - 10.0.0.255)")</li>
+                </ul>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Add/edit rule modal -->
+@if (showRuleModal)
+{
+    <div class="modal-backdrop" style="display: block;"></div>
+    <div class="modal" style="display: block;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        @if (editingRule == null)
+                        {
+                            <i class="bi bi-plus-circle me-2"></i>
+                            <text>@(T.IpAccessRules_NewTitle ?? "Neue IP-Regel")</text>
+                        }
+                        else
+                        {
+                            <i class="bi bi-pencil me-2"></i>
+                            <text>@(T.IpAccessRules_EditTitle ?? "Regel bearbeiten")</text>
+                        }
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseRuleModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">@(T.IpAccessRules_PatternLabel ?? "IP-Pattern *")</label>
+                        <input type="text" class="form-control @(ipPatternError != null ? "is-invalid" : "")"
+                               @bind="ruleIpPattern"
+                               @bind:event="oninput"
+                               @onblur="ValidateIpPattern"
+                               placeholder="@(T.IpAccessRules_PatternPlaceholder ?? "z.B. 192.168.1.* oder 10.0.0.0/24")">
+                            @if (ipPatternError != null)
+                            {
+                                <div class="invalid-feedback">@ipPatternError</div>
+                            }
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">@(T.IpAccessRules_DescriptionLabel ?? "Beschreibung")</label>
+                            <input type="text" class="form-control"
+                                   @bind="ruleDescription"
+                                   placeholder="@(T.IpAccessRules_DescriptionPlaceholder ?? "z.B. B\u00fcro, Home Office, VPN")">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">@(T.IpAccessRules_TypeLabel ?? "Typ")</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="ruleType" id="ruleAllow"
+                                           checked="@ruleIsAllowed"
+                                           @onchange="() => ruleIsAllowed = true">
+                                        <label class="btn btn-outline-success" for="ruleAllow">
+                                            <i class="bi bi-check-circle me-1"></i> @(T.IpAccessRules_Allow ?? "Erlauben (Whitelist)")
+                                        </label>
+
+                                        <input type="radio" class="btn-check" name="ruleType" id="ruleDeny"
+                                               checked="@(!ruleIsAllowed)"
+                                               @onchange="() => ruleIsAllowed = false">
+                                            <label class="btn btn-outline-danger" for="ruleDeny">
+                                                <i class="bi bi-x-circle me-1"></i> @(T.IpAccessRules_Block ?? "Blockieren (Blacklist)")
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    @if (editingRule != null)
+                                    {
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input type="checkbox" class="form-check-input" id="ruleActive" @bind="ruleIsActive">
+                                                    <label class="form-check-label" for="ruleActive">@(T.IpAccessRules_RuleActive ?? "Regel aktiv")</label>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button class="btn btn-secondary" @onclick="CloseRuleModal">@(T.IpAccessRules_Cancel ?? "Abbrechen")</button>
+                                        <button class="btn btn-primary" @onclick="SaveRule"
+                                                disabled="@(isProcessing || string.IsNullOrWhiteSpace(ruleIpPattern) || ipPatternError != null)">
+                                            @if (isProcessing)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                            }
+                                            <i class="bi bi-check-circle me-1"></i>
+                                            @(T.IpAccessRules_Save ?? "Speichern")
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Delete confirmation modal -->
+                    @if (showDeleteModal)
+                    {
+                        <div class="modal-backdrop" style="display: block;"></div>
+                        <div class="modal" style="display: block;">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-header bg-danger text-white">
+                                        <h5 class="modal-title">
+                                            <i class="bi bi-trash me-2"></i>
+                                            @(T.IpAccessRules_DeleteTitle ?? "Regel löschen?")
+                                        </h5>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p>@(T.IpAccessRules_DeleteConfirm ?? "Möchten Sie diese IP-Regel wirklich löschen?")</p>
+                                        <div class="alert alert-secondary">
+                                            <strong>@(T.IpAccessRules_DeletePatternLabel ?? "Pattern:")</strong> <code>@deletingRule?.IpPattern</code><br>
+                                            <strong>@(T.IpAccessRules_DeleteDescLabel ?? "Beschreibung:")</strong> @(deletingRule?.Description ?? "-")
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button class="btn btn-secondary" @onclick="() => showDeleteModal = false">@(T.IpAccessRules_Cancel ?? "Abbrechen")</button>
+                                        <button class="btn btn-danger" @onclick="ConfirmDeleteRule" disabled="@isProcessing">
+                                            @if (isProcessing)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                            }
+                                            @(T.IpAccessRules_Delete ?? "Löschen")
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+@code {
+    [Parameter]
+    public User User { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnSettingsChanged { get; set; }
+
+    private List<UserIpAccessRule>? ipRules;
+    private bool isLoading = false;
+    private bool isProcessing = false;
+
+    // Modal state
+    private bool showRuleModal = false;
+    private bool showDeleteModal = false;
+    private UserIpAccessRule? editingRule;
+    private UserIpAccessRule? deletingRule;
+
+    // Form Fields
+    private string ruleIpPattern = "";
+    private string? ruleDescription;
+    private bool ruleIsAllowed = true;
+    private bool ruleIsActive = true;
+    private string? ipPatternError;
+
+    private LagersystemLVHome.I18nText.App T = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+        if (User.IpRestrictionsEnabled)
+        {
+            await LoadRules();
+        }
+    }
+
+    private async Task LoadRules()
+    {
+        isLoading = true;
+        try
+        {
+            ipRules = await IpAccessService.GetRulesAsync(User.Id);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error loading rules: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task EnableIpRestrictions()
+    {
+        isProcessing = true;
+        try
+        {
+            var success = await IpAccessService.SetIpRestrictionsEnabledAsync(User.Id, true);
+            if (success)
+            {
+                User.IpRestrictionsEnabled = true;
+                await LoadRules();
+                ToastService.ShowSuccess("IP restrictions enabled");
+                await OnSettingsChanged.InvokeAsync();
+            }
+            else
+            {
+                ToastService.ShowError("Error enabling");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task DisableIpRestrictions()
+    {
+        isProcessing = true;
+        try
+        {
+            var success = await IpAccessService.SetIpRestrictionsEnabledAsync(User.Id, false);
+            if (success)
+            {
+                User.IpRestrictionsEnabled = false;
+                ipRules = null;
+                ToastService.ShowSuccess("IP restrictions disabled");
+                await OnSettingsChanged.InvokeAsync();
+            }
+            else
+            {
+                ToastService.ShowError("Error disabling");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private void ShowAddRuleModal()
+    {
+        editingRule = null;
+        ruleIpPattern = "";
+        ruleDescription = null;
+        ruleIsAllowed = true;
+        ruleIsActive = true;
+        ipPatternError = null;
+        showRuleModal = true;
+    }
+
+    private void EditRule(UserIpAccessRule rule)
+    {
+        editingRule = rule;
+        ruleIpPattern = rule.IpPattern;
+        ruleDescription = rule.Description;
+        ruleIsAllowed = rule.IsAllowed;
+        ruleIsActive = rule.IsActive;
+        ipPatternError = null;
+        showRuleModal = true;
+    }
+
+    private void CloseRuleModal()
+    {
+        showRuleModal = false;
+        editingRule = null;
+    }
+
+    private void ValidateIpPattern()
+    {
+        if (string.IsNullOrWhiteSpace(ruleIpPattern))
+        {
+            ipPatternError = "IP-Pattern ist erforderlich";
+            return;
+        }
+
+        if (!IpAccessService.IsValidIpPattern(ruleIpPattern))
+        {
+            ipPatternError = "Ungültiges IP-Pattern. Verwenden Sie z.B. 192.168.1.100, 192.168.1.* oder 10.0.0.0/24";
+            return;
+        }
+
+        ipPatternError = null;
+    }
+
+    private async Task SaveRule()
+    {
+        ValidateIpPattern();
+        if (ipPatternError != null) return;
+
+        isProcessing = true;
+        try
+        {
+            if (editingRule == null)
+            {
+                // New rule
+                var rule = await IpAccessService.AddRuleAsync(
+                User.Id,
+            ruleIpPattern,
+                    ruleDescription,
+                ruleIsAllowed,
+                        User.Id // CreatedByUserId
+                    );
+
+                if (rule != null)
+                {
+                    ToastService.ShowSuccess("Rule added");
+                    await LoadRules();
+                    CloseRuleModal();
+                }
+                else
+                {
+                    ToastService.ShowError("Error adding the rule");
+                }
+            }
+            else
+            {
+                // Regel bearbeiten
+                var success = await IpAccessService.UpdateRuleAsync(
+                    editingRule.Id,
+                ruleIpPattern,
+            ruleDescription,
+                ruleIsAllowed,
+        ruleIsActive,
+                User.Id // UpdatedByUserId
+                );
+
+                if (success)
+                {
+                    ToastService.ShowSuccess("Rule updated");
+                    await LoadRules();
+                    CloseRuleModal();
+                }
+                else
+                {
+                    ToastService.ShowError("Error updating the rule");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private void DeleteRule(UserIpAccessRule rule)
+    {
+        deletingRule = rule;
+        showDeleteModal = true;
+    }
+
+    private async Task ConfirmDeleteRule()
+    {
+        if (deletingRule == null) return;
+
+        isProcessing = true;
+        try
+        {
+            var success = await IpAccessService.DeleteRuleAsync(deletingRule.Id);
+            if (success)
+            {
+                ToastService.ShowSuccess("Rule deleted");
+                await LoadRules();
+                showDeleteModal = false;
+                deletingRule = null;
+            }
+            else
+            {
+                ToastService.ShowError("Error deleting");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+}

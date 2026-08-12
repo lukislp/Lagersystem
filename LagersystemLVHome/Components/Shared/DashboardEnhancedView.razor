@@ -1,0 +1,354 @@
+@using ApexCharts
+@using LagersystemLVHome.Domain.Models
+@inject I18nText I18nText
+
+<!-- Enhanced Analytics Dashboard View Component -->
+<div>
+    <!-- Health Score & Key Metrics Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-3">
+            <div class="card health-score-card">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-3">@T.Dashboard_Enhanced_Health</h6>
+                    <div class="health-score-circle @GetHealthScoreClass(DashboardData.InventoryHealthScore)">
+                        <span class="score-value">@DashboardData.InventoryHealthScore.ToString("F0")</span>
+                        <span class="score-label">/ 100</span>
+                    </div>
+                    <p class="mt-3 mb-0">@GetHealthScoreDescription(DashboardData.InventoryHealthScore)</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3">
+            <KpiCard Icon="bi-arrow-repeat"
+                     Title="@T.Dashboard_Enhanced_Turnover"
+                     Value="@DashboardData.StockTurnoverRate.ToString("F2")"
+                     Subtitle="@T.Dashboard_Enhanced_Throughput"
+                     Color="info" />
+        </div>
+
+        <div class="col-lg-3">
+            <KpiCard Icon="bi-calendar-x"
+                     Title="@T.Dashboard_Enhanced_ExpiryRisk"
+                     Value="@DashboardData.ExpiryAnalytics.TotalAtRisk.ToString("N0")"
+                     Subtitle="@(DashboardData.ExpiryAnalytics.TotalAtRiskValue.ToString("C"))"
+                     Color="warning"
+                     Clickable="true"
+                     OnClick="@(() => OnNavigateToLowStock?.Invoke())" />
+        </div>
+
+        <div class="col-lg-3">
+            <KpiCard Icon="bi-speedometer2"
+                     Title="@T.Dashboard_Enhanced_StorageUtilization"
+                     Value="@(DashboardData.StorageUtilization.AverageUtilization.ToString("F1") + "%")"
+                     Subtitle="@(string.Format(T.Dashboard_Enhanced_Occupied, DashboardData.StorageUtilization.OccupancyRate.ToString("F1")))"
+                     Color="success" />
+        </div>
+    </div>
+
+    <!-- ABC Analysis -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-bar-chart"></i> @T.Dashboard_Enhanced_ABC</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="abc-card class-a">
+                                <div class="abc-header">
+                                    <span class="abc-badge">A</span>
+                                    <h6>@T.Dashboard_Enhanced_ABC_High</h6>
+                                </div>
+                                <div class="abc-content">
+                                    <div class="abc-stat">
+                                        <span class="label">@T.Dashboard_Enhanced_ABC_Count</span>
+                                        <span class="value">@DashboardData.AbcAnalysis.ClassACount</span>
+                                    </div>
+                                    <div class="abc-stat">
+                                        <span class="label">@T.Dashboard_Enhanced_ABC_Value</span>
+                                        <span class="value">@DashboardData.AbcAnalysis.ClassAValue.ToString("C")</span>
+                                    </div>
+                                    <div class="progress mt-2">
+                                        <div class="progress-bar bg-danger" style="width: @DashboardData.AbcAnalysis.ClassAPercentage%">
+                                            @DashboardData.AbcAnalysis.ClassAPercentage.ToString("F1")%
+                                        </div>
+                                    </div>
+                                    <small class="text-muted">@T.Dashboard_Enhanced_ABC_A_Hint</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="abc-card class-b">
+                                <div class="abc-header">
+                                    <span class="abc-badge">B</span>
+                                    <h6>@T.Dashboard_Enhanced_ABC_Mid</h6>
+                                </div>
+                                <div class="abc-content">
+                                    <div class="abc-stat">
+                                        <span class="label">@T.Dashboard_Enhanced_ABC_Count</span>
+                                        <span class="value">@DashboardData.AbcAnalysis.ClassBCount</span>
+                                    </div>
+                                    <div class="abc-stat">
+                                        <span class="label">@T.Dashboard_Enhanced_ABC_Value</span>
+                                        <span class="value">@DashboardData.AbcAnalysis.ClassBValue.ToString("C")</span>
+                                    </div>
+                                    <div class="progress mt-2">
+                                        <div class="progress-bar bg-warning" style="width: @DashboardData.AbcAnalysis.ClassBPercentage%">
+                                            @DashboardData.AbcAnalysis.ClassBPercentage.ToString("F1")%
+                                        </div>
+                                    </div>
+                                    <small class="text-muted">@T.Dashboard_Enhanced_ABC_B_Hint</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="abc-card class-c">
+                                <div class="abc-header">
+                                    <span class="abc-badge">C</span>
+                                    <h6>@T.Dashboard_Enhanced_ABC_Low</h6>
+                                </div>
+                                <div class="abc-content">
+                                    <div class="abc-stat">
+                                        <span class="label">@T.Dashboard_Enhanced_ABC_Count</span>
+                                        <span class="value">@DashboardData.AbcAnalysis.ClassCCount</span>
+                                    </div>
+                                    <div class="abc-stat">
+                                        <span class="label">@T.Dashboard_Enhanced_ABC_Value</span>
+                                        <span class="value">@DashboardData.AbcAnalysis.ClassCValue.ToString("C")</span>
+                                    </div>
+                                    <div class="progress mt-2">
+                                        <div class="progress-bar bg-success" style="width: @((DashboardData.AbcAnalysis.ClassCPercentage > 0 ? DashboardData.AbcAnalysis.ClassCPercentage : 5))%">
+                                            @DashboardData.AbcAnalysis.ClassCPercentage.ToString("F1")%
+                                        </div>
+                                    </div>
+                                    <small class="text-muted">@T.Dashboard_Enhanced_ABC_C_Hint</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mt-3 mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>ABC-Analyse Interpretation:</strong>
+                        Klasse A Produkte (80% Wert) benötigen engste überwachung.
+                        Klasse B (15%) moderate Aufmerksamkeit.
+                        Klasse C (5%) einfache Kontrolle.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expiry analytics -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-calendar-x"></i> @T.Dashboard_Enhanced_Expiry</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="expiry-stat-card danger">
+                                <div class="expiry-icon">
+                                    <i class="bi bi-x-circle-fill"></i>
+                                </div>
+                                <div class="expiry-content">
+                                    <h3>@DashboardData.ExpiryAnalytics.ExpiredCount</h3>
+                                    <p>@T.Dashboard_Enhanced_Expired</p>
+                                    <small class="text-muted">@DashboardData.ExpiryAnalytics.ExpiredValue.ToString("C") Wert</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="expiry-stat-card warning">
+                                <div class="expiry-icon">
+                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                </div>
+                                <div class="expiry-content">
+                                    <h3>@DashboardData.ExpiryAnalytics.ExpiringSoonCount</h3>
+                                    <p>@T.Dashboard_Enhanced_ExpiringSoon</p>
+                                    <small class="text-muted">@DashboardData.ExpiryAnalytics.ExpiringSoonValue.ToString("C") Wert</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="expiry-stat-card info">
+                                <div class="expiry-icon">
+                                    <i class="bi bi-clock-fill"></i>
+                                </div>
+                                <div class="expiry-content">
+                                    <h3>@DashboardData.ExpiryAnalytics.ExpiringThisMonthCount</h3>
+                                    <p>@T.Dashboard_Enhanced_ExpiringThisMonth</p>
+                                    <small class="text-muted">@DashboardData.ExpiryAnalytics.ExpiringThisMonthValue.ToString("C") Wert</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Standard KPIs (for continuity) -->
+    <div class="kpi-grid">
+        <KpiCard Icon="bi-box-seam"
+                 Title="@T.Dashboard_KPI_Products"
+                 Value="@DashboardData.TotalProducts.ToString("N0")"
+                 Color="primary" />
+
+        <KpiCard Icon="bi-currency-dollar"
+                 Title="@T.Dashboard_KPI_StockValue"
+                 Value="@DashboardData.TotalStockValue.ToString("C")"
+                 Color="success" />
+
+        <KpiCard Icon="bi-exclamation-triangle"
+                 Title="@T.Dashboard_KPI_LowStock"
+                 Value="@DashboardData.LowStockCount.ToString("N0")"
+                 Color="danger"
+                 Clickable="true"
+                 OnClick="OnNavigateToLowStock" />
+
+        <KpiCard Icon="bi-grid-3x3-gap"
+                 Title="@T.Dashboard_KPI_Categories"
+                 Value="@DashboardData.TotalCategories.ToString("N0")"
+                 Color="info" />
+    </div>
+
+    <!-- Charts (same as standard, could be enhanced further) -->
+    <div class="row g-4 mb-4 mt-3">
+        <div class="col-lg-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-graph-up"></i> @T.Dashboard_Chart_Movements</h5>
+                </div>
+                <div class="card-body">
+                    @if (DashboardData?.StockTrends != null && DashboardData.StockTrends.Any())
+                    {
+                        <ApexChart TItem="StockTrendData" Title="@ChartTitle">
+                            <ApexPointSeries TItem="StockTrendData"
+                                             Items="@DashboardData.StockTrends"
+                                             Name="@T.Dashboard_Chart_StockIn"
+                                             SeriesType="SeriesType.Line"
+                                             XValue="@(e => e.Date.ToString("dd.MM"))"
+                                             YValue="@(e => (decimal)e.StockIn)" />
+                            <ApexPointSeries TItem="StockTrendData"
+                                             Items="@DashboardData.StockTrends"
+                                             Name="@T.Dashboard_Chart_StockOut"
+                                             SeriesType="SeriesType.Line"
+                                             XValue="@(e => e.Date.ToString("dd.MM"))"
+                                             YValue="@(e => (decimal)e.StockOut)" />
+                        </ApexChart>
+                    }
+                    else
+                    {
+                        <div class="no-data">
+                            <i class="bi bi-inbox"></i>
+                            <p>@string.Format(T.Dashboard_Chart_NoMovements, SelectedPeriod)</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity (same as standard) -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> @T.Dashboard_Recent_Movements</h5>
+                </div>
+                <div class="card-body">
+                    @if (DashboardData.RecentMovements.Any())
+                    {
+                        @foreach (var movement in DashboardData.RecentMovements.Take(10))
+                        {
+                            <div class="timeline-item">
+                                <span class="timeline-badge @GetMovementClass(movement)">
+                                    <i class="bi @GetMovementIcon(movement)"></i>
+                                </span>
+                                <div class="timeline-content">
+                                    <div class="timeline-header">
+                                        <strong>@movement.Product.Name</strong>
+                                        <span class="badge bg-secondary">@movement.Product.Category?.Name</span>
+                                    </div>
+                                    <div class="timeline-details">
+                                        <span class="@GetMovementTextClass(movement)">
+                                            @GetMovementTypeText(movement): @Math.Abs(movement.QuantityChange) @T.Dashboard_Stat_Units
+                                        </span>
+                                        @if (!string.IsNullOrEmpty(movement.Notes))
+                                        {
+                                            <span class="text-muted">→ @movement.Notes</span>
+                                        }
+                                    </div>
+                                    <small class="text-muted">
+                                        <i class="bi bi-calendar"></i> @movement.Timestamp.ToString("dd.MM.yyyy HH:mm")
+                                    </small>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="no-data">
+                            <i class="bi bi-inbox"></i>
+                            <p>@T.Dashboard_Recent_NoMovements</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@code {
+    [Parameter, EditorRequired]
+    public DashboardData DashboardData { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public int SelectedPeriod { get; set; }
+
+    [Parameter, EditorRequired]
+    public string ChartTitle { get; set; } = string.Empty;
+
+    [Parameter]
+    public Action? OnNavigateToLowStock { get; set; }
+
+    [Parameter, EditorRequired]
+    public Func<double, string> GetHealthScoreClass { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Func<double, string> GetHealthScoreDescription { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Func<List<DashboardEnhancedView.StorageUtilizationItem>> GetStorageUtilizationItems { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Func<StockMovement, string> GetMovementClass { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Func<StockMovement, string> GetMovementIcon { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Func<StockMovement, string> GetMovementTextClass { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Func<StockMovement, string> GetMovementTypeText { get; set; } = null!;
+
+    private LagersystemLVHome.I18nText.App T = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+    }
+
+    public class StorageUtilizationItem
+    {
+        public string Label { get; set; } = string.Empty;
+        public int Value { get; set; }
+    }
+}

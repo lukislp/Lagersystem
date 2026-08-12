@@ -1,0 +1,24 @@
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 400px;
+    }
+
+    .rotating {
+        animation: rotate 1s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .table-danger-light {
+        --bs-table-bg: #f8d7da;
+    }
+
+    .table-warning-light {
+        --bs-table-bg: #fff3cd;
+    }

@@ -1,0 +1,155 @@
+/* Session Blocking Overlay - Pure JavaScript CSS */
+
+#session-blocking-overlay-js {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    animation: session-overlay-fadeIn 0.3s ease-out;
+}
+
+@keyframes session-overlay-fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.session-blocking-modal-js {
+    background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+    border-radius: 20px;
+    padding: 3rem 2.5rem;
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+    box-shadow:
+        0 25px 50px -12px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.1);
+    animation: session-overlay-slideUp 0.4s ease-out;
+}
+
+@keyframes session-overlay-slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.session-blocking-icon-js {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.4);
+}
+
+.session-blocking-icon-js i {
+    font-size: 2.5rem;
+    color: white;
+}
+
+.session-blocking-modal-js h2 {
+    color: #f8fafc;
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+}
+
+.session-blocking-reason-js {
+    color: #fbbf24;
+    font-size: 1rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+    padding: 0.5rem 1rem;
+    background: rgba(251, 191, 36, 0.1);
+    border-radius: 8px;
+    border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.session-blocking-info-js {
+    color: #94a3b8;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+}
+
+.session-blocking-button-js {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    border: none;
+    padding: 1rem 2.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.4);
+    width: 100%;
+    color: white;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.session-blocking-button-js:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 30px -5px rgba(79, 70, 229, 0.5);
+    background: linear-gradient(135deg, #5b52f0 0%, #8b47f0 100%);
+}
+
+.session-blocking-button-js:active {
+    transform: translateY(0);
+}
+
+.session-blocking-timestamp-js {
+    margin-top: 1.5rem;
+    color: #64748b;
+    font-size: 0.8rem;
+}
+
+/* Mobile Optimierungen */
+@media screen and (max-width: 480px) {
+    .session-blocking-modal-js {
+        padding: 2rem 1.5rem;
+        margin: 1rem;
+        border-radius: 16px;
+    }
+
+    .session-blocking-icon-js {
+        width: 64px;
+        height: 64px;
+    }
+
+    .session-blocking-icon-js i {
+        font-size: 2rem;
+    }
+
+    .session-blocking-modal-js h2 {
+        font-size: 1.5rem;
+    }
+
+    .session-blocking-button-js {
+        padding: 0.875rem 2rem;
+        font-size: 1rem;
+    }
+}
+
+/* Prevent body scroll while the overlay is active */
+body:has(#session-blocking-overlay-js) {
+    overflow: hidden !important;
+}

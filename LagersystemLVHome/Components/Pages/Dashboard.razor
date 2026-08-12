@@ -1,0 +1,890 @@
+@page "/dashboard"
+@using ApexCharts
+@using LagersystemLVHome.Domain.Models
+@using LagersystemLVHome.Application.Services
+@using Microsoft.AspNetCore.Authorization
+@inherits CancellableComponentBase
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject IDashboardService DashboardService
+@inject IToastService ToastService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@inject ILogger<Dashboard> _logger
+@inject I18nText I18nText
+
+<PageTitle>@T.Dashboard_PageTitle</PageTitle>
+
+<div class="dashboard-container">
+    
+    <!-- Header with View Toggle -->
+    <div class="dashboard-header mb-4">
+        <div>
+            <h2>
+                <i class="bi bi-@(dashboardView == DashboardView.Standard ? "speedometer2" : "graph-up-arrow")"></i>
+                @(dashboardView == DashboardView.Standard ? "Dashboard" : T.Nav_AnalyticsDashboard)
+            </h2>
+            <p class="text-muted">@(dashboardView == DashboardView.Standard ? T.Dashboard_Subtitle_Standard : T.Dashboard_Subtitle_Analytics)</p>
+        </div>
+  
+        <div class="dashboard-controls">
+            <!-- View toggle -->
+            <div class="btn-group me-2" role="group">
+                <button type="button"
+                        class="btn @(dashboardView == DashboardView.Standard ? "btn-primary" : "btn-outline-primary")"
+                        @onclick="() => SwitchView(DashboardView.Standard)">
+                    <i class="bi bi-speedometer2"></i> @T.Dashboard_Standard
+                </button>
+                <button type="button"
+                        class="btn @(dashboardView == DashboardView.Enhanced ? "btn-primary" : "btn-outline-primary")"
+                        @onclick="() => SwitchView(DashboardView.Enhanced)">
+                    <i class="bi bi-graph-up-arrow"></i> @T.Dashboard_Analytics
+                </button>
+            </div>
+            
+            <select class="form-select" @bind="selectedPeriod" @bind:after="RefreshDashboard">
+                <option value="7">@T.Dashboard_Last7Days</option>
+                <option value="30">@T.Dashboard_Last30Days</option>
+                <option value="90">@T.Dashboard_Last90Days</option>
+                @if (dashboardView == DashboardView.Enhanced)
+                {
+                    <option value="365">@T.Dashboard_LastYear</option>
+                }
+            </select>
+     
+            <button class="btn btn-outline-primary" @onclick="RefreshDashboard" disabled="@isLoading">
+                <i class="bi @(isLoading ? "bi-arrow-clockwise rotating" : "bi-arrow-clockwise")"></i>
+                @T.Dashboard_Refresh
+            </button>
+
+            <!-- Export button for BOTH views -->
+            <button class="btn btn-outline-success" @onclick="OpenExportModal">
+                <i class="bi bi-download"></i>
+                @T.Dashboard_Export
+            </button>
+        </div>
+    </div>
+
+    @if (isLoading && dashboardData == null)
+    {
+        <div class="loading-container">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Lädt...</span>
+            </div>
+            <p>@T.Dashboard_Loading</p>
+        </div>
+    }
+    else if (dashboardData != null)
+    {
+        @if (dashboardView == DashboardView.Standard)
+        {
+            <!-- ===== STANDARD DASHBOARD VIEW ===== -->
+            <DashboardStandardView DashboardData="@dashboardData"
+                                   SelectedPeriod="@selectedPeriod"
+                                   ChartTitle="@chartTitle"
+                                   OnNavigateToLowStock="NavigateToLowStock"
+                                   GetMovementClass="GetMovementClass"
+                                   GetMovementIcon="GetMovementIcon"
+                                   GetMovementTextClass="GetMovementTextClass"
+                                   GetMovementTypeText="GetMovementTypeText" />
+        }
+        else
+        {
+            <!-- ===== ENHANCED ANALYTICS DASHBOARD VIEW ===== -->
+            <DashboardEnhancedView DashboardData="@dashboardData"
+                                   SelectedPeriod="@selectedPeriod"
+                                   ChartTitle="@chartTitle"
+                                   OnNavigateToLowStock="NavigateToLowStock"
+                                   GetHealthScoreClass="GetHealthScoreClass"
+                                   GetHealthScoreDescription="GetHealthScoreDescription"
+                                   GetStorageUtilizationItems="GetStorageUtilizationItems"
+                                   GetMovementClass="GetMovementClass"
+                                   GetMovementIcon="GetMovementIcon"
+                                   GetMovementTextClass="GetMovementTextClass"
+                                   GetMovementTypeText="GetMovementTypeText" />
+        }
+    }
+</div>
+
+<!-- Export Modal -->
+<ExportModal ShowModal="@showExportModal"
+             DashboardData="@dashboardData"
+             DashboardView="@dashboardView"
+             SelectedPeriod="@selectedPeriod"
+             OnExport="EventCallback.Factory.Create<(ExportModal.ExportFormat, ExportModal.ExportOptions)>(this, async args => await HandleExport(args.Item1, args.Item2))"
+             OnClose="EventCallback.Factory.Create(this, CloseExportModal)" />
+
+
+@code {
+    // Dashboard view enum (public for ExportModal)
+    public enum DashboardView
+    {
+        Standard,
+        Enhanced
+    }
+
+    private DashboardView dashboardView = DashboardView.Standard;
+    private DashboardData? dashboardData;
+    private bool isLoading = true;
+    private int selectedPeriod = 30;
+    private string chartTitle = "";
+
+    // Export Modal State
+    private bool showExportModal = false;
+    private ExportModal? exportModalRef;
+
+    private LagersystemLVHome.I18nText.App T = new();
+
+    protected override void OnInitialized()
+    {
+        UpdateChartTitle();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+        await LoadDashboardData();
+    }
+
+    // Switch Dashboard View
+    private async Task SwitchView(DashboardView view)
+    {
+        dashboardView = view;
+        UpdateChartTitle();
+        
+        // Reload data if switching to enhanced view and period is default
+        if (view == DashboardView.Enhanced && selectedPeriod == 30)
+        {
+            await LoadDashboardData();
+        }
+ 
+        StateHasChanged();
+    }
+
+    private void UpdateChartTitle()
+    {
+        chartTitle = $"Letzten {selectedPeriod} Tage";
+    }
+
+    private async Task LoadDashboardData()
+    {
+        try
+        {
+            isLoading = true;
+            dashboardData = await DashboardService.GetDashboardDataAsync(cancellationToken: ComponentCancellation);
+
+            // Update stock trends based on selected period
+            if (dashboardData != null)
+            {
+                dashboardData.StockTrends = await DashboardService.GetStockTrendsAsync(selectedPeriod, ComponentCancellation);
+                UpdateChartTitle();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Component disposed mid-load; nothing to do.
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error loading the dashboard: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task RefreshDashboard()
+    {
+        await LoadDashboardData();
+        ToastService.ShowSuccess("Dashboard refreshed");
+    }
+
+    private void NavigateToLowStock()
+    {
+        Navigation.NavigateTo("/low-stock");
+    }
+
+    // Export Modal Methods
+    private void OpenExportModal()
+    {
+        showExportModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseExportModal()
+    {
+        showExportModal = false;
+        StateHasChanged();
+    }
+
+    private async Task HandleExport(ExportModal.ExportFormat format, ExportModal.ExportOptions options)
+    {
+        try
+        {
+            _logger.LogInformation("Starting export as {Format}", format);
+    
+            switch (format)
+            {
+                case ExportModal.ExportFormat.JSON:
+                    await ExportAsJSON(options);
+                    break;
+                case ExportModal.ExportFormat.CSV:
+                    await ExportAsCSV(options);
+                    break;
+                case ExportModal.ExportFormat.Excel:
+                    await ExportAsExcel(options);
+                    break;
+                case ExportModal.ExportFormat.PDF:
+                    await ExportAsPDF(options);
+                    break;
+            }
+       
+            // Wait briefly to ensure the download has started
+            await Task.Delay(500);
+        
+            CloseExportModal();
+      
+            // Show a success toast only on successful export
+            ToastService.ShowSuccess($"Dashboard exported as {format} successfully!");
+       
+            _logger.LogInformation("Export as {Format} completed successfully", format);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error exporting dashboard as {Format}", format);
+            CloseExportModal();
+            ToastService.ShowError($"Error during export: {ex.Message}");
+        }
+    }
+
+    private async Task ExportAsJSON(ExportModal.ExportOptions options)
+    {
+        try
+        {
+            _logger.LogInformation("Starting JSON export");
+    
+            if (dashboardData == null)
+            {
+                _logger.LogWarning("No dashboard data available for export");
+                ToastService.ShowError("No data available to export");
+                return;
+            }
+
+            // Build export data
+            var exportData = new
+            {
+                GeneratedAt = DateTime.Now.ToString("dd.MM.yyyy HH:mm"),
+                Period = $"Letzten {selectedPeriod} Tage",
+                View = dashboardView == DashboardView.Enhanced ? "Analytics" : "Standard",
+   
+                // KPIs
+                KPIs = new
+                {
+                    dashboardData.TotalProducts,
+                    TotalStockValue = dashboardData.TotalStockValue.ToString("C"),
+                    dashboardData.LowStockCount,
+                    dashboardData.TotalCategories,
+                    dashboardData.TotalWarehouses,
+                    dashboardData.TotalStorageLocations,
+                    dashboardData.TotalStockQuantity,
+                    AverageProductValue = dashboardData.AverageProductValue.ToString("C")
+                },
+ 
+                // Enhanced analytics (only when the analytics view is active)
+                Analytics = options.IncludeAnalytics && dashboardView == DashboardView.Enhanced ? new
+                {
+                    HealthScore = dashboardData.InventoryHealthScore.ToString("F2"),
+                    StockTurnoverRate = dashboardData.StockTurnoverRate.ToString("F2"),
+                    ABCAnalysis = new
+                    {
+                        ClassA = $"{dashboardData.AbcAnalysis.ClassACount} Produkte ({dashboardData.AbcAnalysis.ClassAValue:C})",
+                        ClassB = $"{dashboardData.AbcAnalysis.ClassBCount} Produkte ({dashboardData.AbcAnalysis.ClassBValue:C})",
+                        ClassC = $"{dashboardData.AbcAnalysis.ClassCCount} Produkte ({dashboardData.AbcAnalysis.ClassCValue:C})"
+                    },
+                    ExpiryRisk = new
+                    {
+                        Expired = $"{dashboardData.ExpiryAnalytics.ExpiredCount} ({dashboardData.ExpiryAnalytics.ExpiredValue:C})",
+                        ExpiringSoon = $"{dashboardData.ExpiryAnalytics.ExpiringSoonCount} ({dashboardData.ExpiryAnalytics.ExpiringSoonValue:C})",
+                        ExpiringThisMonth = $"{dashboardData.ExpiryAnalytics.ExpiringThisMonthCount} ({dashboardData.ExpiryAnalytics.ExpiringThisMonthValue:C})"
+                    },
+                    StorageUtilization = new
+                    {
+                        TotalLocations = dashboardData.StorageUtilization.TotalLocations,
+                        OccupiedLocations = dashboardData.StorageUtilization.OccupiedLocations,
+                        AverageUtilization = $"{dashboardData.StorageUtilization.AverageUtilization:F1}%",
+                        OccupancyRate = $"{dashboardData.StorageUtilization.OccupancyRate:F1}%"
+                    }
+                } : null,
+  
+                // Top Movers
+                TopMovers = dashboardData.TopMovers.Select(tm => new
+                {
+                    tm.ProductName,
+                    tm.CategoryName,
+                    tm.MovementCount,
+                    TotalValue = tm.TotalValue.ToString("C")
+                }).ToList(),
+     
+                // Category Values
+                CategoryValues = dashboardData.CategoryValues.Select(cv => new
+                {
+                    cv.CategoryName,
+                    cv.ProductCount,
+                    cv.TotalQuantity,
+                    TotalValue = cv.TotalValue.ToString("C")
+                }).ToList(),
+
+                // Warehouse Distribution
+                WarehouseDistribution = dashboardData.WarehouseDistribution.Select(wd => new
+                {
+                    wd.WarehouseName,
+                    wd.StorageLocationCount,
+                    wd.ProductCount,
+                    TotalValue = wd.TotalValue.ToString("C")
+                }).ToList(),
+ 
+                // Recent Movements (optional)
+                RecentMovements = options.IncludeMovements ? dashboardData.RecentMovements.Take(20).Select(m => new
+                {
+                    m.Product.Name,
+                    CategoryName = m.Product.Category?.Name ?? "Ohne Kategorie",
+                    QuantityChange = m.QuantityChange,
+                    Type = m.QuantityChange > 0 ? "Wareneingang" : "Warenausgang",
+                    Notes = m.Notes ?? "",
+                    Timestamp = m.Timestamp.ToString("dd.MM.yyyy HH:mm")
+                }).ToList() : null
+            };
+
+            _logger.LogInformation("Serializing export data");
+  
+            // Serialize to JSON
+            var json = System.Text.Json.JsonSerializer.Serialize(exportData, new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            });
+
+            _logger.LogInformation("JSON serialized, size: {Size} bytes", json.Length);
+    
+            // Download as JSON
+            var fileName = $"Dashboard_{dashboardView}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+  
+            _logger.LogInformation("Attempting to download file: {FileName}", fileName);
+
+            var result = await JSRuntime.InvokeAsync<bool>(
+                "fileDownload.downloadText",
+                json,
+                fileName,
+                "application/json;charset=utf-8",
+                false);
+
+            if (!result)
+            {
+                throw new Exception("JSON download failed");
+            }
+
+            _logger.LogInformation("Download triggered successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error exporting dashboard as JSON");
+            throw;
+        }
+    }
+
+    private async Task ExportAsCSV(ExportModal.ExportOptions options)
+    {
+        try
+        {
+            _logger.LogInformation("Starting CSV export");
+            
+            if (dashboardData == null)
+            {
+                _logger.LogWarning("No dashboard data available for export");
+                ToastService.ShowError("No data available to export");
+                return;
+            }
+
+            var csv = new System.Text.StringBuilder();
+  
+            // Header
+            csv.AppendLine("Dashboard Export");
+            csv.AppendLine($"Generiert am: {DateTime.Now:dd.MM.yyyy HH:mm}");
+            csv.AppendLine($"Zeitraum: Letzten {selectedPeriod} Tage");
+            csv.AppendLine($"Ansicht: {(dashboardView == DashboardView.Enhanced ? "Analytics" : "Standard")}");
+            csv.AppendLine();
+   
+            // KPIs
+            csv.AppendLine("=== KENNZAHLEN ===");
+            csv.AppendLine("Metrik,Wert");
+            csv.AppendLine($"Produkte Gesamt,{dashboardData.TotalProducts}");
+            csv.AppendLine($"Lagerwert,{dashboardData.TotalStockValue:C}");
+            csv.AppendLine($"Niedriger Bestand,{dashboardData.LowStockCount}");
+            csv.AppendLine($"Kategorien,{dashboardData.TotalCategories}");
+            csv.AppendLine($"Lager,{dashboardData.TotalWarehouses}");
+            csv.AppendLine($"Lagerplätze,{dashboardData.TotalStorageLocations}");
+            csv.AppendLine($"Einheiten Gesamt,{dashboardData.TotalStockQuantity}");
+            csv.AppendLine($"Durchschnittlicher Produktwert,{dashboardData.AverageProductValue:C}");
+            csv.AppendLine();
+
+            // Analytics (only when Enhanced + IncludeAnalytics)
+            if (options.IncludeAnalytics && dashboardView == DashboardView.Enhanced)
+            {
+                csv.AppendLine("=== ANALYTICS ===");
+                csv.AppendLine($"Lager Health Score,{dashboardData.InventoryHealthScore:F2}");
+                csv.AppendLine($"Umschlagsrate,{dashboardData.StockTurnoverRate:F2}");
+                csv.AppendLine();
+       
+                csv.AppendLine("--- ABC Analyse ---");
+                csv.AppendLine("Klasse,Anzahl Produkte,Gesamtwert");
+                csv.AppendLine($"A,{dashboardData.AbcAnalysis.ClassACount},{dashboardData.AbcAnalysis.ClassAValue:C}");
+                csv.AppendLine($"B,{dashboardData.AbcAnalysis.ClassBCount},{dashboardData.AbcAnalysis.ClassBValue:C}");
+                csv.AppendLine($"C,{dashboardData.AbcAnalysis.ClassCCount},{dashboardData.AbcAnalysis.ClassCValue:C}");
+                csv.AppendLine();
+      
+                csv.AppendLine("--- MHD Risiko ---");
+                csv.AppendLine("Status,Anzahl,Wert");
+                csv.AppendLine($"Abgelaufen,{dashboardData.ExpiryAnalytics.ExpiredCount},{dashboardData.ExpiryAnalytics.ExpiredValue:C}");
+                csv.AppendLine($"Bald abgelaufen,{dashboardData.ExpiryAnalytics.ExpiringSoonCount},{dashboardData.ExpiryAnalytics.ExpiringSoonValue:C}");
+                csv.AppendLine($"Diesen Monat,{dashboardData.ExpiryAnalytics.ExpiringThisMonthCount},{dashboardData.ExpiryAnalytics.ExpiringThisMonthValue:C}");
+                csv.AppendLine();
+   
+                csv.AppendLine("--- Lagerplatz-Auslastung ---");
+                csv.AppendLine($"Plätze Gesamt,{dashboardData.StorageUtilization.TotalLocations}");
+                csv.AppendLine($"Belegt,{dashboardData.StorageUtilization.OccupiedLocations}");
+                csv.AppendLine($"Durchschnittliche Auslastung,{dashboardData.StorageUtilization.AverageUtilization:F1}%");
+                csv.AppendLine($"Belegungsrate,{dashboardData.StorageUtilization.OccupancyRate:F1}%");
+                csv.AppendLine();
+            }
+            
+            // Top Movers
+            csv.AppendLine("=== TOP BEWEGTE PRODUKTE ===");
+            csv.AppendLine("Produkt,Kategorie,Bewegungen,Gesamtwert");
+            foreach (var mover in dashboardData.TopMovers.Take(10))
+            {
+                csv.AppendLine($"\"{mover.ProductName}\",\"{mover.CategoryName}\",{mover.MovementCount},{mover.TotalValue:F2}");
+            }
+            csv.AppendLine();
+  
+            // Category Values
+            csv.AppendLine("=== KATEGORIEN ===");
+            csv.AppendLine("Kategorie,Anzahl Produkte,Menge,Gesamtwert");
+            foreach (var cat in dashboardData.CategoryValues)
+            {
+                csv.AppendLine($"\"{cat.CategoryName}\",{cat.ProductCount},{cat.TotalQuantity},{cat.TotalValue:F2}");
+            }
+            csv.AppendLine();
+       
+            // Warehouse Distribution
+            csv.AppendLine("=== LAGER-VERTEILUNG ===");
+            csv.AppendLine("Lager,Lagerplätze,Produkte,Gesamtwert");
+            foreach (var wh in dashboardData.WarehouseDistribution)
+            {
+                csv.AppendLine($"\"{wh.WarehouseName}\",{wh.StorageLocationCount},{wh.ProductCount},{wh.TotalValue:F2}");
+            }
+            csv.AppendLine();
+  
+            // Recent Movements (optional)
+            if (options.IncludeMovements)
+            {
+                csv.AppendLine("=== LETZTE BEWEGUNGEN ===");
+                csv.AppendLine("Produkt,Kategorie,Typ,Menge,Notiz,Zeitstempel");
+                foreach (var movement in dashboardData.RecentMovements.Take(20))
+                {
+                    var type = movement.QuantityChange > 0 ? "Eingang" : "Ausgang";
+                    csv.AppendLine($"\"{movement.Product.Name}\",\"{movement.Product.Category?.Name ?? "Ohne"}\",{type},{Math.Abs(movement.QuantityChange)},\"{movement.Notes ?? ""}\",{movement.Timestamp:dd.MM.yyyy HH:mm}");
+                }
+            }
+            
+            var fileName = $"Dashboard_{dashboardView}_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            var csvContent = csv.ToString();
+            
+            _logger.LogInformation("CSV generated, size: {Size} bytes", csvContent.Length);
+
+            var result = await JSRuntime.InvokeAsync<bool>(
+                "fileDownload.downloadText",
+                csvContent,
+                fileName,
+                "text/csv;charset=utf-8",
+                true);
+
+            if (!result)
+            {
+                throw new Exception("CSV download failed");
+            }
+
+            _logger.LogInformation("CSV download triggered successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error exporting dashboard as CSV");
+            throw;
+        }
+    }
+
+    private async Task ExportAsExcel(ExportModal.ExportOptions options)
+    {
+        try
+        {
+            _logger.LogInformation("Starting Excel export");
+            
+            if (dashboardData == null)
+            {
+                _logger.LogWarning("No dashboard data available for export");
+                ToastService.ShowError("No data available to export");
+                return;
+            }
+
+            // Build an HTML table (recognised by Excel as .xls)
+            var html = new System.Text.StringBuilder();
+  
+            html.AppendLine("<!DOCTYPE html>");
+            html.AppendLine("<html>");
+            html.AppendLine("<head>");
+            html.AppendLine("<meta charset='utf-8'>");
+            html.AppendLine("<style>");
+            html.AppendLine("table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }");
+            html.AppendLine("th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }");
+            html.AppendLine("th { background-color: #4CAF50; color: white; font-weight: bold; }");
+            html.AppendLine("tr:nth-child(even) { background-color: #f2f2f2; }");
+            html.AppendLine("h1 { color: #333; }");
+            html.AppendLine("h2 { color: #666; margin-top: 20px; }");
+            html.AppendLine(".header-info { margin-bottom: 20px; }");
+            html.AppendLine("</style>");
+            html.AppendLine("</head>");
+            html.AppendLine("<body>");
+            
+            // Header
+            html.AppendLine("<h1>Dashboard Export</h1>");
+            html.AppendLine("<div class='header-info'>");
+            html.AppendLine($"<p><strong>Generiert am:</strong> {DateTime.Now:dd.MM.yyyy HH:mm}</p>");
+            html.AppendLine($"<p><strong>Zeitraum:</strong> Letzten {selectedPeriod} Tage</p>");
+            html.AppendLine($"<p><strong>Ansicht:</strong> {(dashboardView == DashboardView.Enhanced ? "Analytics Dashboard" : "Standard Dashboard")}</p>");
+            html.AppendLine("</div>");
+   
+            // KPIs table
+            html.AppendLine("<h2>📈 Kennzahlen</h2>");
+            html.AppendLine("<table>");
+            html.AppendLine("<tr><th>Metrik</th><th>Wert</th></tr>");
+            html.AppendLine($"<tr><td>Produkte Gesamt</td><td>{dashboardData.TotalProducts:N0}</td></tr>");
+            html.AppendLine($"<tr><td>Lagerwert</td><td>{dashboardData.TotalStockValue:C}</td></tr>");
+            html.AppendLine($"<tr><td>Niedriger Bestand</td><td>{dashboardData.LowStockCount:N0}</td></tr>");
+            html.AppendLine($"<tr><td>Kategorien</td><td>{dashboardData.TotalCategories:N0}</td></tr>");
+            html.AppendLine($"<tr><td>Lager</td><td>{dashboardData.TotalWarehouses:N0}</td></tr>");
+            html.AppendLine($"<tr><td>Lagerplätze</td><td>{dashboardData.TotalStorageLocations:N0}</td></tr>");
+            html.AppendLine($"<tr><td>Einheiten Gesamt</td><td>{dashboardData.TotalStockQuantity:N0}</td></tr>");
+            html.AppendLine($"<tr><td>Ø Produktwert</td><td>{dashboardData.AverageProductValue:C}</td></tr>");
+            html.AppendLine("</table>");
+
+            // Analytics (only when Enhanced + IncludeAnalytics)
+            if (options.IncludeAnalytics && dashboardView == DashboardView.Enhanced)
+            {
+                html.AppendLine("<h2>🔬 Analytics</h2>");
+                html.AppendLine("<table>");
+                html.AppendLine("<tr><th>Metrik</th><th>Wert</th></tr>");
+                html.AppendLine($"<tr><td>Lager Health Score</td><td>{dashboardData.InventoryHealthScore:F2}</td></tr>");
+                html.AppendLine($"<tr><td>Umschlagsrate</td><td>{dashboardData.StockTurnoverRate:F2}</td></tr>");
+                html.AppendLine("</table>");
+        
+                // ABC analysis
+                html.AppendLine("<h3>ABC Analyse</h3>");
+                html.AppendLine("<table>");
+                html.AppendLine("<tr><th>Klasse</th><th>Anzahl Produkte</th><th>Gesamtwert</th></tr>");
+                html.AppendLine($"<tr><td>A</td><td>{dashboardData.AbcAnalysis.ClassACount}</td><td>{dashboardData.AbcAnalysis.ClassAValue:C}</td></tr>");
+                html.AppendLine($"<tr><td>B</td><td>{dashboardData.AbcAnalysis.ClassBCount}</td><td>{dashboardData.AbcAnalysis.ClassBValue:C}</td></tr>");
+                html.AppendLine($"<tr><td>C</td><td>{dashboardData.AbcAnalysis.ClassCCount}</td><td>{dashboardData.AbcAnalysis.ClassCValue:C}</td></tr>");
+                html.AppendLine("</table>");
+       
+                // Expiry (MHD) risk
+                html.AppendLine("<h3>MHD Risiko</h3>");
+                html.AppendLine("<table>");
+                html.AppendLine("<tr><th>Status</th><th>Anzahl</th><th>Wert</th></tr>");
+                html.AppendLine($"<tr><td>Abgelaufen</td><td>{dashboardData.ExpiryAnalytics.ExpiredCount}</td><td>{dashboardData.ExpiryAnalytics.ExpiredValue:C}</td></tr>");
+                html.AppendLine($"<tr><td>Bald abgelaufen</td><td>{dashboardData.ExpiryAnalytics.ExpiringSoonCount}</td><td>{dashboardData.ExpiryAnalytics.ExpiringSoonValue:C}</td></tr>");
+                html.AppendLine($"<tr><td>Diesen Monat</td><td>{dashboardData.ExpiryAnalytics.ExpiringThisMonthCount}</td><td>{dashboardData.ExpiryAnalytics.ExpiringThisMonthValue:C}</td></tr>");
+                html.AppendLine("</table>");
+            }
+          
+            // Top Movers
+            html.AppendLine("<h2>🔥 Top Bewegte Produkte</h2>");
+            html.AppendLine("<table>");
+            html.AppendLine("<tr><th>Produkt</th><th>Kategorie</th><th>Bewegungen</th><th>Gesamtwert</th></tr>");
+            foreach (var mover in dashboardData.TopMovers.Take(10))
+            {
+                html.AppendLine($"<tr><td>{mover.ProductName}</td><td>{mover.CategoryName}</td><td>{mover.MovementCount:N0}</td><td>{mover.TotalValue:C}</td></tr>");
+            }
+            html.AppendLine("</table>");
+   
+            // Categories
+            html.AppendLine("<h2>📦 Kategorien</h2>");
+            html.AppendLine("<table>");
+            html.AppendLine("<tr><th>Kategorie</th><th>Produkte</th><th>Menge</th><th>Gesamtwert</th></tr>");
+            foreach (var cat in dashboardData.CategoryValues)
+            {
+                html.AppendLine($"<tr><td>{cat.CategoryName}</td><td>{cat.ProductCount:N0}</td><td>{cat.TotalQuantity:N0}</td><td>{cat.TotalValue:C}</td></tr>");
+            }
+            html.AppendLine("</table>");
+            
+            // Warehouse distribution
+            html.AppendLine("<h2>🏢 Lager-Verteilung</h2>");
+            html.AppendLine("<table>");
+            html.AppendLine("<tr><th>Lager</th><th>Lagerplätze</th><th>Produkte</th><th>Gesamtwert</th></tr>");
+            foreach (var wh in dashboardData.WarehouseDistribution)
+            {
+                html.AppendLine($"<tr><td>{wh.WarehouseName}</td><td>{wh.StorageLocationCount:N0}</td><td>{wh.ProductCount:N0}</td><td>{wh.TotalValue:C}</td></tr>");
+            }
+            html.AppendLine("</table>");
+      
+            // Recent movements (optional)
+            if (options.IncludeMovements)
+            {
+                html.AppendLine("<h2>🕒 Letzte Bewegungen</h2>");
+                html.AppendLine("<table>");
+                html.AppendLine("<tr><th>Produkt</th><th>Kategorie</th><th>Typ</th><th>Menge</th><th>Notiz</th><th>Zeitstempel</th></tr>");
+                foreach (var movement in dashboardData.RecentMovements.Take(20))
+                {
+                    var type = movement.QuantityChange > 0 ? "Eingang" : "Ausgang";
+                    html.AppendLine($"<tr><td>{movement.Product.Name}</td><td>{movement.Product.Category?.Name ?? "Ohne"}</td><td>{type}</td><td>{Math.Abs(movement.QuantityChange)}</td><td>{movement.Notes ?? "-"}</td><td>{movement.Timestamp:dd.MM.yyyy HH:mm}</td></tr>");
+                }
+                html.AppendLine("</table>");
+            }
+   
+            html.AppendLine("</body>");
+            html.AppendLine("</html>");
+   
+            var fileName = $"Dashboard_{dashboardView}_{DateTime.Now:yyyyMMdd_HHmmss}.xls";
+            var htmlContent = html.ToString();
+            
+            _logger.LogInformation("Excel HTML generated, size: {Size} bytes", htmlContent.Length);
+
+            var result = await JSRuntime.InvokeAsync<bool>(
+                "fileDownload.downloadText",
+                htmlContent,
+                fileName,
+                "application/vnd.ms-excel;charset=utf-8",
+                true);
+
+            if (!result)
+            {
+                throw new Exception("Excel download failed");
+            }
+
+            _logger.LogInformation("Excel download triggered successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error exporting dashboard as Excel");
+            throw;
+        }
+    }
+
+    private async Task ExportAsPDF(ExportModal.ExportOptions options)
+    {
+        try
+        {
+            _logger.LogInformation("Starting PDF export");
+     
+            if (dashboardData == null)
+            {
+                _logger.LogWarning("No dashboard data available for export");
+                ToastService.ShowError("No data available to export");
+                return;
+            }
+
+            // Generate HTML for PDF
+            var html = new System.Text.StringBuilder();
+  
+            html.AppendLine("<!DOCTYPE html>");
+            html.AppendLine("<html>");
+            html.AppendLine("<head>");
+            html.AppendLine("<meta charset='utf-8'>");
+            html.AppendLine("<style>");
+            html.AppendLine("@page { size: A4; margin: 15mm; }");
+            html.AppendLine("body { font-family: Arial, sans-serif; font-size: 10pt; line-height: 1.4; }");
+            html.AppendLine("h1 { color: #2c3e50; font-size: 20pt; margin-bottom: 5px; }");
+            html.AppendLine("h2 { color: #34495e; font-size: 14pt; margin-top: 15px; margin-bottom: 5px; border-bottom: 2px solid #3498db; padding-bottom: 3px; }");
+            html.AppendLine("h3 { color: #7f8c8d; font-size: 11pt; margin-top: 10px; }");
+            html.AppendLine("table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 9pt; }");
+            html.AppendLine("th { background-color: #3498db; color: white; padding: 6px; text-align: left; font-weight: bold; }");
+            html.AppendLine("td { border: 1px solid #ddd; padding: 5px; }");
+            html.AppendLine("tr:nth-child(even) { background-color: #f9f9f9; }");
+            html.AppendLine(".header-box { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 5px; margin-bottom: 15px; }");
+            html.AppendLine(".kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px; }");
+            html.AppendLine(".kpi-card { background: #f8f9fa; border-left: 4px solid #3498db; padding: 10px; }");
+            html.AppendLine(".kpi-value { font-size: 16pt; font-weight: bold; color: #2c3e50; }");
+            html.AppendLine(".kpi-label { font-size: 8pt; color: #7f8c8d; text-transform: uppercase; }");
+            html.AppendLine(".footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 8pt; color: #95a5a6; text-align: center; }");
+            html.AppendLine("</style>");
+            html.AppendLine("</head>");
+            html.AppendLine("<body>");
+     
+            // Header
+            html.AppendLine("<div class='header-box'>");
+            html.AppendLine($"<h1>{(dashboardView == DashboardView.Enhanced ? "Analytics Dashboard" : "Dashboard")}</h1>");
+            html.AppendLine($"<p><strong>Generiert:</strong> {DateTime.Now:dd.MM.yyyy HH:mm} | <strong>Zeitraum:</strong> Letzten {selectedPeriod} Tage</p>");
+            html.AppendLine("</div>");
+   
+            // KPI Grid
+            html.AppendLine("<div class='kpi-grid'>");
+            html.AppendLine($"<div class='kpi-card'><div class='kpi-value'>{dashboardData.TotalProducts:N0}</div><div class='kpi-label'>Produkte</div></div>");
+            html.AppendLine($"<div class='kpi-card'><div class='kpi-value'>{dashboardData.TotalStockValue:C}</div><div class='kpi-label'>Lagerwert</div></div>");
+            html.AppendLine($"<div class='kpi-card'><div class='kpi-value'>{dashboardData.LowStockCount:N0}</div><div class='kpi-label'>Niedrig Bestand</div></div>");
+            html.AppendLine($"<div class='kpi-card'><div class='kpi-value'>{dashboardData.TotalCategories:N0}</div><div class='kpi-label'>Kategorien</div></div>");
+            html.AppendLine("</div>");
+
+            // Analytics (only when Enhanced + IncludeAnalytics)
+            if (options.IncludeAnalytics && dashboardView == DashboardView.Enhanced)
+            {
+                html.AppendLine("<h2>🔬 Analytics & Insights</h2>");
+                html.AppendLine("<table>");
+                html.AppendLine("<tr><th style='width: 40%'>Metrik</th><th>Wert</th><th>Status</th></tr>");
+                var healthClass = GetHealthScoreClass(dashboardData.InventoryHealthScore);
+                var healthDesc = GetHealthScoreDescription(dashboardData.InventoryHealthScore);
+                html.AppendLine($"<tr><td>Lager Health Score</td><td>{dashboardData.InventoryHealthScore:F2}</td><td>{healthDesc}</td></tr>");
+                html.AppendLine($"<tr><td>Umschlagsrate</td><td>{dashboardData.StockTurnoverRate:F2}</td><td>Produktumschlag/Monat</td></tr>");
+                html.AppendLine($"<tr><td>Durchschnittliche Auslastung</td><td>{dashboardData.StorageUtilization.AverageUtilization:F1}%</td><td>Lagerplätze</td></tr>");
+                html.AppendLine($"<tr><td>Belegungsrate</td><td>{dashboardData.StorageUtilization.OccupancyRate:F1}%</td><td>{dashboardData.StorageUtilization.OccupiedLocations} von {dashboardData.StorageUtilization.TotalLocations} Plätzen</td></tr>");
+                html.AppendLine("</table>");
+     
+                // ABC analysis
+                html.AppendLine("<h3>ABC Analyse</h3>");
+                html.AppendLine("<table>");
+                html.AppendLine("<tr><th>Klasse</th><th>Produkte</th><th>Gesamtwert</th><th>Anteil</th></tr>");
+                var totalAbcValue = dashboardData.AbcAnalysis.TotalValue;
+                html.AppendLine($"<tr><td><strong>A</strong></td><td>{dashboardData.AbcAnalysis.ClassACount}</td><td>{dashboardData.AbcAnalysis.ClassAValue:C}</td><td>{(totalAbcValue > 0 ? (dashboardData.AbcAnalysis.ClassAValue / totalAbcValue * 100) : 0):F1}%</td></tr>");
+                html.AppendLine($"<tr><td><strong>B</strong></td><td>{dashboardData.AbcAnalysis.ClassBCount}</td><td>{dashboardData.AbcAnalysis.ClassBValue:C}</td><td>{(totalAbcValue > 0 ? (dashboardData.AbcAnalysis.ClassBValue / totalAbcValue * 100) : 0):F1}%</td></tr>");
+                html.AppendLine($"<tr><td><strong>C</strong></td><td>{dashboardData.AbcAnalysis.ClassCCount}</td><td>{dashboardData.AbcAnalysis.ClassCValue:C}</td><td>{(totalAbcValue > 0 ? (dashboardData.AbcAnalysis.ClassCValue / totalAbcValue * 100) : 0):F1}%</td></tr>");
+                html.AppendLine("</table>");
+    
+                // Expiry (MHD) risk
+                html.AppendLine("<h3>MHD Risiko-Analyse</h3>");
+                html.AppendLine("<table>");
+                html.AppendLine("<tr><th>Status</th><th>Anzahl</th><th>Wert</th></tr>");
+                html.AppendLine($"<tr><td>Abgelaufen</td><td>{dashboardData.ExpiryAnalytics.ExpiredCount}</td><td>{dashboardData.ExpiryAnalytics.ExpiredValue:C}</td></tr>");
+                html.AppendLine($"<tr><td>Bald abgelaufen (7 Tage)</td><td>{dashboardData.ExpiryAnalytics.ExpiringSoonCount}</td><td>{dashboardData.ExpiryAnalytics.ExpiringSoonValue:C}</td></tr>");
+                html.AppendLine($"<tr><td>📅 Diesen Monat</td><td>{dashboardData.ExpiryAnalytics.ExpiringThisMonthCount}</td><td>{dashboardData.ExpiryAnalytics.ExpiringThisMonthValue:C}</td></tr>");
+                html.AppendLine("</table>");
+            }
+          
+            // Top Movers
+            html.AppendLine("<h2>🔥 Top 10 Bewegte Produkte</h2>");
+            html.AppendLine("<table>");
+            html.AppendLine("<tr><th>Rang</th><th>Produkt</th><th>Kategorie</th><th>Bewegungen</th><th>Gesamtwert</th></tr>");
+            var rank = 1;
+            foreach (var mover in dashboardData.TopMovers.Take(10))
+            {
+                html.AppendLine($"<tr><td>{rank++}</td><td>{mover.ProductName}</td><td>{mover.CategoryName}</td><td>{mover.MovementCount:N0}</td><td>{mover.TotalValue:C}</td></tr>");
+            }
+            html.AppendLine("</table>");
+   
+            // Categories
+            html.AppendLine("<h2>📦 Category Overview</h2>");
+            html.AppendLine("<table>");
+            html.AppendLine("<tr><th>Kategorie</th><th>Produkte</th><th>Menge</th><th>Gesamtwert</th><th>Ø Wert/Produkt</th></tr>");
+            foreach (var cat in dashboardData.CategoryValues)
+            {
+                var avgValue = cat.ProductCount > 0 ? cat.TotalValue / cat.ProductCount : 0;
+                html.AppendLine($"<tr><td>{cat.CategoryName}</td><td>{cat.ProductCount:N0}</td><td>{cat.TotalQuantity:N0}</td><td>{cat.TotalValue:C}</td><td>{avgValue:C}</td></tr>");
+            }
+            html.AppendLine("</table>");
+            
+            // Warehouse distribution
+            html.AppendLine("<h2>🏢 Lager-Verteilung</h2>");
+            html.AppendLine("<table>");
+            html.AppendLine("<tr><th>Lager</th><th>Lagerplätze</th><th>Produkte</th><th>Gesamtwert</th><th>Ø Wert/Platz</th></tr>");
+            foreach (var wh in dashboardData.WarehouseDistribution)
+            {
+                var avgValuePerLocation = wh.StorageLocationCount > 0 ? wh.TotalValue / wh.StorageLocationCount : 0;
+                html.AppendLine($"<tr><td>{wh.WarehouseName}</td><td>{wh.StorageLocationCount:N0}</td><td>{wh.ProductCount:N0}</td><td>{wh.TotalValue:C}</td><td>{avgValuePerLocation:C}</td></tr>");
+            }
+            html.AppendLine("</table>");
+    
+            // Recent movements (optional)
+            if (options.IncludeMovements)
+            {
+                html.AppendLine("<h2>🕒 Letzte 20 Bewegungen</h2>");
+                html.AppendLine("<table>");
+                html.AppendLine("<tr><th style='width: 25%'>Produkt</th><th>Kategorie</th><th>Typ</th><th>Menge</th><th>Notiz</th><th>Zeitstempel</th></tr>");
+                foreach (var movement in dashboardData.RecentMovements.Take(20))
+                {
+                    var type = movement.QuantityChange > 0 ? "➕ Eingang" : "➖ Ausgang";
+                    var typeColor = movement.QuantityChange > 0 ? "#d4edda" : "#f8d7da";
+                    html.AppendLine($"<tr style='background-color: {typeColor};'><td>{movement.Product.Name}</td><td>{movement.Product.Category?.Name ?? "Ohne"}</td><td>{type}</td><td>{Math.Abs(movement.QuantityChange)}</td><td>{movement.Notes ?? "-"}</td><td>{movement.Timestamp:dd.MM.yyyy HH:mm}</td></tr>");
+                }
+                html.AppendLine("</table>");
+            }
+   
+            // Footer
+            html.AppendLine("<div class='footer'>");
+            html.AppendLine($"<p>Dashboard Report | Generiert am {DateTime.Now:dd.MM.yyyy HH:mm} | LagerSystem LV Home</p>");
+            html.AppendLine("</div>");
+   
+            html.AppendLine("</body>");
+            html.AppendLine("</html>");
+   
+            var fileName = $"Dashboard_{dashboardView}_{DateTime.Now:yyyyMMdd_HHmmss}.html";
+            var htmlContent = html.ToString();
+            
+            _logger.LogInformation("PDF HTML generated, size: {Size} bytes", htmlContent.Length);
+
+            const string printHint = "Note: the HTML file has been downloaded. Open it and print to PDF (Ctrl+P -> Save as PDF).";
+            var result = await JSRuntime.InvokeAsync<bool>(
+                "fileDownload.downloadHtmlWithPrintHint",
+                htmlContent,
+                fileName,
+                printHint);
+
+            if (!result)
+            {
+                throw new Exception("PDF download failed");
+            }
+
+            _logger.LogInformation("PDF (HTML) download triggered successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error exporting dashboard as PDF");
+            throw;
+        }
+    }
+
+    private string GetMovementClass(StockMovement movement) =>
+        movement.QuantityChange > 0 ? "bg-success" : "bg-danger";
+
+    private string GetMovementIcon(StockMovement movement) =>
+        movement.QuantityChange > 0 ? "bi-arrow-down-circle" : "bi-arrow-up-circle";
+
+    private string GetMovementTextClass(StockMovement movement) =>
+    movement.QuantityChange > 0 ? "text-success" : "text-danger";
+
+    private string GetMovementTypeText(StockMovement movement) =>
+        movement.QuantityChange > 0 ? "Wareneingang" : "Warenausgang";
+     
+    // Health Score Methods for Enhanced View
+    private string GetHealthScoreClass(double score)
+    {
+        if (score >= 90) return "excellent";
+        if (score >= 75) return "good";
+        if (score >= 50) return "fair";
+        return "poor";
+    }
+
+    private string GetHealthScoreDescription(double score)
+    {
+        if (score >= 90) return "🎉 Ausgezeichnet!";
+        if (score >= 75) return "Gut";
+        if (score >= 50) return "Befriedigend";
+        return "Kritisch";
+    }
+
+    private List<DashboardEnhancedView.StorageUtilizationItem> GetStorageUtilizationItems()
+    {
+        return new List<DashboardEnhancedView.StorageUtilizationItem>
+        {
+    new() { Label = "Belegt", Value = dashboardData?.StorageUtilization.OccupiedLocations ?? 0 },
+        new() { Label = "Leer", Value = dashboardData?.StorageUtilization.EmptyLocations ?? 0 },
+    new() { Label = "Voll", Value = dashboardData?.StorageUtilization.FullLocations ?? 0 }
+    };
+    }
+}

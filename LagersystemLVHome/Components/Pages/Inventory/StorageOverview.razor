@@ -1,0 +1,837 @@
+@page "/storage-overview"
+@inherits CancellableComponentBase
+@using LagersystemLVHome.Data
+@using LagersystemLVHome.Domain.Models
+@using Microsoft.EntityFrameworkCore
+@rendermode InteractiveServer
+@inject ILocationQueryService LocationQueryService
+@inject IRoomService RoomService
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
+@inject I18nText I18nText
+@inject LagersystemLVHome.Application.Services.StorageLocationService StorageService
+@inject LagersystemLVHome.Application.Services.IQRCodeService QRCodeService
+
+<PageTitle>@T.StorageOverview_PageTitle</PageTitle>
+
+<div class="page-header d-flex justify-content-between align-items-start">
+    <div>
+        <h1 class="page-title">
+            <i class="bi bi-geo-alt me-2"></i>
+            @T.StorageOverview_Title_Full
+        </h1>
+        <p class="page-subtitle">@T.StorageOverview_Subtitle</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-success" @onclick="ToggleQRScanner">
+            <i class="bi bi-qr-code-scan"></i> @T.StorageOverview_ScanQR
+        </button>
+        <button class="btn btn-primary" @onclick="OpenCreateModal">
+            <i class="bi bi-plus"></i> @T.StorageOverview_NewStorageLocation
+        </button>
+    </div>
+</div>
+
+<!-- Create/Edit Modal -->
+@if (showModal)
+{
+    <div class="modal-backdrop" @onclick="CloseModal">
+        <div class="modal-content modal-content--wide" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3 class="modal-title">@(editingLocation?.Id > 0 ? T.StorageOverview_Modal_EditTitle : T.StorageOverview_Modal_CreateTitle)</h3>
+                <button class="modal-close" @onclick="CloseModal">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <EditForm Model="editingLocation" OnValidSubmit="SaveLocation" FormName="StorageLocationForm">
+                    <DataAnnotationsValidator />
+  
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">@T.StorageOverview_Label_Code</label>
+                                <InputText class="form-control" @bind-Value="editingLocation!.Code"
+                                           placeholder="z.B. A1-R2-F3" />
+                                @if (codeExists)
+                                {
+                                    <div class="text-danger small mt-1">@T.StorageOverview_Code_Exists</div>
+                                }
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                    <label class="form-label">@T.StorageOverview_Label_Name</label>
+                                <InputText class="form-control" @bind-Value="editingLocation!.Name"
+                                           placeholder="z.B. Gang A, Regal 1, Fach 3" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">@T.StorageOverview_Label_Room</label>
+                        <div class="d-flex gap-2">
+                            <select class="form-select" @bind="editingLocation.Room" required>
+                                <option value="">@T.StorageOverview_Room_Select_Placeholder</option>
+                                @foreach (var room in availableRooms.Where(r => r.IsActive))
+                                {
+                                    <option value="@room.Name">@room.Name (@room.Code)</option>
+                                }
+                            </select>
+                            <button type="button" class="btn btn-secondary" @onclick="OpenCreateRoomModal" title="Neuen Raum anlegen">
+                                <i class="bi bi-plus"></i>
+                            </button>
+                        </div>
+                        @if (string.IsNullOrEmpty(editingLocation.Room))
+                        {
+                            <small class="text-danger">
+                                <i class="bi bi-exclamation-triangle"></i> @T.StorageOverview_Room_Required
+                            </small>
+                        }
+                        @if (!availableRooms.Any(r => r.IsActive))
+                        {
+                            <div class="alert alert-warning mt-2 py-2">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>@T.StorageOverview_NoRoom_Warning</strong>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="form-label">@T.StorageOverview_Label_Aisle</label>
+                                <InputText class="form-control" @bind-Value="editingLocation.Aisle"
+                                           placeholder="A" />
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="form-label">@T.StorageOverview_Label_Rack</label>
+                                <InputText class="form-control" @bind-Value="editingLocation.Rack"
+                                           placeholder="1" />
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="form-label">@T.StorageOverview_Label_Shelf</label>
+                                <InputText class="form-control" @bind-Value="editingLocation.Shelf"
+                                           placeholder="1" />
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="form-label">@T.StorageOverview_Label_Bin</label>
+                                <InputText class="form-control" @bind-Value="editingLocation.Bin"
+                                           placeholder="Optional" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">@T.StorageOverview_Description</label>
+                        <InputTextArea class="form-control" @bind-Value="editingLocation.Description"
+                                       rows="2" placeholder="@T.StorageOverview_DescriptionPlaceholder" />
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">@T.StorageOverview_Label_MaxCapacity</label>
+                                <InputNumber class="form-control" @bind-Value="editingLocation.MaxCapacity" />
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="form-label">@T.StorageOverview_Label_Width</label>
+                                <InputNumber class="form-control" @bind-Value="editingLocation.Width" />
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="form-label">@T.StorageOverview_Label_Height</label>
+                                <InputNumber class="form-control" @bind-Value="editingLocation.Height" />
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label class="form-label">@T.StorageOverview_Label_Depth</label>
+                                <InputNumber class="form-control" @bind-Value="editingLocation.Depth" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-check">
+                        <InputCheckbox class="form-check-input" @bind-Value="editingLocation.IsActive" id="isActive" />
+                        <label class="form-check-label" for="isActive">
+                            @T.StorageOverview_IsActive
+                        </label>
+                    </div>
+                </EditForm>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseModal">@T.StorageOverview_Cancel</button>
+                <button class="btn btn-primary" @onclick="SaveLocation"
+                        disabled="@(codeExists || string.IsNullOrEmpty(editingLocation?.Room))">
+                    <i class="bi bi-check"></i> @T.StorageOverview_Save
+                </button>
+                @if (string.IsNullOrEmpty(editingLocation?.Room))
+                {
+                    <small class="text-danger d-block mt-1">
+                        <i class="bi bi-exclamation-circle"></i> @T.StorageOverview_Room_Required
+                    </small>
+                }
+                else if (codeExists)
+                {
+                    <small class="text-danger d-block mt-1">
+                        <i class="bi bi-exclamation-circle"></i> @T.StorageOverview_Code_Exists_Footer
+                    </small>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Create Room Modal -->
+@if (showCreateRoomModal)
+{
+    <div class="modal-backdrop" @onclick="CloseCreateRoomModal">
+        <div class="modal-content modal-content--narrow" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3 class="modal-title">@T.StorageOverview_Modal_CreateRoom_Title</h3>
+                <button class="modal-close" @onclick="CloseCreateRoomModal">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <EditForm Model="newRoom" OnValidSubmit="SaveNewRoom">
+                    <DataAnnotationsValidator />
+        
+                    <div class="form-group">
+                        <label class="form-label">@T.StorageOverview_Label_RoomName</label>
+                        <InputText class="form-control" @bind-Value="newRoom!.Name"
+                                   placeholder="z.B. Hauptlager, Keller, Halle A" />
+                        <ValidationMessage For="() => newRoom.Name" />
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">@T.StorageOverview_Label_RoomCode</label>
+                        <InputText class="form-control" @bind-Value="newRoom!.Code"
+                                   placeholder="z.B. HL, KEL, HA" />
+                        <ValidationMessage For="() => newRoom.Code" />
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">@T.StorageOverview_Label_RoomType</label>
+                        <InputSelect class="form-select" @bind-Value="newRoom.Type">
+                            <option value="@RoomType.StorageRoom">@T.StorageOverview_RoomType_Storage</option>
+                            <option value="@RoomType.Workshop">@T.StorageOverview_RoomType_Workshop</option>
+                            <option value="@RoomType.Office">@T.StorageOverview_RoomType_Office</option>
+                            <option value="@RoomType.Warehouse">@T.StorageOverview_RoomType_Warehouse</option>
+                            <option value="@RoomType.ColdStorage">@T.StorageOverview_RoomType_ColdStorage</option>
+                            <option value="@RoomType.Archive">@T.StorageOverview_RoomType_Archive</option>
+                            <option value="@RoomType.LoadingBay">@T.StorageOverview_RoomType_LoadingBay</option>
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">@T.StorageOverview_Description</label>
+                        <InputTextArea class="form-control" @bind-Value="newRoom.Description"
+                                       rows="2" placeholder="@T.StorageOverview_DescriptionPlaceholder" />
+                    </div>
+                </EditForm>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseCreateRoomModal">@T.StorageOverview_Cancel</button>
+                <button class="btn btn-primary" @onclick="SaveNewRoom">
+                    <i class="bi bi-check"></i> @T.StorageOverview_CreateRoom
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- QR Scanner Modal -->
+@if (showQRScanner)
+{
+    <div class="modal-backdrop" @onclick="CloseQRScanner">
+        <div class="modal-content qr-scanner-modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="bi bi-qr-code-scan me-2"></i>
+                    @T.StorageOverview_QR_Title
+                </h3>
+                <button class="modal-close" @onclick="CloseQRScanner">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                @if (!string.IsNullOrEmpty(scanMessage))
+                {
+                    <div class="alert @(scanSuccess ? "alert-success" : "alert-warning") mb-3">
+                        <i class="bi @(scanSuccess ? "bi-check-circle" : "bi-exclamation-triangle") me-2"></i>
+                        @scanMessage
+                    </div>
+                }
+
+                <div class="qr-scanner-container">
+                    <QRCodeScanner OnScanned="HandleQRCodeScan" ScannerLabel="@T.StorageOverview_QR_Scanner_Label" />
+                </div>
+
+                <div class="mt-3">
+                    <p class="text-muted small mb-2">
+                        <i class="bi bi-info-circle me-1"></i>
+                        @T.StorageOverview_QR_Hint
+                    </p>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-keyboard"></i>
+                        </span>
+                        <input type="text"
+                               class="form-control"
+                               placeholder="@T.StorageOverview_QR_ManualPlaceholder"
+                               @bind="manualCode"
+                               @onkeydown="HandleManualCodeKeyDown" />
+                        <button class="btn btn-primary" @onclick="SearchManualCode" disabled="@string.IsNullOrWhiteSpace(manualCode)">
+                            @T.StorageOverview_QR_Search
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseQRScanner">
+                    @T.StorageOverview_Close
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (loading)
+{
+    <div class="text-center p-5">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Laden...</span>
+        </div>
+    </div>
+}
+else
+{
+    <!-- Statistics -->
+    <div class="stats-grid mb-4">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi bi-geo-alt"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@T.StorageOverview_Stat_Total</h3>
+                <p class="stat-value">@storageStats.Count</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-box"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@T.StorageOverview_Stat_Occupied</h3>
+                <p class="stat-value">@storageStats.Count(s => s.ProductCount > 0)</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="bi bi-layers"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@T.StorageOverview_Stat_Empty</h3>
+                <p class="stat-value">@storageStats.Count(s => s.ProductCount == 0)</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon info">
+                <i class="bi bi-stack"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@T.StorageOverview_Stat_TotalQuantity</h3>
+                <p class="stat-value">@storageStats.Sum(s => s.TotalQuantity)</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <input type="text" class="form-control" placeholder="@T.StorageOverview_Filter_Placeholder"
+                           @bind="searchTerm" @bind:event="oninput" @bind:after="FilterStorage" />
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" @bind="selectedRoom" @bind:after="FilterStorage">
+                        <option value="">@T.StorageOverview_Filter_AllRooms</option>
+                        @foreach (var room in GetUniqueRooms())
+                        {
+                            <option value="@room">@room</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" @bind="filterStatus" @bind:after="FilterStorage">
+                        <option value="all">@T.StorageOverview_Filter_All</option>
+                            <option value="occupied">@T.StorageOverview_Filter_Occupied</option>
+                            <option value="empty">@T.StorageOverview_Filter_Empty</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-secondary w-100" @onclick="ClearFilters">
+                        <i class="bi bi-x-circle"></i> @T.StorageOverview_Filter_Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Storage Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>@T.StorageOverview_Col_Code</th>
+                            <th>@T.StorageOverview_Col_Name</th>
+                            <th>@T.StorageOverview_Col_Room</th>
+                            <th>@T.StorageOverview_Col_Position</th>
+                            <th>@T.StorageOverview_Col_Products</th>
+                            <th>@T.StorageOverview_Col_Quantity</th>
+                            <th>@T.StorageOverview_Col_Utilization</th>
+                            <th>@T.StorageOverview_Col_Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var storage in filteredStorage)
+                        {
+                            <tr class="storage-row" @onclick="() => NavigateToStorage(storage.Id)">
+                                <td data-label="Code">
+                                    <code class="storage-code">@storage.Code</code>
+                                </td>
+                                <td data-label="Name">@storage.Name</td>
+                                <td data-label="Raum">
+                                    @if (!string.IsNullOrEmpty(storage.Room))
+                                    {
+                                        <span class="badge bg-info">@storage.Room</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </td>
+                                <td data-label="Position">
+                                    <small class="text-muted">
+                                        @if (!string.IsNullOrEmpty(storage.Aisle))
+                                        {
+                                            <span>@T.StorageOverview_Position_Aisle: @storage.Aisle</span>
+                                        }
+                                        @if (!string.IsNullOrEmpty(storage.Rack))
+                                        {
+                                            <span class="ms-2">@T.StorageOverview_Position_Rack: @storage.Rack</span>
+                                        }
+                                        @if (!string.IsNullOrEmpty(storage.Shelf))
+                                        {
+                                            <span class="ms-2">@T.StorageOverview_Position_Shelf: @storage.Shelf</span>
+                                        }
+                                    </small>
+                                </td>
+                                <td data-label="Produkte">
+                                    @if (storage.ProductCount > 0)
+                                    {
+                                        <span class="badge bg-primary">@(T.StorageOverview_Occupied_Badge != null ? string.Format(T.StorageOverview_Occupied_Badge, storage.ProductCount) : "")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">@T.StorageOverview_Empty_Badge</span>
+                                    }
+                                </td>
+                                <td data-label="Menge">
+                                    <strong>@storage.TotalQuantity</strong> @T.StorageOverview_Quantity_Suffix
+                                </td>
+                                <td data-label="Auslastung">
+                                    @if (storage.MaxCapacity.HasValue && storage.MaxCapacity > 0)
+                                    {
+                                        var percentage = (double)storage.TotalQuantity / storage.MaxCapacity.Value * 100;
+                                        <div class="capacity-indicator">
+                                            <div class="capacity-bar">
+                                                <div class="capacity-fill @GetCapacityClass(percentage)"
+                                                     style="width: @percentage%"></div>
+                                            </div>
+                                            <small class="capacity-text">
+                                                @storage.TotalQuantity / @storage.MaxCapacity (@percentage.ToString("F0")%)
+                                            </small>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-sm btn-primary" @onclick="() => NavigateToStorage(storage.Id)" @onclick:stopPropagation="true">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+
+                        @if (!filteredStorage.Any())
+                        {
+                            <tr>
+                                <td colspan="8">
+                                    <EmptyState IconClass="bi bi-geo-alt"
+                                                Title="@T.StorageOverview_Empty_Title"
+                                                Description="@T.StorageOverview_Empty_Desc"
+                                                ShowAction="true"
+                                                ActionText="@T.StorageOverview_Empty_Action"
+                                                ActionIcon="bi bi-plus-circle"
+                                                OnActionClick="OpenCreateModal" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    private LagersystemLVHome.I18nText.App T = new();
+    private List<StorageStatistic> storageStats = new();
+    private List<StorageStatistic> filteredStorage = new();
+    private List<Room> availableRooms = new();
+    private bool loading = true;
+    private User? currentUser;
+
+    private string searchTerm = string.Empty;
+    private string selectedRoom = string.Empty;
+    private string filterStatus = "all";
+
+    // QR Scanner
+    private bool showQRScanner = false;
+    private string manualCode = string.Empty;
+    private string scanMessage = string.Empty;
+    private bool scanSuccess = false;
+
+    // Create/Edit Modal
+    private bool showModal = false;
+    private bool codeExists = false;
+    private StorageLocation? editingLocation;
+
+    // Create Room Modal
+    private bool showCreateRoomModal = false;
+    private Room? newRoom;
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+        currentUser = await AuthService.GetCurrentUserAsync();
+        if (currentUser == null)
+        {
+            NavigationManager.NavigateTo("/login");
+            return;
+        }
+
+        await LoadStorageStatistics();
+    }
+
+    private async Task LoadStorageStatistics()
+    {
+        loading = true;
+
+        var overview = await LocationQueryService.GetStorageOverviewAsync(currentUser!.WarehouseId);
+        availableRooms = overview.AvailableRooms.ToList();
+
+        storageStats = overview.Locations.Select(s => new StorageStatistic
+        {
+            Id = s.Location.Id,
+            Code = s.Location.Code,
+            Name = s.Location.Name,
+            Room = s.Location.Room,
+            Aisle = s.Location.Aisle,
+            Rack = s.Location.Rack,
+            Shelf = s.Location.Shelf,
+            MaxCapacity = s.Location.MaxCapacity,
+            ProductCount = s.DistinctProductCount,
+            TotalQuantity = s.TotalQuantity
+        }).ToList();
+
+        FilterStorage();
+        loading = false;
+    }
+
+    // QR Scanner Methods
+    private void ToggleQRScanner()
+    {
+        showQRScanner = !showQRScanner;
+        scanMessage = string.Empty;
+        manualCode = string.Empty;
+    }
+
+    private void CloseQRScanner()
+    {
+        showQRScanner = false;
+        scanMessage = string.Empty;
+        manualCode = string.Empty;
+    }
+
+    private async Task HandleQRCodeScan(string code)
+    {
+        if (string.IsNullOrWhiteSpace(code)) return;
+
+        await SearchStorageByCode(code);
+    }
+
+    private async Task HandleManualCodeKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(manualCode))
+        {
+            await SearchManualCode();
+        }
+    }
+
+    private async Task SearchManualCode()
+    {
+        if (string.IsNullOrWhiteSpace(manualCode)) return;
+        await SearchStorageByCode(manualCode);
+    }
+
+    private async Task SearchStorageByCode(string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            scanMessage = "Bitte geben Sie einen Code ein.";
+            scanSuccess = false;
+            return;
+        }
+
+        if (currentUser == null)
+        {
+            scanMessage = "Benutzer nicht authentifiziert.";
+            scanSuccess = false;
+            return;
+        }
+
+        try
+        {
+            var storage = await LocationQueryService.FindActiveStorageLocationByCodeAsync(
+                currentUser.WarehouseId,
+                code);
+
+            if (storage != null)
+            {
+                // Storage location found - navigate to detail page
+                scanSuccess = true;
+                scanMessage = $"Lagerplatz '{storage.Code}' gefunden! Weiterleitung...";
+                StateHasChanged();
+
+                await Task.Delay(1000);
+
+                var targetUrl = $"/storage/{storage.Id}";
+
+                NavigationManager.NavigateTo(targetUrl, forceLoad: false);
+            }
+            else
+            {
+                // Storage location not found
+                scanSuccess = false;
+                scanMessage = $"Lagerplatz mit Code '{code}' nicht gefunden.";
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            scanMessage = $"Fehler: {ex.Message}";
+            scanSuccess = false;
+            StateHasChanged();
+        }
+    }
+
+    private void FilterStorage()
+    {
+        filteredStorage = storageStats;
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var term = searchTerm.ToLower();
+            filteredStorage = filteredStorage
+.Where(s => s.Code.ToLower().Contains(term) ||
+        s.Name.ToLower().Contains(term) ||
+    (s.Room?.ToLower().Contains(term) ?? false))
+    .ToList();
+        }
+
+        if (!string.IsNullOrEmpty(selectedRoom))
+        {
+            filteredStorage = filteredStorage.Where(s => s.Room == selectedRoom).ToList();
+        }
+
+        if (filterStatus == "occupied")
+        {
+            filteredStorage = filteredStorage.Where(s => s.ProductCount > 0).ToList();
+        }
+        else if (filterStatus == "empty")
+        {
+            filteredStorage = filteredStorage.Where(s => s.ProductCount == 0).ToList();
+        }
+    }
+
+    private void ClearFilters()
+    {
+        searchTerm = string.Empty;
+        selectedRoom = string.Empty;
+        filterStatus = "all";
+        FilterStorage();
+    }
+
+    private IEnumerable<string> GetUniqueRooms()
+    {
+        return storageStats
+        .Where(s => !string.IsNullOrEmpty(s.Room))
+        .Select(s => s.Room!)
+            .Distinct()
+        .OrderBy(r => r);
+    }
+
+    private void NavigateToStorage(int storageId)
+    {
+        NavigationManager.NavigateTo($"/storage/{storageId}");
+    }
+    
+    private void NavigateToStorage()
+    {
+        NavigationManager.NavigateTo("/storage");
+    }
+
+    private string GetCapacityClass(double percentage)
+    {
+        if (percentage >= 90) return "bg-danger";
+        if (percentage >= 70) return "bg-warning";
+        return "bg-success";
+    }
+
+    // Create/Edit Modal Methods
+    private void OpenCreateModal()
+    {
+        editingLocation = new StorageLocation
+        {
+            WarehouseId = currentUser?.WarehouseId ?? 0,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        codeExists = false;
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        editingLocation = null;
+        codeExists = false;
+    }
+
+    private async Task SaveLocation()
+    {
+        if (editingLocation == null || string.IsNullOrWhiteSpace(editingLocation.Code)) return;
+   
+        // Room is required
+        if (string.IsNullOrEmpty(editingLocation.Room))
+        {
+            return;
+        }
+ 
+        // Check if code exists
+        codeExists = await StorageService.CodeExistsAsync(editingLocation.Code, editingLocation.Id > 0 ? editingLocation.Id : (int?)null);
+        if (codeExists) return;
+
+        // Ensure warehouse ID is set
+        if (editingLocation.WarehouseId == 0 && currentUser != null)
+        {
+            editingLocation.WarehouseId = currentUser.WarehouseId;
+        }
+     
+        if (editingLocation.Id > 0)
+        {
+            await StorageService.UpdateAsync(editingLocation);
+        }
+        else
+        {
+            await StorageService.CreateAsync(editingLocation);
+        }
+
+        await LoadStorageStatistics();
+        CloseModal();
+    }
+
+    // Create Room Modal Methods
+    private void OpenCreateRoomModal()
+    {
+        if (currentUser == null) return;
+
+        newRoom = new Room
+        {
+            WarehouseId = currentUser.WarehouseId,
+            Type = RoomType.StorageRoom,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+   
+        showCreateRoomModal = true;
+    }
+
+    private void CloseCreateRoomModal()
+    {
+        showCreateRoomModal = false;
+        newRoom = null;
+    }
+
+    private async Task SaveNewRoom()
+    {
+        if (newRoom == null || string.IsNullOrWhiteSpace(newRoom.Name) || string.IsNullOrWhiteSpace(newRoom.Code))
+            return;
+
+        var result = await RoomService.CreateRoomAsync(newRoom);
+        if (result.IsFailure)
+        {
+            // Silent-fail mirrors the previous behavior (code already exists etc.)
+            return;
+        }
+
+        // Set newly created room as selected
+        if (editingLocation != null)
+        {
+            editingLocation.Room = result.Value!.Name;
+        }
+
+        // Reload data
+        await LoadStorageStatistics();
+
+        CloseCreateRoomModal();
+    }
+
+    private class StorageStatistic
+    {
+        public int Id { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string? Room { get; set; }
+        public string? Aisle { get; set; }
+        public string? Rack { get; set; }
+        public string? Shelf { get; set; }
+        public int? MaxCapacity { get; set; }
+        public int ProductCount { get; set; }
+        public int TotalQuantity { get; set; }
+    }
+}

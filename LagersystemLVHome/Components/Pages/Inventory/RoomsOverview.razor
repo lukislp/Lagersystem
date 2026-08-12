@@ -1,0 +1,253 @@
+@page "/rooms-overview"
+@inherits CancellableComponentBase
+@using LagersystemLVHome.Data
+@using LagersystemLVHome.Domain.Models
+@using Microsoft.EntityFrameworkCore
+@rendermode InteractiveServer
+@inject ILocationQueryService LocationQueryService
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
+@inject I18nText I18nText
+
+<PageTitle>@T.RoomsOverview_PageTitle</PageTitle>
+
+<div class="page-header d-flex justify-content-between align-items-start">
+    <div>
+        <h1 class="page-title">
+            <i class="bi bi-door-open me-2"></i>
+            @T.RoomsOverview_Title
+        </h1>
+        <p class="page-subtitle">@T.RoomsOverview_Subtitle</p>
+    </div>
+    <a href="/admin/rooms" class="btn btn-primary">
+        <i class="bi bi-gear"></i> @T.RoomsOverview_ManageRooms
+    </a>
+</div>
+
+@if (loading)
+{
+    <div class="text-center p-5">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">@T.Common_VisuallyHiddenLoading</span>
+        </div>
+    </div>
+}
+else if (roomStats.Any())
+{
+    <!-- Statistics Cards -->
+    <div class="stats-grid mb-4">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi bi-door-open"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@T.RoomsOverview_TotalRooms</h3>
+                <p class="stat-value">@roomStats.Count</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-geo-alt"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@T.RoomsOverview_StorageLocations</h3>
+                <p class="stat-value">@roomStats.Sum(r => r.StorageLocationCount)</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="bi bi-box"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@T.RoomsOverview_ProductTypes</h3>
+                <p class="stat-value">@roomStats.Sum(r => r.ProductCount)</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon info">
+                <i class="bi bi-stack"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@T.RoomsOverview_TotalQuantity</h3>
+                <p class="stat-value">@roomStats.Sum(r => r.TotalQuantity)</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rooms Grid -->
+    <div class="row g-4">
+        @foreach (var room in roomStats)
+        {
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 room-detail-card" @onclick="() => NavigateToRoom(room.RoomId)">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <h4 class="card-title mb-1">
+                                    <i class="bi bi-door-open text-primary me-2"></i>
+                                    @room.RoomName
+                                </h4>
+                                <code class="small">@room.RoomCode</code>
+                            </div>
+                            @if (room.Area.HasValue)
+                            {
+                                <span class="badge bg-info">@room.Area mö</span>
+                            }
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(room.Description))
+                        {
+                            <p class="text-muted small mb-3">@room.Description</p>
+                        }
+
+                        <div class="room-stats-grid">
+                            <div class="room-stat-item">
+                                <i class="bi bi-geo-alt text-info"></i>
+                                <div>
+                                    <div class="stat-number">@room.StorageLocationCount</div>
+                                    <div class="stat-label">@T.RoomsOverview_StorageLocationsLabel</div>
+                                </div>
+                            </div>
+                            <div class="room-stat-item">
+                                <i class="bi bi-box text-success"></i>
+                                <div>
+                                    <div class="stat-number">@room.ProductCount</div>
+                                    <div class="stat-label">@T.RoomsOverview_ProductsLabel</div>
+                                </div>
+                            </div>
+                            <div class="room-stat-item">
+                                <i class="bi bi-stack text-warning"></i>
+                                <div>
+                                    <div class="stat-number">@room.TotalQuantity</div>
+                                    <div class="stat-label">@T.RoomsOverview_PiecesLabel</div>
+                                </div>
+                            </div>
+                            @if (room.Floor.HasValue)
+                            {
+                                <div class="room-stat-item">
+                                    <i class="bi bi-layers text-secondary"></i>
+                                    <div>
+                                        <div class="stat-number">@room.Floor</div>
+                                        <div class="stat-label">@T.RoomsOverview_FloorLabel</div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        @if (room.Capacity.HasValue && room.Capacity > 0)
+                        {
+                            var usage = room.TotalQuantity;
+                            var percentage = (double)usage / room.Capacity.Value * 100;
+                            <div class="mt-3">
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span>@T.RoomsOverview_Utilization</span>
+                                    <span>@usage / @room.Capacity (@percentage.ToString("F0")%)</span>
+                                </div>
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar @GetCapacityClass(percentage)"
+                                         role="progressbar"
+                                         style="width: @percentage%"></div>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="mt-3 text-end">
+                            <span class="text-primary small">
+                                @T.RoomsOverview_Details <i class="bi bi-arrow-right"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+            <EmptyState IconClass="bi bi-door-open"
+                        Title="@T.RoomsOverview_Empty_Title"
+                        Description="@T.RoomsOverview_Empty_Desc"
+                        ShowAction="true"
+                        ActionText="@T.RoomsOverview_Empty_Action"
+                        ActionIcon="bi bi-plus"
+                        OnActionClick="NavigateToRooms" />
+        </div>
+    </div>
+}
+
+
+@code {
+    private LagersystemLVHome.I18nText.App T = new();
+    private List<RoomStatistic> roomStats = new();
+    private bool loading = true;
+    private User? currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        T = await I18nText.GetTextTableAsync<LagersystemLVHome.I18nText.App>(this);
+        currentUser = await AuthService.GetCurrentUserAsync();
+        if (currentUser == null)
+        {
+            NavigationManager.NavigateTo("/login");
+            return;
+        }
+
+        await LoadRoomStatistics();
+    }
+
+    private async Task LoadRoomStatistics()
+    {
+        loading = true;
+
+        var stats = await LocationQueryService.GetRoomsWithStatsAsync(currentUser!.WarehouseId);
+
+        roomStats = stats.Select(s => new RoomStatistic
+        {
+            RoomId = s.Room.Id,
+            RoomName = s.Room.Name,
+            RoomCode = s.Room.Code,
+            Description = s.Room.Description,
+            Floor = s.Room.Floor,
+            Area = s.Room.Area.HasValue ? (double?)s.Room.Area.Value : null,
+            Capacity = s.Room.Capacity,
+            StorageLocationCount = s.StorageLocationCount,
+            ProductCount = s.DistinctProductCount,
+            TotalQuantity = s.TotalQuantity
+        }).ToList();
+
+        loading = false;
+    }
+
+    private void NavigateToRoom(int roomId)
+    {
+        NavigationManager.NavigateTo($"/rooms/{roomId}/products");
+    }
+    
+    private void NavigateToRooms()
+    {
+        NavigationManager.NavigateTo("/admin/rooms");
+    }
+
+    private string GetCapacityClass(double percentage)
+    {
+        if (percentage >= 90) return "bg-danger";
+        if (percentage >= 70) return "bg-warning";
+        return "bg-success";
+    }
+
+    private class RoomStatistic
+    {
+        public int RoomId { get; set; }
+        public string RoomName { get; set; } = string.Empty;
+        public string RoomCode { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public int? Floor { get; set; }
+        public double? Area { get; set; }
+        public int? Capacity { get; set; }
+        public int StorageLocationCount { get; set; }
+        public int ProductCount { get; set; }
+        public int TotalQuantity { get; set; }
+    }
+}

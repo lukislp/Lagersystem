@@ -108,19 +108,21 @@ jobs:
           python3 -c "
           import json, sys
 
-          # SQLitePCLRaw.lib.e_sqlite3 (GHSA-2m69-gcr7-jv3q) is a documented, deliberately-accepted
+          # GHSA-2m69-gcr7-jv3q (SQLitePCLRaw.lib.e_sqlite3) is a documented, deliberately-accepted
           # risk - see the NuGetAuditSuppress block + comment in Directory.Build.props. No safe fix
           # exists yet: Microsoft's own EF Core Sqlite package still depends on the vulnerable
           # SQLitePCLRaw 2.1.x line as of its latest release, and forcing an isolated upgrade risks
           # a native-interop mismatch. Excluded from the severity gate here so CI doesn't
-          # permanently fail on an already-accepted risk; any OTHER High/Critical finding still fails.
-          ACCEPTED_RISK_SUBSTRING = 'SQLitePCLRaw'
+          # permanently fail on an already-accepted risk; any OTHER High/Critical finding still
+          # fails - matched by advisory ID, not package name, so a future, different advisory
+          # against a SQLitePCLRaw.* package is NOT silently swallowed by this exclusion too.
+          ACCEPTED_ADVISORY_ID = 'GHSA-2m69-gcr7-jv3q'
 
           def find_findings(obj, package_id=None):
               if isinstance(obj, dict):
                   current_id = obj.get('id', package_id)
                   if 'severity' in obj:
-                      yield (current_id, obj['severity'])
+                      yield (current_id, obj['severity'], obj.get('advisoryurl', ''))
                   for v in obj.values():
                       yield from find_findings(v, current_id)
               elif isinstance(obj, list):
@@ -130,12 +132,12 @@ jobs:
           data = json.load(open('nuget-vulnerabilities.json'))
           findings = list(find_findings(data))
 
-          accepted = [(pid, sev) for pid, sev in findings if pid and ACCEPTED_RISK_SUBSTRING in pid]
-          other = [(pid, sev) for pid, sev in findings if not (pid and ACCEPTED_RISK_SUBSTRING in pid)]
+          accepted = [(pid, sev) for pid, sev, url in findings if ACCEPTED_ADVISORY_ID in url]
+          other = [(pid, sev) for pid, sev, url in findings if ACCEPTED_ADVISORY_ID not in url]
 
           severities = {sev for _, sev in other}
           high_or_critical = {'High', 'Critical'} & severities
-          suffix = ' (excluding the accepted SQLitePCLRaw risk)' if accepted else ''
+          suffix = ' (excluding the accepted GHSA-2m69-gcr7-jv3q risk)' if accepted else ''
           if high_or_critical:
               print(f'::error::High or Critical severity vulnerability found{suffix}: {sorted(high_or_critical)}')
               sys.exit(1)
@@ -307,9 +309,9 @@ jobs:
         with:
           dry_run: true
           extra_plugins: |
-            @semantic-release/changelog
-            @semantic-release/github
-            @semantic-release/git
+            @semantic-release/changelog@7.0.0
+            @semantic-release/github@12.0.9
+            @semantic-release/git@11.0.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: No release needed for this push
@@ -417,9 +419,9 @@ jobs:
         uses: cycjimmy/semantic-release-action@b12c8f6015dc215fe37bc154d4ad456dd3833c90 # v6.0.0
         with:
           extra_plugins: |
-            @semantic-release/changelog
-            @semantic-release/github
-            @semantic-release/git
+            @semantic-release/changelog@7.0.0
+            @semantic-release/github@12.0.9
+            @semantic-release/git@11.0.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
@@ -442,8 +444,8 @@ jobs:
         uses: cycjimmy/semantic-release-action@b12c8f6015dc215fe37bc154d4ad456dd3833c90 # v6.0.0
         with:
           extra_plugins: |
-            @semantic-release/changelog
-            @semantic-release/github
-            @semantic-release/git
+            @semantic-release/changelog@7.0.0
+            @semantic-release/github@12.0.9
+            @semantic-release/git@11.0.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

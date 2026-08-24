@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/lukislp/Lagersystem/compare/v1.3.0...v1.3.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* empty release to measure warm per-arch docker build caches ([a8390e1](https://github.com/lukislp/Lagersystem/commit/a8390e1c6112ce128da1811cebbb8ba5ff24c456))
+
 # [1.3.0](https://github.com/lukislp/Lagersystem/compare/v1.2.6...v1.3.0) (2026-08-24)
 
 

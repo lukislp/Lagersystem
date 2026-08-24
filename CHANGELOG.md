@@ -1,3 +1,10 @@
+## [1.3.2](https://github.com/lukislp/Lagersystem/compare/v1.3.1...v1.3.2) (2026-08-24)
+
+
+### Bug Fixes
+
+* **docker:** exclude release artifacts from the build context ([d4cc824](https://github.com/lukislp/Lagersystem/commit/d4cc8241e2d4f585eecc91eeeff69b1cebc25cbc))
+
 ## [1.3.1](https://github.com/lukislp/Lagersystem/compare/v1.3.0...v1.3.1) (2026-08-24)
 
 

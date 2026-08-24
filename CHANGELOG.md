@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/lukislp/Lagersystem/compare/v1.2.6...v1.3.0) (2026-08-24)
+
+
+### Features
+
+* **ci:** multi-arch images via native per-arch builds ([0407689](https://github.com/lukislp/Lagersystem/commit/04076895ca6c05ec6420bf901ae1879854368e01))
+
 ## [1.2.6](https://github.com/lukislp/Lagersystem/compare/v1.2.5...v1.2.6) (2026-08-08)
 
 

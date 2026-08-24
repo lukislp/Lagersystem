@@ -320,15 +320,26 @@ jobs:
           echo "No releasable commits since the last tag (e.g. docs/ci/chore-only) - this is the expected, common case with Conventional Commits, not a failure. Downstream jobs below skip themselves via needs.get-version.outputs.published." | tee -a "$GITHUB_STEP_SUMMARY"
 
   docker-build-push:
-    # Runs after semantic-release (not before, see that job) - so a build/push failure here
-    # never leaves an orphaned, un-tagged GHCR image blocking every future release via the
-    # duplicate-tag guard below.
+    # One native runner per platform instead of a single QEMU-emulated multi-platform build -
+    # ubuntu-24.04-arm is a real arm64 GitHub-hosted runner (free for public repos), so that
+    # leg runs at native speed (same pattern as homelab-autodoc/UnifiProtectDashboard). Each
+    # leg pushes by digest only; docker-manifest-merge below writes the actual
+    # :latest/:$NEXT_VERSION tags. Runs after semantic-release (not before, see that job) -
+    # a build/push failure here never leaves an orphaned, un-tagged GHCR image blocking
+    # every future release via the duplicate-tag guard below.
     needs: [get-version, semantic-release]
     if: github.event_name == 'push' && needs.get-version.outputs.published == 'true'
-    runs-on: ubuntu-latest
-    concurrency:
-      group: lagersystem-release-chain
-      cancel-in-progress: false
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
@@ -348,25 +359,61 @@ jobs:
             echo "::error::registry tag ${{ env.NEXT_VERSION }} already exists (version race with a parallel run). Do NOT retry this run; wait for it to finish, then push again to produce a fresh version."
             exit 1
           fi
-      # Dockerfile is self-contained (restores/builds/publishes from source inside the image
-      # build itself, unlike a split publish-then-copy setup) - matches how the README documents
-      # `docker compose up --build` as a normal end-user deployment path. amd64 only for now:
-      # no stated ARM/Raspberry Pi target, and building this multi-project solution's full SDK
-      # compile under arm64 QEMU emulation would be considerably slower than native.
-      - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
           file: Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: |
-            ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:${{ env.NEXT_VERSION }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=app-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=app-${{ matrix.arch }}
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: digests-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  docker-manifest-merge:
+    needs: [get-version, docker-build-push]
+    if: github.event_name == 'push' && needs.get-version.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      NEXT_VERSION: ${{ needs.get-version.outputs.next_version }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+      - name: Create and push the multi-arch manifest
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            -t "${{ env.IMAGE }}:${{ env.NEXT_VERSION }}" \
+            -t "${{ env.IMAGE }}:latest" \
+            $(printf "${{ env.IMAGE }}@sha256:%s " *)
+      - name: Inspect the pushed manifest
+        run: docker buildx imagetools inspect "${{ env.IMAGE }}:${{ env.NEXT_VERSION }}"
 
   trivy-scan:
-    needs: [get-version, docker-build-push]
+    needs: [get-version, docker-manifest-merge]
     if: github.event_name == 'push' && needs.get-version.outputs.published == 'true'
     runs-on: ubuntu-latest
     concurrency:

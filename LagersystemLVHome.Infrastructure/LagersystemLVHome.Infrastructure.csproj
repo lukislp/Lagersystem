@@ -39,7 +39,7 @@
     <PackageReference Include="QuestPDF" Version="2026.2.4" />
 
     <!-- EF Core (HostedServices use IDbContextFactory) -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.5" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.11" />
   </ItemGroup>
 
   <!-- ML model assets are required at runtime; copy to consumer output. -->

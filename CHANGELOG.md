@@ -1,3 +1,10 @@
+## [1.3.3](https://github.com/lukislp/Lagersystem/compare/v1.3.2...v1.3.3) (2026-09-03)
+
+
+### Bug Fixes
+
+* **ci:** add Dependabot for github-actions, nuget, docker ([a2fafec](https://github.com/lukislp/Lagersystem/commit/a2fafec73cd3f58b922ee26489014fc30059f821))
+
 ## [1.3.2](https://github.com/lukislp/Lagersystem/compare/v1.3.1...v1.3.2) (2026-08-24)
 
 

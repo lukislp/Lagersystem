@@ -1,0 +1,30 @@
+# Weekly Dependabot updates: GitHub Actions, NuGet (grouped) and the server Dockerfile.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "fix(ci)"
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      dotnet:
+        patterns: ["Microsoft.*", "System.*", "Npgsql.*"]
+    ignore:
+      # Microsoft.OpenApi 3.x is not compatible with ASP.NET Core OpenApi 10.x.
+      # Revisit with the .NET 11 upgrade.
+      - dependency-name: "Microsoft.OpenApi"
+        update-types: ["version-update:semver-major"]
+    commit-message:
+      prefix: "fix(deps)"
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "fix(docker)"

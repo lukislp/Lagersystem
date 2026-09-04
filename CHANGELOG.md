@@ -1,3 +1,10 @@
+## [1.3.4](https://github.com/lukislp/Lagersystem/compare/v1.3.3...v1.3.4) (2026-09-04)
+
+
+### Bug Fixes
+
+* **ci:** tolerate the known mysql provider gap at the step, not the job ([4aad96e](https://github.com/lukislp/Lagersystem/commit/4aad96ef1448daf7ea9c2d236f6533f9e42e9b07))
+
 ## [1.3.3](https://github.com/lukislp/Lagersystem/compare/v1.3.2...v1.3.3) (2026-09-03)
 
 

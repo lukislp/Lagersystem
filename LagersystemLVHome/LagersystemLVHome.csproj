@@ -37,12 +37,12 @@
       sub-projects (LagersystemLVHome.Application / .Infrastructure / .Data)
       and flow into this project transitively via ProjectReference.
     -->
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
     <!-- Pinned above the transitive 2.0.0 to patch GHSA-v5pm-xwqc-g5wc (circular schema references terminate parsing) -->
-    <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
+    <PackageReference Include="Microsoft.OpenApi" Version="2.12.2" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.13.13" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.5" />
-    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.11" />
 
     <!-- Blazor UI components used inside Razor pages owned by this project -->
     <PackageReference Include="Blazor-ApexCharts" Version="6.1.0" />

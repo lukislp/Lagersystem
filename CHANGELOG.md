@@ -1,3 +1,10 @@
+## [1.3.6](https://github.com/lukislp/Lagersystem/compare/v1.3.5...v1.3.6) (2026-09-04)
+
+
+### Bug Fixes
+
+* **deps:** Bump Blazor-ApexCharts from 6.1.0 to 7.0.0 ([a2950c9](https://github.com/lukislp/Lagersystem/commit/a2950c9e390ac1f63576f52100207bd09b7c4f8d))
+
 ## [1.3.5](https://github.com/lukislp/Lagersystem/compare/v1.3.4...v1.3.5) (2026-09-04)
 
 

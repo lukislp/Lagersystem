@@ -1,3 +1,15 @@
+## [1.3.5](https://github.com/lukislp/Lagersystem/compare/v1.3.4...v1.3.5) (2026-09-04)
+
+
+### Bug Fixes
+
+* **ci:** bump aquasecurity/trivy-action ([1533d11](https://github.com/lukislp/Lagersystem/commit/1533d1188c5d7cd2ba86dbee6d83eecd52550b2d))
+* **ci:** bump docker/setup-buildx-action from 4.2.0 to 4.3.0 ([4451dd3](https://github.com/lukislp/Lagersystem/commit/4451dd3c501d852a9579e2f25859240b803cc5e0))
+* **deps:** Bump AWSSDK.S3 from 4.0.19.1 to 4.0.102.4 ([294f57e](https://github.com/lukislp/Lagersystem/commit/294f57e1785bd1921b2db866e60ef3b027cf5916))
+* **deps:** Bump Azure.Storage.Blobs from 12.27.0 to 12.29.2 ([46267d5](https://github.com/lukislp/Lagersystem/commit/46267d5d633321812a5f9cf1c7c94a745cbe581b))
+* **deps:** Bump BCrypt.Net-Next from 4.1.0 to 4.2.0 ([c820e90](https://github.com/lukislp/Lagersystem/commit/c820e90fc5649cd5d98cc08166daec5b24060d3d))
+* **deps:** Bump the dotnet group with 15 updates ([a6666d1](https://github.com/lukislp/Lagersystem/commit/a6666d1598450c8966088e77efa5d2b4b8341abf))
+
 ## [1.3.4](https://github.com/lukislp/Lagersystem/compare/v1.3.3...v1.3.4) (2026-09-04)
 
 

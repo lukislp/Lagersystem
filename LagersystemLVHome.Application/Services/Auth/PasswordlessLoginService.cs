@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using LagersystemLVHome.Application.Utilities;
 using LagersystemLVHome.Data;
 using LagersystemLVHome.Domain.Models;
 using System.Security.Cryptography;
@@ -41,7 +42,7 @@ public sealed class PasswordlessLoginService : IPasswordlessLoginService
 
             if (user == null)
             {
-                _logger.LogWarning("Magic link requested for non-existent email: {Email}", email);
+                _logger.LogWarning("Magic link requested for non-existent email: {Email}", LogRedaction.MaskEmail(email));
                 // Always return true for security (prevents email enumeration)
                 return true;
             }
@@ -88,7 +89,7 @@ public sealed class PasswordlessLoginService : IPasswordlessLoginService
                 isHtml: true
             );
 
-            _logger.LogInformation("Magic link sent to user {UserId} ({Email})", user.Id, email);
+            _logger.LogInformation("Magic link sent to user {UserId} ({Email})", user.Id, LogRedaction.MaskEmail(email));
 
             if (_auditService != null)
             {
@@ -100,7 +101,7 @@ public sealed class PasswordlessLoginService : IPasswordlessLoginService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error sending magic link to {Email}", email);
+            _logger.LogError(ex, "Error sending magic link to {Email}", LogRedaction.MaskEmail(email));
             return false;
         }
     }
@@ -191,7 +192,7 @@ public sealed class PasswordlessLoginService : IPasswordlessLoginService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking passwordless status for {Email}", email);
+            _logger.LogError(ex, "Error checking passwordless status for {Email}", LogRedaction.MaskEmail(email));
             return false;
         }
     }

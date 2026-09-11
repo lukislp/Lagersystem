@@ -49,7 +49,7 @@ window.appHelper.cleanupSession = function () {
     if (window.cookieHelper && typeof window.cookieHelper.deleteCookie === 'function') {
         window.cookieHelper.deleteCookie('LagerSystem.SessionId');
     } else {
-        document.cookie = 'LagerSystem.SessionId=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
+        document.cookie = 'LagerSystem.SessionId=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Secure; SameSite=Lax';
     }
 
     if (window.SessionBlockingOverlay && typeof window.SessionBlockingOverlay.stop === 'function') {

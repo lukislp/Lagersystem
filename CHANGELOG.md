@@ -1,3 +1,10 @@
+## [1.3.12](https://github.com/lukislp/Lagersystem/compare/v1.3.11...v1.3.12) (2026-09-11)
+
+
+### Bug Fixes
+
+* **ci:** read-only GITHUB_TOKEN in the Dependabot auto-merge workflow ([7110ec1](https://github.com/lukislp/Lagersystem/commit/7110ec123b266bd4f918063e1fb5880617b9f2cc))
+
 ## [1.3.11](https://github.com/lukislp/Lagersystem/compare/v1.3.10...v1.3.11) (2026-09-11)
 
 

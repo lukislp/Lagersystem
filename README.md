@@ -1,6 +1,6 @@
 # LagerSystem
 
-[![CI/CD](https://github.com/lukislp/Lagersystem/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/lukislp/Lagersystem/actions/workflows/ci-cd.yml)
+[![CI/CD](https://github.com/lukislp/Lagersystem/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/lukislp/Lagersystem/actions/workflows/ci-cd.yml) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/lukislp/Lagersystem/badge)](https://scorecard.dev/viewer/?uri=github.com/lukislp/Lagersystem) [![CodeQL](https://github.com/lukislp/Lagersystem/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/lukislp/Lagersystem/security/code-scanning)
 [![Release](https://img.shields.io/github/v/release/lukislp/Lagersystem)](https://github.com/lukislp/Lagersystem/releases)
 [![License: AGPL-3.0](https://img.shields.io/github/license/lukislp/Lagersystem)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/)

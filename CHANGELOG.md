@@ -1,3 +1,12 @@
+## [1.3.9](https://github.com/lukislp/Lagersystem/compare/v1.3.8...v1.3.9) (2026-09-11)
+
+
+### Bug Fixes
+
+* **logging:** mask e-mail addresses and session-like ids in log output ([c3ff958](https://github.com/lukislp/Lagersystem/commit/c3ff958d62d764f01c4e1fc91604f2c566cf7454))
+* **logging:** never log the connection string on init failure ([9479cab](https://github.com/lukislp/Lagersystem/commit/9479cab49fd17350e6fcdeec937b90e8ee1c11e0))
+* **logging:** sanitize user-controlled values before writing to logs ([3417615](https://github.com/lukislp/Lagersystem/commit/3417615881b1efeb68417aa471a67aee78558388))
+
 ## [1.3.8](https://github.com/lukislp/Lagersystem/compare/v1.3.7...v1.3.8) (2026-09-11)
 
 

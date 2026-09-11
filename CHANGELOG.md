@@ -1,3 +1,10 @@
+## [1.3.8](https://github.com/lukislp/Lagersystem/compare/v1.3.7...v1.3.8) (2026-09-11)
+
+
+### Bug Fixes
+
+* **ci:** sign container images with Sigstore, attach SBOM and provenance ([1410726](https://github.com/lukislp/Lagersystem/commit/1410726a17283a0006b5ed40909131e0ca8c3f1a))
+
 ## [1.3.7](https://github.com/lukislp/Lagersystem/compare/v1.3.6...v1.3.7) (2026-09-11)
 
 

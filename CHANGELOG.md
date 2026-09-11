@@ -1,3 +1,10 @@
+## [1.3.7](https://github.com/lukislp/Lagersystem/compare/v1.3.6...v1.3.7) (2026-09-11)
+
+
+### Bug Fixes
+
+* **ci:** push release commits as a deploy key so the default branch can be ruleset-protected ([517fcb2](https://github.com/lukislp/Lagersystem/commit/517fcb237d0fa4eafd1cb900e5571f461bfb52b2))
+
 ## [1.3.6](https://github.com/lukislp/Lagersystem/compare/v1.3.5...v1.3.6) (2026-09-04)
 
 

@@ -3,6 +3,7 @@ using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 using LagersystemLVHome.Application.Services;
+using LagersystemLVHome.Application.Utilities;
 
 namespace LagersystemLVHome.Authentication;
 
@@ -99,7 +100,7 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
 
             _logger.LogInformation(
                 "API authentication successful for user {UserId} ({Username}) with key '{ApiKeyName}'. Request: {RequestPath}, Session: {SessionId}",
-                user.Id, user.Username, apiKeyName, requestPath, apiSession?.SessionId ?? "N/A");
+                user.Id, user.Username, apiKeyName, LogRedaction.ForLog(requestPath), LogRedaction.MaskSecret(apiSession?.SessionId));
 
             return AuthenticateResult.Success(ticket);
         }

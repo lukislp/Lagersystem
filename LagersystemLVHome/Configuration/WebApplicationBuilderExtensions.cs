@@ -249,11 +249,11 @@ public static class WebApplicationBuilderExtensions
         catch (Exception ex)
         {
             logger.LogError(ex, "An error occurred while initializing the database with provider {Provider}", databaseProvider);
-            logger.LogError(
-                "Connection String (sanitized): {ConnectionString}",
-                connectionString.Contains("Password", StringComparison.OrdinalIgnoreCase)
-                    ? "***CONTAINS PASSWORD***"
-                    : connectionString);
+
+            // Never log the connection string, not even conditionally: credentials can be
+            // carried under keys other than "Password" (Pwd=, User Id=, or a token embedded
+            // in the host), so no substring check is safe. The provider is already logged above.
+            logger.LogError("Connection string is not logged to avoid leaking credentials (length: {Length})", connectionString.Length);
 
             // Swallow the error deliberately - the app must still start so
             // operators can access the Setup page and repair configuration.

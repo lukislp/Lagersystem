@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using LagersystemLVHome.Application.Services;
+using LagersystemLVHome.Application.Utilities;
 
 namespace LagersystemLVHome.Infrastructure;
 
@@ -75,8 +76,10 @@ public class CircuitIdTrackerHandler : CircuitHandler
                 userAgent.Contains("Android", StringComparison.OrdinalIgnoreCase) ||
                 userAgent.Contains("iPhone", StringComparison.OrdinalIgnoreCase);
 
+            // Circuit/connection ids are treated like secrets (they identify a live session), so
+            // they are masked here rather than logged in full.
             _logger.LogWarning("  Circuit ID set: {CircuitId} | Connection: {ConnectionId} | Event: {Event} | Mobile: {IsMobile}",
-                circuitId, connectionId, eventName, isMobile);
+                LogRedaction.MaskToken(circuitId), LogRedaction.MaskToken(connectionId), eventName, isMobile);
 
             var allCircuits = _circuitUserStore.GetAllCircuits();
             var allMappings = _circuitUserStore.GetAllConnectionMappings();

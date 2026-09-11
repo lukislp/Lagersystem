@@ -1,3 +1,4 @@
+using LagersystemLVHome.Application.Utilities;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
@@ -35,8 +36,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         _logger.LogError(
             exception,
             "Unhandled exception for {Method} {Path}: {Message}",
-            httpContext.Request.Method,
-            httpContext.Request.Path,
+            LogRedaction.ForLog(httpContext.Request.Method),
+            LogRedaction.ForLog(httpContext.Request.Path),
             exception.Message);
 
         // Only produce a ProblemDetails body for JSON/API callers. Razor and

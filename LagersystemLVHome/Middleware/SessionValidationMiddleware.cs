@@ -1,3 +1,4 @@
+using LagersystemLVHome.Application.Utilities;
 using LagersystemLVHome.Data;
 using LagersystemLVHome.Domain.Models;
 using Microsoft.EntityFrameworkCore;
@@ -82,7 +83,7 @@ public class SessionValidationMiddleware
             if (session == null)
             {
                 _logger.LogWarning("SessionValidation: session not found in DB: {SessionId}",
-                    sessionCookie.Substring(0, Math.Min(8, sessionCookie.Length)) + "...");
+                    LogRedaction.MaskSecret(sessionCookie));
 
                 await InvalidateSessionAsync(context, "Session not found");
                 return;
@@ -91,7 +92,7 @@ public class SessionValidationMiddleware
             if (!session.IsActive)
             {
                 _logger.LogWarning("SessionValidation: session inactive: {SessionId}, Reason: {Reason}",
-                    sessionCookie.Substring(0, Math.Min(8, sessionCookie.Length)) + "...",
+                    LogRedaction.MaskSecret(sessionCookie),
                     session.EndReason);
 
                 await InvalidateSessionAsync(context, $"Session ended: {session.EndReason}");
@@ -103,7 +104,7 @@ public class SessionValidationMiddleware
             if (DateTime.UtcNow - session.LastActivity > inactivityTimeout)
             {
                 _logger.LogWarning("SessionValidation: session timeout due to inactivity: {SessionId}",
-                    sessionCookie.Substring(0, Math.Min(8, sessionCookie.Length)) + "...");
+                    LogRedaction.MaskSecret(sessionCookie));
 
                 var sessionToUpdate = await dbContext.UserSessions
                     .FirstOrDefaultAsync(s => s.SessionId == sessionCookie);

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using LagersystemLVHome.Application.Utilities;
 using LagersystemLVHome.Data;
 using LagersystemLVHome.Domain.Models;
 using System.Net;
@@ -90,13 +91,13 @@ public sealed class UserIpAccessService : IUserIpAccessService
                     if (rule.IsAllowed)
                     {
                         _logger.LogDebug("IP {IP} allowed for user {UserId} by rule: {Rule}",
-                    ipAddress, userId, rule.Description ?? rule.IpPattern);
+                    LogRedaction.ForLog(ipAddress), userId, rule.Description ?? rule.IpPattern);
                         return IpAccessCheckResult.Allowed(rule.Description ?? rule.IpPattern);
                     }
                     else
                     {
                         _logger.LogWarning("IP {IP} denied for user {UserId} by rule: {Rule}",
-                                ipAddress, userId, rule.Description ?? rule.IpPattern);
+                                LogRedaction.ForLog(ipAddress), userId, rule.Description ?? rule.IpPattern);
 
                         if (_auditService != null)
                         {
@@ -117,7 +118,7 @@ public sealed class UserIpAccessService : IUserIpAccessService
             if (hasWhitelistRules)
             {
                 // Whitelist rules exist and none matched = block
-                _logger.LogWarning("IP {IP} denied for user {UserId} - not in whitelist", ipAddress, userId);
+                _logger.LogWarning("IP {IP} denied for user {UserId} - not in whitelist", LogRedaction.ForLog(ipAddress), userId);
 
                 if (_auditService != null)
                 {
@@ -361,7 +362,7 @@ public sealed class UserIpAccessService : IUserIpAccessService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error matching IP {IP} against pattern {Pattern}", ipAddress, pattern);
+            _logger.LogWarning(ex, "Error matching IP {IP} against pattern {Pattern}", LogRedaction.ForLog(ipAddress), pattern);
             return false;
         }
     }

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using LagersystemLVHome.Application.Services;
+using LagersystemLVHome.Application.Utilities;
 
 namespace LagersystemLVHome.Infrastructure;
 
@@ -55,7 +56,7 @@ public class SessionMonitorCircuitHandler : CircuitHandler
 
             _logger.LogInformation("Circuit {CircuitId}: User={Username} (UserId={UserId}), SessionId={SessionId}",
                 circuit.Id, currentUser.Username, currentUser.Id,
-                sessionId.Substring(0, Math.Min(8, sessionId.Length)) + "...");
+                LogRedaction.MaskSecret(sessionId));
 
             // Start session monitor with circuit ID (circuit-isolated)
             var sessionMonitor = _serviceProvider.GetRequiredService<ISessionMonitorService>();

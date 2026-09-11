@@ -10,6 +10,7 @@
 @using Microsoft.JSInterop
 @using LagersystemLVHome.Data
 @using LagersystemLVHome.Application.Services
+@using LagersystemLVHome.Application.Utilities
 @inject IAuthService AuthService
 @inject ISessionManagementService SessionService
 @inject ILogger<ThumbmarkFingerprintCapture> Logger
@@ -135,13 +136,13 @@
 
                 Logger.LogInformation(
                     "ThumbmarkFingerprintCapture: SUCCESS! Saved Thumbmarkjs fingerprint for session {SessionId}, user {UserId}. NewFP: {NewFP}",
-                    sessionId[..Math.Min(8, sessionId.Length)] + "...",
+                    LogRedaction.MaskSecret(sessionId),
                     user.Id,
-                    fingerprint[..Math.Min(16, fingerprint.Length)] + "...");
+                    LogRedaction.MaskSecret(fingerprint));
             }
             else
             {
-                Logger.LogWarning("ThumbmarkFingerprintCapture: Session {SessionId} not found in database", sessionId);
+                Logger.LogWarning("ThumbmarkFingerprintCapture: Session {SessionId} not found in database", LogRedaction.MaskSecret(sessionId));
             }
         }
         catch (Exception ex)

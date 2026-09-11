@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using LagersystemLVHome.Application.Utilities;
 using LagersystemLVHome.Data;
 using LagersystemLVHome.Domain.Models;
 using LagersystemLVHome.API.DTOs;
@@ -255,7 +256,7 @@ public class StorageLocationsApiController : BaseApiController
                 Products = new List<ProductInLocationDto>()
             };
 
-            _logger.LogInformation("API: Storage location created: {Code}", location.Code);
+            _logger.LogInformation("API: Storage location created: {Code}", LogRedaction.ForLog(location.Code));
             return CreatedAtAction(nameof(GetStorageLocation), new { id = location.Id },
                 ApiResponse<StorageLocationDetailDto>.SuccessResult(dto, "Storage location created"));
         }

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using LagersystemLVHome.Application.Utilities;
 using LagersystemLVHome.Data;
 using LagersystemLVHome.Application.Services;
 using LagersystemLVHome.API.DTOs;
@@ -190,7 +191,7 @@ public class ProductsApiController : BaseApiController
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "API: Error fetching product by barcode {Barcode}", barcode);
+            _logger.LogError(ex, "API: Error fetching product by barcode {Barcode}", LogRedaction.ForLog(barcode));
             return Error<ProductDto>("Error fetching product", 500);
         }
     }

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using LagersystemLVHome.Application.Services;
+using LagersystemLVHome.Application.Utilities;
 
 namespace LagersystemLVHome.Controllers;
 
@@ -41,14 +42,14 @@ public class SessionCheckController : ControllerBase
 
             if (session == null)
             {
-                _logger.LogDebug("Session check: {SessionId} not found", sessionId.Substring(0, Math.Min(8, sessionId.Length)));
+                _logger.LogDebug("Session check: {SessionId} not found", LogRedaction.MaskSecret(sessionId));
                 return Ok(new { isActive = false, reason = "NotFound" });
             }
 
             if (!session.IsActive)
             {
                 _logger.LogDebug("Session check: {SessionId} inactive, reason: {Reason}",
-                    sessionId.Substring(0, Math.Min(8, sessionId.Length)),
+                    LogRedaction.MaskSecret(sessionId),
                     session.EndReason?.ToString() ?? "Unknown");
 
                 return Ok(new
@@ -62,7 +63,7 @@ public class SessionCheckController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking session {SessionId}", sessionId[..Math.Min(8, sessionId.Length)]);
+            _logger.LogError(ex, "Error checking session {SessionId}", LogRedaction.MaskSecret(sessionId));
             // On error assume session is still active
             return Ok(new { isActive = true, reason = (string?)null });
         }

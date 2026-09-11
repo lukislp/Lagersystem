@@ -1,3 +1,4 @@
+using LagersystemLVHome.Application.Utilities;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Threading;
@@ -110,7 +111,7 @@ public sealed class SessionMonitorService : ISessionMonitorService, IDisposable
 
         _logger.LogInformation(
             "SessionMonitor: Started monitoring - Circuit={CircuitId}, User={UserId}, Session={SessionId}, TotalMonitors={Count}",
-            circuitId, userId, sessionId.Substring(0, Math.Min(8, sessionId.Length)) + "...", _monitors.Count);
+            circuitId, userId, LogRedaction.MaskSecret(sessionId), _monitors.Count);
 
         // Start background task for this circuit
         monitorState.MonitorTask = RunMonitorLoopAsync(monitorState);
@@ -280,7 +281,7 @@ public sealed class SessionMonitorService : ISessionMonitorService, IDisposable
             if (session == null)
             {
                 _logger.LogWarning("Session not found: {SessionId} (Circuit: {CircuitId})",
-                    state.SessionId.Substring(0, Math.Min(8, state.SessionId.Length)) + "...", state.CircuitId);
+                    LogRedaction.MaskSecret(state.SessionId), state.CircuitId);
                 await TerminateAsync(state, "Session not found in database");
                 return;
             }
@@ -288,7 +289,7 @@ public sealed class SessionMonitorService : ISessionMonitorService, IDisposable
             if (!session.IsActive)
             {
                 _logger.LogWarning("Session inactive: {SessionId}, Reason: {Reason} (Circuit: {CircuitId})",
-                    state.SessionId.Substring(0, Math.Min(8, state.SessionId.Length)) + "...",
+                    LogRedaction.MaskSecret(state.SessionId),
                     session.EndReason, state.CircuitId);
                 await TerminateAsync(state, $"Session ended: {session.EndReason}");
                 return;

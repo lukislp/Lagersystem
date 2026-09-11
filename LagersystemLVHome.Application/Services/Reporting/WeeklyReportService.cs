@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using LagersystemLVHome.Application.Utilities;
 
 namespace LagersystemLVHome.Application.Services;
 
@@ -73,11 +74,11 @@ public sealed class WeeklyReportService : BackgroundService
                 try
                 {
                     await SendWeeklyReportEmailAsync(emailService, admin.Email, admin.Username, pdfBytes, from, to);
-                    _logger.LogInformation("Weekly report sent to {Email}", admin.Email);
+                    _logger.LogInformation("Weekly report sent to {Email}", LogRedaction.MaskEmail(admin.Email));
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to send report to {Email}", admin.Email);
+                    _logger.LogError(ex, "Failed to send report to {Email}", LogRedaction.MaskEmail(admin.Email));
                 }
             }
 

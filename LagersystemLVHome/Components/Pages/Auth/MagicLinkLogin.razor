@@ -1,6 +1,7 @@
 @page "/login/magic"
 @inherits CancellableComponentBase
 @using LagersystemLVHome.Domain.Models
+@using LagersystemLVHome.Application.Utilities
 @layout EmptyLayout
 @rendermode InteractiveServer
 @inject IAuthService AuthService
@@ -128,7 +129,7 @@
                 if (!string.IsNullOrEmpty(sessionId))
                 {
                     await JSRuntime.InvokeVoidAsync("cookieHelper.setCookie", "LagerSystem.SessionId", sessionId, 7);
-                    Logger.LogInformation("Session cookie set for magic link login: {SessionId}", sessionId);
+                    Logger.LogInformation("Session cookie set for magic link login: {SessionId}", LogRedaction.MaskSecret(sessionId));
                 }
             }
             catch (Exception ex)

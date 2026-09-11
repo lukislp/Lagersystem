@@ -1,4 +1,5 @@
 using LagersystemLVHome.Application.Configuration;
+using LagersystemLVHome.Application.Utilities;
 using LagersystemLVHome.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
@@ -40,7 +41,7 @@ public sealed class EmailService : IEmailService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error loading user display name for {Email}", email);
+            _logger.LogWarning(ex, "Error loading user display name for {Email}", LogRedaction.MaskEmail(email));
             return email.Split('@')[0];
         }
     }
@@ -49,7 +50,7 @@ public sealed class EmailService : IEmailService
     {
         if (!_settings.EnableEmail)
         {
-            _logger.LogWarning("Email sending disabled. Email would be sent to: {To}, Subject: {Subject}", to, subject);
+            _logger.LogWarning("Email sending disabled. Email would be sent to: {To}, Subject: {Subject}", LogRedaction.MaskEmail(to), subject);
             return;
         }
 
@@ -73,11 +74,11 @@ public sealed class EmailService : IEmailService
             mailMessage.To.Add(to);
 
             await smtpClient.SendMailAsync(mailMessage);
-            _logger.LogInformation("Email successfully sent to: {To}", to);
+            _logger.LogInformation("Email successfully sent to: {To}", LogRedaction.MaskEmail(to));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error sending email to: {To}", to);
+            _logger.LogError(ex, "Error sending email to: {To}", LogRedaction.MaskEmail(to));
             throw;
         }
     }
@@ -86,7 +87,7 @@ public sealed class EmailService : IEmailService
     {
         if (!_settings.EnableEmail)
         {
-            _logger.LogWarning("Email sending disabled. Email with attachment would be sent to: {To}, Subject: {Subject}", to, subject);
+            _logger.LogWarning("Email sending disabled. Email with attachment would be sent to: {To}, Subject: {Subject}", LogRedaction.MaskEmail(to), subject);
             return;
         }
 
@@ -115,11 +116,11 @@ public sealed class EmailService : IEmailService
             mailMessage.Attachments.Add(attachment);
 
             await smtpClient.SendMailAsync(mailMessage);
-            _logger.LogInformation("Email with PDF attachment ({Size} KB) successfully sent to: {To}", attachmentData.Length / 1024, to);
+            _logger.LogInformation("Email with PDF attachment ({Size} KB) successfully sent to: {To}", attachmentData.Length / 1024, LogRedaction.MaskEmail(to));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error sending email with attachment to: {To}", to);
+            _logger.LogError(ex, "Error sending email with attachment to: {To}", LogRedaction.MaskEmail(to));
             throw;
         }
     }

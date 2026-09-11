@@ -1,3 +1,13 @@
+## [1.3.10](https://github.com/lukislp/Lagersystem/compare/v1.3.9...v1.3.10) (2026-09-11)
+
+
+### Bug Fixes
+
+* **deps:** Bump AWSSDK.S3 from 4.0.102.4 to 4.0.103.2 ([8d060e6](https://github.com/lukislp/Lagersystem/commit/8d060e6631ca97a2cbb50fd664195b25a7fc511d))
+* **deps:** Bump ClosedXML from 0.105.0 to 0.105.1 ([c1a595c](https://github.com/lukislp/Lagersystem/commit/c1a595cf38bb56a116a8b47dfab543fcc576b46e))
+* **deps:** Bump dotnet-ef from 10.0.1 to 10.0.12 ([093da27](https://github.com/lukislp/Lagersystem/commit/093da2773f35a2b9c00c15dab8bd96e683b0c30c))
+* **deps:** Bump Microsoft.AspNetCore.OpenApi and 11 others ([9d18cfe](https://github.com/lukislp/Lagersystem/commit/9d18cfea1dc1c2a0724faa8a7c5ecb016d17e90f))
+
 ## [1.3.9](https://github.com/lukislp/Lagersystem/compare/v1.3.8...v1.3.9) (2026-09-11)
 
 

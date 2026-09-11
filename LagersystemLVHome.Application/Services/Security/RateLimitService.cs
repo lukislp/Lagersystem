@@ -1,4 +1,5 @@
 using LagersystemLVHome.Application.Configuration;
+using LagersystemLVHome.Application.Utilities;
 using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 
@@ -101,7 +102,7 @@ public sealed class RateLimitService : IRateLimitService, IDisposable
         // Check blacklist
         if (_settings.BlacklistedIPs.Contains(identifier))
         {
-            _logger.LogWarning("Blacklisted IP attempted access: {IP} -> {Endpoint}", identifier, endpoint);
+            _logger.LogWarning("Blacklisted IP attempted access: {IP} -> {Endpoint}", LogRedaction.ForLog(identifier), LogRedaction.ForLog(endpoint));
             return RateLimitResult.CreateBlocked("IP is blacklisted");
         }
 
@@ -123,7 +124,7 @@ public sealed class RateLimitService : IRateLimitService, IDisposable
             {
                 _logger.LogWarning(
                     "Rate Limit exceeded: {Identifier} -> {Endpoint} | Role: {Role} | Limit: {Limit}/{Window}",
-                    identifier, endpoint, role ?? "Anonymous", policy.PermitLimit, policy.Window);
+                    LogRedaction.ForLog(identifier), LogRedaction.ForLog(endpoint), role ?? "Anonymous", policy.PermitLimit, policy.Window);
             }
 
             return result;
@@ -274,13 +275,13 @@ public sealed class RateLimitService : IRateLimitService, IDisposable
                     }
                     catch (Exception innerEx)
                     {
-                        _logger.LogWarning(innerEx, "Geo-location lookup failed for IP: {IP}", ip);
+                        _logger.LogWarning(innerEx, "Geo-location lookup failed for IP: {IP}", LogRedaction.ForLog(ip));
                     }
                 }).Wait(TimeSpan.FromMilliseconds(100));
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to get geo-location for IP: {Identifier}", identifier);
+                _logger.LogWarning(ex, "Failed to get geo-location for IP: {Identifier}", LogRedaction.ForLog(identifier));
             }
         }
 
@@ -533,7 +534,7 @@ public sealed class RateLimitService : IRateLimitService, IDisposable
                 _requestLog.TryDequeue(out _);
             }
 
-            _logger.LogDebug("Logged failed auth attempt: {Identifier} -> {Endpoint}", identifier, endpoint);
+            _logger.LogDebug("Logged failed auth attempt: {Identifier} -> {Endpoint}", LogRedaction.ForLog(identifier), LogRedaction.ForLog(endpoint));
         }
         catch (Exception ex)
         {

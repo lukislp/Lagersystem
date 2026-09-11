@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using LagersystemLVHome.Application.Configuration;
+using LagersystemLVHome.Application.Utilities;
 
 namespace LagersystemLVHome.Middleware;
 
@@ -173,7 +174,7 @@ public class CloudflareSecurityMiddleware
             _settings.GeoLocation.BlockedCountries.Contains(country, StringComparer.OrdinalIgnoreCase))
         {
             _logger.LogWarning("Access from blocked country: {Country} - {IP} (Ray: {Ray})",
-                country, GetClientIP(context), GetRayId(context));
+                LogRedaction.ForLog(country), GetClientIP(context), GetRayId(context));
 
             return Task.FromResult(new SecurityCheckResult
             {
@@ -186,7 +187,7 @@ public class CloudflareSecurityMiddleware
             !_settings.GeoLocation.AllowedCountries.Contains(country, StringComparer.OrdinalIgnoreCase))
         {
             _logger.LogWarning("Access from non-allowed country: {Country} - {IP} (Ray: {Ray})",
-                country, GetClientIP(context), GetRayId(context));
+                LogRedaction.ForLog(country), GetClientIP(context), GetRayId(context));
 
             return Task.FromResult(new SecurityCheckResult
             {
@@ -195,7 +196,7 @@ public class CloudflareSecurityMiddleware
             });
         }
 
-        _logger.LogDebug("Access from {Country}: {IP}", country, GetClientIP(context));
+        _logger.LogDebug("Access from {Country}: {IP}", LogRedaction.ForLog(country), GetClientIP(context));
 
         return Task.FromResult(new SecurityCheckResult { Allowed = true });
     }
@@ -217,19 +218,23 @@ public class CloudflareSecurityMiddleware
         await context.Response.WriteAsync($"Access Denied: {reason}");
 
         _logger.LogWarning("Request blocked: {IP} - {Reason} (Ray: {Ray})",
-            GetClientIP(context), reason, GetRayId(context));
+            GetClientIP(context), LogRedaction.ForLog(reason), GetRayId(context));
     }
 
+    // These two helpers are only ever used to build log messages, so the sanitization
+    // happens here once rather than at every call site: both values come straight from
+    // request headers and are otherwise unvalidated.
     private string GetClientIP(HttpContext context)
     {
-        return context.Request.Headers[CF_CONNECTING_IP].FirstOrDefault()
+        var ip = context.Request.Headers[CF_CONNECTING_IP].FirstOrDefault()
             ?? context.Connection.RemoteIpAddress?.ToString()
             ?? "Unknown";
+        return LogRedaction.ForLog(ip);
     }
 
     private string GetRayId(HttpContext context)
     {
-        return context.Request.Headers[CF_RAY_ID].FirstOrDefault() ?? "N/A";
+        return LogRedaction.ForLog(context.Request.Headers[CF_RAY_ID].FirstOrDefault() ?? "N/A");
     }
 }
 

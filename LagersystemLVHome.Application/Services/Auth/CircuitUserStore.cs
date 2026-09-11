@@ -1,3 +1,4 @@
+using LagersystemLVHome.Application.Utilities;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using System.Collections.Concurrent;
 
@@ -193,7 +194,7 @@ public sealed class CircuitUserStore
         else
         {
             _circuitSessionIds[circuitId] = sessionId;
-            _logger.LogInformation("Stored session ID for circuit {CircuitId}: {SessionId}", circuitId, sessionId);
+            _logger.LogInformation("Stored session ID for circuit {CircuitId}: {SessionId}", circuitId, LogRedaction.MaskSecret(sessionId));
         }
     }
 

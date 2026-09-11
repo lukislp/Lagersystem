@@ -1,5 +1,6 @@
 using LagersystemLVHome.Domain.Models;
 using LagersystemLVHome.Application.Services;
+using LagersystemLVHome.Application.Utilities;
 using System.Security.Claims;
 using LagersystemLVHome.Data;
 using Microsoft.EntityFrameworkCore;
@@ -139,7 +140,7 @@ public class ApplicationInsightsMiddleware
             var deviceFingerprint = httpContext.Request.Cookies["DeviceFingerprint"];
 
             _logger.LogDebug("UpdateSessionActivity: Cookie DeviceFingerprint = {Fingerprint}, HttpContext.Items = {Items}",
-                deviceFingerprint?[..Math.Min(16, deviceFingerprint?.Length ?? 0)] ?? "NULL",
+                LogRedaction.MaskSecret(deviceFingerprint),
                 httpContext.Items["DeviceFingerprint"]?.ToString() ?? "NULL");
 
             // Fallback: find active session by UserId and DeviceFingerprint
@@ -162,7 +163,7 @@ public class ApplicationInsightsMiddleware
                     else
                     {
                         _logger.LogWarning("No session found for user {UserId} with fingerprint {Fingerprint}",
-                            userId, deviceFingerprint?[..Math.Min(16, deviceFingerprint?.Length ?? 0)] ?? "NULL");
+                            userId, LogRedaction.MaskSecret(deviceFingerprint));
                     }
                 }
             }
@@ -207,7 +208,7 @@ public class ApplicationInsightsMiddleware
             if (session.IpAddress != ipAddress && ipAddress != "Unknown")
             {
                 _logger.LogInformation("IP changed for session {SessionId}: {OldIp} -> {NewIp}",
-                    sessionId, session.IpAddress, ipAddress);
+                    LogRedaction.MaskSecret(sessionId), LogRedaction.ForLog(session.IpAddress), LogRedaction.ForLog(ipAddress));
                 needsUpdate = true;
             }
 

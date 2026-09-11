@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using LagersystemLVHome.Application.Utilities;
 using LagersystemLVHome.Data;
 using LagersystemLVHome.Domain.Models;
 
@@ -77,7 +78,7 @@ public sealed class TrustedDeviceService : ITrustedDeviceService
         if (trusted)
         {
             _logger.LogInformation("Trusted device found for user {UserId}, FP: {FP}",
-                userId, deviceFingerprint[..Math.Min(16, deviceFingerprint.Length)] + "...");
+                userId, LogRedaction.MaskSecret(deviceFingerprint));
         }
 
         return trusted;

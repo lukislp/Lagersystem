@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using LagersystemLVHome.Application.Utilities;
 using LagersystemLVHome.Data;
 using LagersystemLVHome.Domain.Models;
 using LagersystemLVHome.API.DTOs;
@@ -235,7 +236,7 @@ public class MovementsApiController : BaseApiController
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error loading movements by type {Type}", type);
+            _logger.LogError(ex, "Error loading movements by type {Type}", LogRedaction.ForLog(type));
             return Error<List<MovementDto>>("Error loading movements", 500);
         }
     }

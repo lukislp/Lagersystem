@@ -1,3 +1,4 @@
+@using LagersystemLVHome.Application.Utilities
 @inject ILogger<SessionStatusMonitor> Logger
 @inject ISessionManagementService SessionService
 @inject IAuthService AuthService
@@ -40,7 +41,7 @@
                 return;
             }
 
-            Logger.LogInformation("SessionStatusMonitor: Session ID found - {SessionId}", _sessionId);
+            Logger.LogInformation("SessionStatusMonitor: Session ID found - {SessionId}", LogRedaction.MaskSecret(_sessionId));
             Logger.LogInformation("SessionStatusMonitor: Starting periodic timer with 5 second interval");
          
             // Start PeriodicTimer (better for async callbacks)
@@ -51,7 +52,7 @@
             _checkTask = RunPeriodicChecksAsync(_cancellationTokenSource.Token);
    
             Logger.LogInformation("SessionStatusMonitor: Periodic timer started successfully for user {UserId}, session {SessionId}",
-            _userId, _sessionId);
+            _userId, LogRedaction.MaskSecret(_sessionId));
         }
         catch (Exception ex)
         {
@@ -111,7 +112,7 @@
         try
         {
             Logger.LogInformation("SessionStatusMonitor: Checking session status for {SessionId} (User: {UserId})",
-                        _sessionId, _userId);
+                        LogRedaction.MaskSecret(_sessionId), _userId);
 
             // Check whether the session still exists and is active in the database
             var session = await SessionService.GetSessionAsync(_sessionId);
@@ -119,7 +120,7 @@
             if (session == null)
             {
                 Logger.LogWarning("SessionStatusMonitor: Session {SessionId} not found in database - initiating logout",
-                    _sessionId);
+                    LogRedaction.MaskSecret(_sessionId));
                 await TerminateSessionAsync("Session not found in database");
                 return;
             }
@@ -127,7 +128,7 @@
             if (!session.IsActive)
             {
                 Logger.LogWarning("SessionStatusMonitor: Session {SessionId} is no longer active (IsActive=false) - initiating logout",
-                _sessionId);
+                LogRedaction.MaskSecret(_sessionId));
                 Logger.LogInformation("   EndTime: {EndTime}, EndReason: {EndReason}",
                             session.EndTime, session.EndReason);
                 await TerminateSessionAsync($"Session inactive: {session.EndReason}");
@@ -136,12 +137,12 @@
 
             // Session is active - everything OK
             Logger.LogInformation("SessionStatusMonitor: Session {SessionId} is active - continuing monitoring",
-            _sessionId);
+            LogRedaction.MaskSecret(_sessionId));
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "SessionStatusMonitor: Error checking session status for {SessionId}",
-        _sessionId);
+        LogRedaction.MaskSecret(_sessionId));
         }
     }
 
@@ -158,7 +159,7 @@
         try
         {
             Logger.LogWarning("SessionStatusMonitor: Terminating session {SessionId} for user {UserId}",
-        _sessionId, _userId);
+        LogRedaction.MaskSecret(_sessionId), _userId);
             Logger.LogInformation("   Reason: {Reason}", reason);
 
             // Stoppe Timer
@@ -215,7 +216,7 @@
         {
             if (_periodicTimer != null || _cancellationTokenSource != null)
             {
-                Logger.LogInformation("SessionStatusMonitor: Disposing timer for session {SessionId}", _sessionId);
+                Logger.LogInformation("SessionStatusMonitor: Disposing timer for session {SessionId}", LogRedaction.MaskSecret(_sessionId));
         
                 _cancellationTokenSource?.Cancel();
                 _cancellationTokenSource?.Dispose();

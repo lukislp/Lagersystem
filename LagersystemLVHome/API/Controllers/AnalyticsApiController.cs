@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using LagersystemLVHome.Application.Utilities;
 using LagersystemLVHome.Data;
 using LagersystemLVHome.API.DTOs;
 using LagersystemLVHome.Application.Services;
@@ -451,7 +452,7 @@ public class AnalyticsApiController : BaseApiController
             };
 
             _logger.LogInformation("API: Enhanced analytics fetched by user {UserId} for timeRange {TimeRange}",
-                CurrentUserId, timeRange);
+                CurrentUserId, LogRedaction.ForLog(timeRange));
             return Success(analytics);
         }
         catch (Exception ex)
@@ -495,7 +496,7 @@ public class AnalyticsApiController : BaseApiController
                 .OrderBy(m => m.Date)
                 .ToListAsync();
 
-            _logger.LogInformation("API: Movement trend fetched for period {Period}", period);
+            _logger.LogInformation("API: Movement trend fetched for period {Period}", LogRedaction.ForLog(period));
             return Success(movements);
         }
         catch (Exception ex)

@@ -1,5 +1,6 @@
 using LagersystemLVHome.Application.Configuration;
 using LagersystemLVHome.Application.Services;
+using LagersystemLVHome.Application.Utilities;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using System.Text.Json;
@@ -165,8 +166,8 @@ public class RateLimitMiddleware
         await context.Response.WriteAsync(JsonSerializer.Serialize(response));
 
         _logger.LogWarning("Rate limit exceeded: {Path} | IP: {IP} | User: {User}",
-            context.Request.Path,
-            GetIpAddress(context),
+            LogRedaction.ForLog(context.Request.Path),
+            LogRedaction.ForLog(GetIpAddress(context)),
             context.User.Identity?.Name ?? "Anonymous");
     }
 

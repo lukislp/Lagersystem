@@ -1,3 +1,10 @@
+## [1.3.11](https://github.com/lukislp/Lagersystem/compare/v1.3.10...v1.3.11) (2026-09-11)
+
+
+### Bug Fixes
+
+* **auth:** mark the session cookie Secure in the logout fallback ([#28](https://github.com/lukislp/Lagersystem/issues/28)) ([8c63732](https://github.com/lukislp/Lagersystem/commit/8c6373232b91bc3022c1c9d00aa3191b7e8743a7))
+
 ## [1.3.10](https://github.com/lukislp/Lagersystem/compare/v1.3.9...v1.3.10) (2026-09-11)
 
 

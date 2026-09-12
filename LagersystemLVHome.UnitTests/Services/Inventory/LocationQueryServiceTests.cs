@@ -188,7 +188,7 @@ public class LocationQueryServiceTests
 
         data.Locations.Should().HaveCount(2);
         data.AvailableRooms.Should().ContainSingle();
-        var first = data.Locations.First();
+        var first = data.Locations[0];
         first.Location.Code.Should().Be("L1");
         first.DistinctProductCount.Should().Be(2);
         first.TotalQuantity.Should().Be(7);
@@ -302,7 +302,7 @@ public class LocationQueryServiceTests
         contents!.Room.Name.Should().Be("Hall A");
         contents.StorageLocations.Should().ContainSingle().Which.Code.Should().Be("L1");
         contents.ProductPlacements.Should().ContainSingle();
-        contents.ProductPlacements.First().Product!.Category.Should().NotBeNull();
+        contents.ProductPlacements[0].Product!.Category.Should().NotBeNull();
     }
 
     [Fact]

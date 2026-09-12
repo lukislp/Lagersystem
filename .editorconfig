@@ -11,6 +11,11 @@ insert_final_newline = true
 [*.cs]
 indent_size = 4
 
+# CA1848 (LoggerMessage source generator) is migrated service by service (see the catalog in
+# Directory.Build.props). As an IDE suggestion the remaining call sites stay visible in the Error
+# List without flooding every CI build with ~2000 warnings.
+dotnet_diagnostic.CA1848.severity = suggestion
+
 [*.{razor,cshtml}]
 indent_size = 4
 
@@ -19,3 +24,8 @@ indent_size = 2
 
 [*.{css,js}]
 indent_size = 2
+
+[LagersystemLVHome.UnitTests/**.cs]
+# NSubstitute stubs a ValueTask-returning member with `.Returns(new ValueTask<T>(...))` - the
+# documented pattern, which CA2012 cannot tell apart from a ValueTask consumed twice.
+dotnet_diagnostic.CA2012.severity = none

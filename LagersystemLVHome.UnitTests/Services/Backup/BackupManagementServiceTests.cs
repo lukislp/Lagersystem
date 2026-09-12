@@ -24,6 +24,7 @@ namespace LagersystemLVHome.UnitTests.Services.Backup;
 /// valid values instead of hard-coding one, to avoid date-dependent flakiness (only
 /// today's actual branch is exercised).
 /// </summary>
+[Collection(BackupScratchDirectoryTestGroup.Name)]
 public sealed class BackupManagementServiceTests : IDisposable
 {
     private readonly List<string> _tempPaths = new();

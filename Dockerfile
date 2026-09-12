@@ -8,16 +8,17 @@ WORKDIR /src
 # Project files first (for layer caching)
 COPY ["Directory.Build.props", "global.json", "./"]
 COPY ["LagersystemLVHome.sln", "./"]
-COPY ["LagersystemLVHome/LagersystemLVHome.csproj", "LagersystemLVHome/"]
-COPY ["LagersystemLVHome.Domain/LagersystemLVHome.Domain.csproj", "LagersystemLVHome.Domain/"]
-COPY ["LagersystemLVHome.Data/LagersystemLVHome.Data.csproj", "LagersystemLVHome.Data/"]
-COPY ["LagersystemLVHome.Application/LagersystemLVHome.Application.csproj", "LagersystemLVHome.Application/"]
-COPY ["LagersystemLVHome.Infrastructure/LagersystemLVHome.Infrastructure.csproj", "LagersystemLVHome.Infrastructure/"]
-COPY ["LagersystemLVHome.UnitTests/LagersystemLVHome.UnitTests.csproj", "LagersystemLVHome.UnitTests/"]
+COPY ["LagersystemLVHome/LagersystemLVHome.csproj", "LagersystemLVHome/packages.lock.json", "LagersystemLVHome/"]
+COPY ["LagersystemLVHome.Domain/LagersystemLVHome.Domain.csproj", "LagersystemLVHome.Domain/packages.lock.json", "LagersystemLVHome.Domain/"]
+COPY ["LagersystemLVHome.Data/LagersystemLVHome.Data.csproj", "LagersystemLVHome.Data/packages.lock.json", "LagersystemLVHome.Data/"]
+COPY ["LagersystemLVHome.Application/LagersystemLVHome.Application.csproj", "LagersystemLVHome.Application/packages.lock.json", "LagersystemLVHome.Application/"]
+COPY ["LagersystemLVHome.Infrastructure/LagersystemLVHome.Infrastructure.csproj", "LagersystemLVHome.Infrastructure/packages.lock.json", "LagersystemLVHome.Infrastructure/"]
+COPY ["LagersystemLVHome.UnitTests/LagersystemLVHome.UnitTests.csproj", "LagersystemLVHome.UnitTests/packages.lock.json", "LagersystemLVHome.UnitTests/"]
 
 ENV CI=true
 
-RUN dotnet restore "LagersystemLVHome/LagersystemLVHome.csproj"
+# --locked-mode: the restore must match the committed packages.lock.json files exactly.
+RUN dotnet restore "LagersystemLVHome/LagersystemLVHome.csproj" --locked-mode
 
 # Copy remaining source
 COPY . .

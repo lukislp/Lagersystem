@@ -101,7 +101,7 @@ jobs:
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'LagersystemLVHome.sln') }}
           restore-keys: |
             nuget-${{ runner.os }}-
-      - run: dotnet restore LagersystemLVHome.sln
+      - run: dotnet restore LagersystemLVHome.sln --locked-mode
       - run: |
           dotnet list LagersystemLVHome.sln package --vulnerable --include-transitive --format json > nuget-vulnerabilities.json
           cat nuget-vulnerabilities.json
@@ -283,7 +283,7 @@ jobs:
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'LagersystemLVHome.sln') }}
           restore-keys: |
             nuget-${{ runner.os }}-
-      - run: dotnet restore LagersystemLVHome.sln
+      - run: dotnet restore LagersystemLVHome.sln --locked-mode
       - run: dotnet build LagersystemLVHome.sln --configuration ${{ env.CONFIGURATION }} --no-restore
 
   # ---------------------------------------------------------------------

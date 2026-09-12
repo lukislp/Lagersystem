@@ -201,7 +201,11 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # Restore-only: this job runs the whole app in the background (`dotnet run` below) and the
+      # cache action's post step, which hashes the tree again to save the cache, failed twice on
+      # files the running app was writing ("Fail to hash files under directory"). The cache is
+      # saved by test-unit/build anyway, so nothing is lost by not saving it here.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'LagersystemLVHome.sln') }}

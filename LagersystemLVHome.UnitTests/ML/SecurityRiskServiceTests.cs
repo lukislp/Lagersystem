@@ -142,8 +142,10 @@ public class SecurityRiskServiceTests
             // User.LastPasswordChangeAt); without these the "rare password changes" bonus
             // would fire for this 400-day-old account and this would no longer be a clean
             // zero-risk baseline.
-            Log(1, "PASSWORD_CHANGED", DateTime.UtcNow.AddDays(-200)),
-            Log(1, "PASSWORD_CHANGED", DateTime.UtcNow.AddDays(-100)),
+            // Same daytime rule for these: AddDays keeps the current hour, so at night half the
+            // log would count as unusual-hour activity (> 30 %, +10 risk).
+            Log(1, "PASSWORD_CHANGED", DateTime.UtcNow.Date.AddDays(-200).AddHours(12)),
+            Log(1, "PASSWORD_CHANGED", DateTime.UtcNow.Date.AddDays(-100).AddHours(12)),
         };
         await SeedAsync(factory, user, logs);
         var sut = CreateSut(factory);

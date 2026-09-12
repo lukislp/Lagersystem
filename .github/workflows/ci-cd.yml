@@ -105,56 +105,16 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
       - run: dotnet restore LagersystemLVHome.sln --locked-mode
-      - run: |
-          dotnet list LagersystemLVHome.sln package --vulnerable --include-transitive --format json > nuget-vulnerabilities.json
-          cat nuget-vulnerabilities.json
-          python3 -c "
-          import json, sys
-
-          # GHSA-2m69-gcr7-jv3q (SQLitePCLRaw.lib.e_sqlite3) is a documented, deliberately-accepted
-          # risk - see the NuGetAuditSuppress block + comment in Directory.Build.props. No safe fix
-          # exists yet: Microsoft's own EF Core Sqlite package still depends on the vulnerable
-          # SQLitePCLRaw 2.1.x line as of its latest release, and forcing an isolated upgrade risks
-          # a native-interop mismatch. Excluded from the severity gate here so CI doesn't
-          # permanently fail on an already-accepted risk; any OTHER High/Critical finding still
-          # fails - matched by advisory ID, not package name, so a future, different advisory
-          # against a SQLitePCLRaw.* package is NOT silently swallowed by this exclusion too.
-          ACCEPTED_ADVISORY_ID = 'GHSA-2m69-gcr7-jv3q'
-
-          def find_findings(obj, package_id=None):
-              if isinstance(obj, dict):
-                  current_id = obj.get('id', package_id)
-                  if 'severity' in obj:
-                      yield (current_id, obj['severity'], obj.get('advisoryurl', ''))
-                  for v in obj.values():
-                      yield from find_findings(v, current_id)
-              elif isinstance(obj, list):
-                  for item in obj:
-                      yield from find_findings(item, package_id)
-
-          data = json.load(open('nuget-vulnerabilities.json'))
-          findings = list(find_findings(data))
-
-          accepted = [(pid, sev) for pid, sev, url in findings if ACCEPTED_ADVISORY_ID in url]
-          other = [(pid, sev) for pid, sev, url in findings if ACCEPTED_ADVISORY_ID not in url]
-
-          severities = {sev for _, sev in other}
-          high_or_critical = {'High', 'Critical'} & severities
-          suffix = ' (excluding the accepted GHSA-2m69-gcr7-jv3q risk)' if accepted else ''
-          if high_or_critical:
-              print(f'::error::High or Critical severity vulnerability found{suffix}: {sorted(high_or_critical)}')
-              sys.exit(1)
-          elif severities:
-              print(f'NuGet advisory findings detected{suffix} (severities: {sorted(severities)}) - none High/Critical, not failing the build.')
-          else:
-              print(f'No known vulnerable NuGet packages found{suffix}.')
-          "
-      - if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      # GHSA-2m69-gcr7-jv3q (SQLitePCLRaw.lib.e_sqlite3) is a documented, deliberately accepted risk - see the
+      # NuGetAuditSuppress block + comment in Directory.Build.props. No safe fix exists yet: EF Core
+      # Sqlite still depends on the vulnerable SQLitePCLRaw 2.1.x line, and an isolated upgrade risks
+      # a native-interop mismatch. Tolerated by advisory id, so any other finding against the same
+      # package still fails the gate.
+      - name: Known-vulnerable NuGet packages (High/Critical fail the build)
+        uses: lukislp/ci-workflows/.github/actions/nuget-severity-gate@f3d5b5b26069f5678e813b2bc7440cb441aa28d0 # v1.1.0
         with:
-          name: nuget-vulnerabilities
-          path: nuget-vulnerabilities.json
-          retention-days: 7
+          solution: LagersystemLVHome.sln
+          allow-advisories: GHSA-2m69-gcr7-jv3q
 
   test-db-providers:
     runs-on: ubuntu-latest
@@ -300,21 +260,9 @@ jobs:
       # get-version too: @semantic-release/git's verifyConditions runs `git push --dry-run`
       # even in dry-run mode. Same mechanism as lukislp/studylife's ci-cd.yml.
       - name: Push as the semantic-release deploy key (if configured)
-        env:
-          DEPLOY_KEY: ${{ secrets.SEMANTIC_RELEASE_DEPLOY_KEY }}
-        run: |
-          if [ -z "$DEPLOY_KEY" ]; then
-            echo "SEMANTIC_RELEASE_DEPLOY_KEY is not set - semantic-release pushes with GITHUB_TOKEN"
-            exit 0
-          fi
-          mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/semantic_release
-          chmod 600 ~/.ssh/semantic_release
-          # github.com's published ed25519 host key, pinned instead of ssh-keyscan'd at runtime:
-          # https://docs.github.com/en/authentication/keychain/githubs-ssh-key-fingerprints
-          echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" >> ~/.ssh/known_hosts
-          git remote set-url origin "git@github.com:${{ github.repository }}.git"
-          echo "GIT_SSH_COMMAND=ssh -i ~/.ssh/semantic_release -o IdentitiesOnly=yes" >> "$GITHUB_ENV"
+        uses: lukislp/ci-workflows/.github/actions/deploy-key-push@f3d5b5b26069f5678e813b2bc7440cb441aa28d0 # v1.1.0
+        with:
+          deploy-key: ${{ secrets.SEMANTIC_RELEASE_DEPLOY_KEY }}
       - id: semrel
         uses: cycjimmy/semantic-release-action@b12c8f6015dc215fe37bc154d4ad456dd3833c90 # v6.0.0
         with:
@@ -478,6 +426,16 @@ jobs:
           format: table
           severity: HIGH,CRITICAL
           exit-code: "0"
+      - name: Gate on CRITICAL
+        # A CRITICAL finding with an available fix blocks the rollout (deploy-bump needs this job);
+        # unfixed ones are reported above but cannot be acted on yet.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}:${{ env.NEXT_VERSION }}
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
 
   semantic-release:
     # get-version listed explicitly (not just transitively via docker-build-push) so its
@@ -508,21 +466,9 @@ jobs:
       # get-version too: @semantic-release/git's verifyConditions runs `git push --dry-run`
       # even in dry-run mode. Same mechanism as lukislp/studylife's ci-cd.yml.
       - name: Push as the semantic-release deploy key (if configured)
-        env:
-          DEPLOY_KEY: ${{ secrets.SEMANTIC_RELEASE_DEPLOY_KEY }}
-        run: |
-          if [ -z "$DEPLOY_KEY" ]; then
-            echo "SEMANTIC_RELEASE_DEPLOY_KEY is not set - semantic-release pushes with GITHUB_TOKEN"
-            exit 0
-          fi
-          mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/semantic_release
-          chmod 600 ~/.ssh/semantic_release
-          # github.com's published ed25519 host key, pinned instead of ssh-keyscan'd at runtime:
-          # https://docs.github.com/en/authentication/keychain/githubs-ssh-key-fingerprints
-          echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" >> ~/.ssh/known_hosts
-          git remote set-url origin "git@github.com:${{ github.repository }}.git"
-          echo "GIT_SSH_COMMAND=ssh -i ~/.ssh/semantic_release -o IdentitiesOnly=yes" >> "$GITHUB_ENV"
+        uses: lukislp/ci-workflows/.github/actions/deploy-key-push@f3d5b5b26069f5678e813b2bc7440cb441aa28d0 # v1.1.0
+        with:
+          deploy-key: ${{ secrets.SEMANTIC_RELEASE_DEPLOY_KEY }}
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: coverage-badge

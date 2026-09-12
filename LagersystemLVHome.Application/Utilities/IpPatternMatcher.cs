@@ -38,6 +38,14 @@ public static class IpPatternMatcher
 
     private static bool MatchesIPv4(string ipAddress, string pattern)
     {
+        // A CIDR pattern must be decided by its mask alone: comparing the leading octets
+        // literally first (as the loop below does) would silently turn "10.0.0.0/8" into
+        // "10.0.0.*" (found by the property tests).
+        if (pattern.Contains('/'))
+        {
+            return MatchesCIDR(ipAddress, pattern);
+        }
+
         var ipParts = ipAddress.Split('.');
         var patternParts = pattern.Split('.');
 
@@ -48,11 +56,6 @@ public static class IpPatternMatcher
         {
             if (patternParts[i] == "*")
                 continue;
-
-            if (patternParts[i].Contains('/'))
-            {
-                return MatchesCIDR(ipAddress, pattern);
-            }
 
             if (patternParts[i].Contains('-'))
             {
@@ -150,12 +153,13 @@ public static class IpPatternMatcher
             return false;
 
         // Localhost
-        if (ipAddress == "127.0.0.1" || ipAddress == "::1" || ipAddress == "localhost")
+        if (ipAddress == "::1" || ipAddress == "localhost")
             return true;
 
-        // Private IPv4 ranges
+        // Loopback and private IPv4 ranges
         var privateRanges = new[]
         {
+            "127.*.*.*",      // 127.0.0.0/8 (loopback is the whole block, not just .1)
             "10.*.*.*",       // 10.0.0.0/8
             "172.16.*.*",     // 172.16.0.0/12
             "172.17.*.*",

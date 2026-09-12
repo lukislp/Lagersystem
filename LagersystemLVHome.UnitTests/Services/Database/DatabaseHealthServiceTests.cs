@@ -59,6 +59,7 @@ public class DatabaseHealthServiceTests : IDisposable
         {
             factory.Dispose();
         }
+        GC.SuppressFinalize(this);
     }
 
     private static DatabaseHealthService BuildSut(IDbContextFactory<InventoryDbContext> factory, DatabaseProvider provider = DatabaseProvider.SQLite)

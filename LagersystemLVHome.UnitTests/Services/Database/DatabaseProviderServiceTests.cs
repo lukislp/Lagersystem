@@ -25,6 +25,7 @@ public class DatabaseProviderServiceTests : IDisposable
         {
             try { Directory.Delete(dir, recursive: true); } catch { /* best effort cleanup */ }
         }
+        GC.SuppressFinalize(this);
     }
 
     private DatabaseProviderService Build(

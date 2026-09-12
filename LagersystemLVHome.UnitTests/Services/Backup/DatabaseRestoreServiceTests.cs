@@ -51,6 +51,7 @@ namespace LagersystemLVHome.UnitTests.Services.Backup;
 /// documents this InMemory-only seam explicitly while still proving validation, safety
 /// backup creation, extraction and the JSON import all work correctly.
 /// </summary>
+[Collection(BackupScratchDirectoryTestGroup.Name)]
 public sealed class DatabaseRestoreServiceTests : IDisposable
 {
     private readonly List<string> _tempPaths = new();

@@ -51,12 +51,14 @@ jobs:
       # merge cobertura via reportgenerator, scoped to the business-logic assemblies
       # (LagersystemLVHome, the Blazor Server UI project, is excluded - no unit-test
       # practice on Razor markup here). Downloaded and committed by semantic-release below.
-      - run: dotnet tool install -g dotnet-reportgenerator-globaltool
+      # reportgenerator is a pinned local tool (.config/dotnet-tools.json) - restored from the NuGet
+      # cache instead of installing the latest global tool on every run.
+      - run: dotnet tool restore
       # -*.g.cs excludes source-generator output (e.g. the LoggerMessage generator's
       # 700+ lines under obj/) - generated code, same rationale as studylife's
       # migrations exclusion.
       - run: >
-          reportgenerator
+          dotnet tool run reportgenerator
           -reports:"LagersystemLVHome.UnitTests/**/TestResults/**/coverage.cobertura.xml"
           -targetdir:coverage-summary
           -reporttypes:JsonSummary

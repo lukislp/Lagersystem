@@ -227,9 +227,6 @@ public sealed class DatabaseHealthService : IDatabaseHealthService
                 case DatabaseProvider.PostgreSQL:
                     stats = await GetPostgreSqlTableStatsAsync(context);
                     break;
-                case DatabaseProvider.MySQL:
-                    stats = await GetMySqlTableStatsAsync(context);
-                    break;
                 case DatabaseProvider.SQLite:
                     stats = await GetSqliteTableStatsAsync(context);
                     break;
@@ -267,9 +264,6 @@ public sealed class DatabaseHealthService : IDatabaseHealthService
                 case DatabaseProvider.PostgreSQL:
                     stats = await GetPostgreSqlIndexStatsAsync(context);
                     break;
-                case DatabaseProvider.MySQL:
-                    stats = await GetMySqlIndexStatsAsync(context);
-                    break;
                 default:
                     // SQLite and others have limited index statistics
                     break;
@@ -298,7 +292,6 @@ public sealed class DatabaseHealthService : IDatabaseHealthService
             var versionQuery = provider switch
             {
                 DatabaseProvider.PostgreSQL => "SELECT version()",
-                DatabaseProvider.MySQL => "SELECT VERSION()",
                 DatabaseProvider.SQLite => "SELECT sqlite_version()",
                 _ => null
             };
@@ -357,48 +350,6 @@ public sealed class DatabaseHealthService : IDatabaseHealthService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Error getting PostgreSQL table stats");
-        }
-
-        return stats;
-    }
-
-    private async Task<List<TableStatistics>> GetMySqlTableStatsAsync(InventoryDbContext context, CancellationToken cancellationToken = default)
-    {
-        var stats = new List<TableStatistics>();
-
-        var query = @"
-            SELECT 
-                TABLE_NAME,
-                TABLE_ROWS,
-                DATA_LENGTH + INDEX_LENGTH as total_size,
-                INDEX_LENGTH
-            FROM information_schema.TABLES
-            WHERE TABLE_SCHEMA = DATABASE()
-            ORDER BY DATA_LENGTH + INDEX_LENGTH DESC";
-
-        try
-        {
-            var connection = context.Database.GetDbConnection();
-            await connection.OpenAsync();
-
-            using var command = connection.CreateCommand();
-            command.CommandText = query;
-
-            using var reader = await command.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-            {
-                stats.Add(new TableStatistics
-                {
-                    TableName = reader.GetString(0),
-                    RowCount = reader.IsDBNull(1) ? 0 : reader.GetInt64(1),
-                    SizeBytes = reader.IsDBNull(2) ? 0 : reader.GetInt64(2),
-                    IndexSizeBytes = reader.IsDBNull(3) ? 0 : reader.GetInt64(3)
-                });
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error getting MySQL table stats");
         }
 
         return stats;
@@ -516,49 +467,6 @@ public sealed class DatabaseHealthService : IDatabaseHealthService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Error getting PostgreSQL index stats");
-        }
-
-        return stats;
-    }
-
-    private async Task<List<IndexStatistics>> GetMySqlIndexStatsAsync(InventoryDbContext context, CancellationToken cancellationToken = default)
-    {
-        var stats = new List<IndexStatistics>();
-
-        var query = @"
-            SELECT 
-                INDEX_NAME,
-                TABLE_NAME,
-                GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) as columns,
-                SUM(CARDINALITY) as cardinality
-            FROM information_schema.STATISTICS
-            WHERE TABLE_SCHEMA = DATABASE()
-            GROUP BY INDEX_NAME, TABLE_NAME
-            ORDER BY cardinality DESC
-            LIMIT 50";
-
-        try
-        {
-            var connection = context.Database.GetDbConnection();
-            await connection.OpenAsync();
-
-            using var command = connection.CreateCommand();
-            command.CommandText = query;
-
-            using var reader = await command.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-            {
-                stats.Add(new IndexStatistics
-                {
-                    IndexName = reader.GetString(0),
-                    TableName = reader.GetString(1),
-                    Columns = reader.IsDBNull(2) ? "" : reader.GetString(2)
-                });
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error getting MySQL index stats");
         }
 
         return stats;
@@ -726,15 +634,6 @@ public sealed class DatabaseHealthService : IDatabaseHealthService
             }
         }
 
-        // MySQL-specific recommendations
-        if (_databaseSettings.Provider == DatabaseProvider.MySQL)
-        {
-            if (sizeGB > 5)
-            {
-                report.Recommendations.Add("Erwaegen Sie OPTIMIZE TABLE fuer grosse Tabellen");
-            }
-        }
-
         // General performance recommendations
         var totalRows = tableStats.Sum(t => t.RowCount);
         if (totalRows > 10000000)
@@ -757,8 +656,6 @@ public sealed class DatabaseHealthService : IDatabaseHealthService
             {
                 case DatabaseProvider.PostgreSQL:
                     return await GetPostgreSqlConnectionStatsAsync(connection);
-                case DatabaseProvider.MySQL:
-                    return await GetMySqlConnectionStatsAsync(connection);
                 default:
                     return (0, 0);
             }
@@ -793,41 +690,6 @@ public sealed class DatabaseHealthService : IDatabaseHealthService
         }
     }
 
-    private async Task<(int active, int max)> GetMySqlConnectionStatsAsync(System.Data.Common.DbConnection connection, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            using var activeCmd = connection.CreateCommand();
-            activeCmd.CommandText = "SHOW STATUS LIKE 'Threads_connected'";
-            int active = 0;
-            using (var reader = await activeCmd.ExecuteReaderAsync())
-            {
-                if (await reader.ReadAsync())
-                {
-                    active = Convert.ToInt32(reader.GetValue(1));
-                }
-            }
-
-            using var maxCmd = connection.CreateCommand();
-            maxCmd.CommandText = "SHOW VARIABLES LIKE 'max_connections'";
-            int max = 0;
-            using (var reader = await maxCmd.ExecuteReaderAsync())
-            {
-                if (await reader.ReadAsync())
-                {
-                    max = Convert.ToInt32(reader.GetValue(1));
-                }
-            }
-
-            return (active, max);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error getting MySQL connection stats");
-            return (0, 0);
-        }
-    }
-
     private async Task<double> GetAverageQueryTimeAsync(InventoryDbContext context, CancellationToken cancellationToken = default)
     {
         try
@@ -842,8 +704,6 @@ public sealed class DatabaseHealthService : IDatabaseHealthService
             {
                 case DatabaseProvider.PostgreSQL:
                     return await GetPostgreSqlAvgQueryTimeAsync(connection);
-                case DatabaseProvider.MySQL:
-                    return await GetMySqlAvgQueryTimeAsync(connection);
                 default:
                     return 0;
             }
@@ -904,32 +764,4 @@ public sealed class DatabaseHealthService : IDatabaseHealthService
         }
     }
 
-    private async Task<double> GetMySqlAvgQueryTimeAsync(System.Data.Common.DbConnection connection, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
-                SELECT 
-                    (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Questions') /
-                    GREATEST(1, (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Uptime'))
-                    * 1000";
-
-            try
-            {
-                var result = await cmd.ExecuteScalarAsync();
-                var queriesPerSec = Convert.ToDouble(result ?? 0);
-                return queriesPerSec > 0 ? Math.Min(1000 / queriesPerSec, 500) : 0;
-            }
-            catch
-            {
-                return 0;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error getting MySQL avg query time");
-            return 0;
-        }
-    }
 }

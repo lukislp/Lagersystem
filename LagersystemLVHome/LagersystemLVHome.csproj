@@ -95,7 +95,7 @@
   <LocaleDirectoriesToRemove Include="$(OutputPath)zh-Hans" />
       <LocaleDirectoriesToRemove Include="$(OutputPath)zh-Hant" />
       
-      <!-- Remove obsolete tools directory (pg_dump/mysqldump no longer needed) -->
+      <!-- Remove obsolete tools directory (pg_dump no longer needed) -->
       <LocaleDirectoriesToRemove Include="$(OutputPath)Tools" />
     </ItemGroup>
     

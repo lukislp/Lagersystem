@@ -222,7 +222,7 @@ public sealed class JsonBackupHelperTests : IDisposable
         ZipFile.ExtractToDirectory(zipPath, extractDir, overwriteFiles: true);
 
         var targetFactory = CreateFactory(nameof(RestoreFromJsonBackupAsync_UnsupportedProvider_ThrowsNotSupportedException) + "_dst");
-        var sut = CreateSut(targetFactory, DatabaseProvider.MySQL);
+        var sut = CreateSut(targetFactory, (DatabaseProvider)999);
 
         var act = async () => await sut.RestoreFromJsonBackupAsync(extractDir);
 

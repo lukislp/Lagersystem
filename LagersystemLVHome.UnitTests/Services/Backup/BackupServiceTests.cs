@@ -107,16 +107,6 @@ public sealed class BackupServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateBackupAsync_MySQLProvider_UsesSqlExtension()
-    {
-        var (sut, backupDir, _) = CreateSut(DatabaseProvider.MySQL, compress: false);
-
-        await sut.CreateBackupAsync("my");
-
-        Directory.GetFiles(backupDir, "my*").Should().ContainSingle().Which.Should().EndWith(".sql");
-    }
-
-    [Fact]
     public async Task CreateBackupAsync_UnknownProviderValue_FallsBackToBakExtension()
     {
         var (sut, backupDir, _) = CreateSut((DatabaseProvider)999, compress: false);

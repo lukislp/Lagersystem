@@ -58,7 +58,6 @@ public sealed class BackupService : IBackupService
             {
                 DatabaseProvider.SQLite => ".db",
                 DatabaseProvider.PostgreSQL => ".backup",
-                DatabaseProvider.MySQL => ".sql",
                 _ => ".bak"
             };
 

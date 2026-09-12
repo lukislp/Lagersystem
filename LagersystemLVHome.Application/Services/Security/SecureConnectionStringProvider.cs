@@ -118,7 +118,7 @@ public sealed class SecureConnectionStringProvider : ISecureConnectionStringProv
     }
 
     /// <summary>
-    /// Replaces the password in the connection string (supports PostgreSQL, MySQL, SQL Server).
+    /// Replaces the password in the connection string (Password=... as used by PostgreSQL, or the Pwd=... shorthand some drivers accept).
     /// </summary>
     private string ReplacePasswordInConnectionString(string connectionString, string password)
     {
@@ -137,7 +137,7 @@ public sealed class SecureConnectionStringProvider : ISecureConnectionStringProv
             return string.Join(";", updatedParts);
         }
 
-        // MySQL: Password=... or Pwd=...
+        // Pwd=... shorthand
         if (connectionString.Contains("Pwd=", StringComparison.OrdinalIgnoreCase))
         {
             var parts = connectionString.Split(';');

@@ -26,7 +26,7 @@ public sealed class DatabaseProviderService : IDatabaseProviderService
         _environment = environment;
         _secureConnectionString = secureConnectionString;
 
-        // Legacy: pg_dump/mysqldump are no longer used.
+        // Legacy: pg_dump/pg_restore are no longer used.
         // JsonBackupHelper creates pure .NET JSON backups (see BackupManagementService.cs).
         // BackupDatabaseAsync/RestoreDatabaseAsync below are legacy code.
         _toolsPath = Path.Combine(_environment.ContentRootPath, "Tools");
@@ -60,24 +60,6 @@ public sealed class DatabaseProviderService : IDatabaseProviderService
                 });
                 break;
 
-            case DatabaseProvider.MySQL:
-                options.UseMySql(connectionString,
-                    ServerVersion.AutoDetect(connectionString),
-                    mySqlOptions =>
-                    {
-                        mySqlOptions.CommandTimeout(_settings.CommandTimeout);
-                        mySqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
-
-                        if (_settings.EnableRetryOnFailure)
-                        {
-                            mySqlOptions.EnableRetryOnFailure(
-                                maxRetryCount: _settings.MaxRetryCount,
-                                maxRetryDelay: TimeSpan.FromSeconds(30),
-                                errorNumbersToAdd: null);
-                        }
-                    });
-                break;
-
             default:
                 throw new NotSupportedException($"Database provider {_settings.Provider} is not supported");
         }
@@ -87,7 +69,7 @@ public sealed class DatabaseProviderService : IDatabaseProviderService
     }
 
     /// <summary>
-    /// Ensures the database exists, creating it if necessary (PostgreSQL/MySQL).
+    /// Ensures the database exists, creating it if necessary (PostgreSQL).
     /// </summary>
     public async Task<bool> EnsureDatabaseExistsAsync(CancellationToken cancellationToken = default)
     {
@@ -101,9 +83,6 @@ public sealed class DatabaseProviderService : IDatabaseProviderService
 
                 case DatabaseProvider.PostgreSQL:
                     return await EnsurePostgreSQLDatabaseExistsAsync();
-
-                case DatabaseProvider.MySQL:
-                    return await EnsureMySQLDatabaseExistsAsync();
 
                 default:
                     return false;
@@ -169,46 +148,6 @@ public sealed class DatabaseProviderService : IDatabaseProviderService
         }
     }
 
-    /// <summary>
-    /// Creates a MySQL database if it does not exist (SQL-injection protected).
-    /// </summary>
-    private async Task<bool> EnsureMySQLDatabaseExistsAsync(CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var builder = new MySqlConnector.MySqlConnectionStringBuilder(_secureConnectionString);
-            var databaseName = builder.Database;
-
-            if (!IsValidDatabaseName(databaseName))
-            {
-                _logger.LogError("Invalid database name: {DatabaseName}", databaseName);
-                throw new ArgumentException($"Invalid database name: {databaseName}");
-            }
-
-            // Connect without specifying a database
-            builder.Database = "";
-            var systemConnectionString = builder.ToString();
-
-            await using var connection = new MySqlConnector.MySqlConnection(systemConnectionString);
-            await connection.OpenAsync();
-
-            var escapedDbName = databaseName.Replace("`", "``");
-            await using var cmd = new MySqlConnector.MySqlCommand(
-                $"CREATE DATABASE IF NOT EXISTS `{escapedDbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
-                connection);
-
-            await cmd.ExecuteNonQueryAsync();
-            _logger.LogInformation("MySQL database '{DatabaseName}' created/verified successfully", databaseName);
-
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to create MySQL database");
-            return false;
-        }
-    }
-
     public async Task<bool> TestConnectionAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -252,9 +191,6 @@ public sealed class DatabaseProviderService : IDatabaseProviderService
                 await BackupPostgreSQLAsync(backupPath);
                 break;
 
-            case DatabaseProvider.MySQL:
-                await BackupMySQLAsync(backupPath);
-                break;
         }
     }
 
@@ -273,9 +209,6 @@ public sealed class DatabaseProviderService : IDatabaseProviderService
                 await RestorePostgreSQLAsync(backupPath);
                 break;
 
-            case DatabaseProvider.MySQL:
-                await RestoreMySQLAsync(backupPath);
-                break;
         }
     }
 
@@ -388,86 +321,6 @@ public sealed class DatabaseProviderService : IDatabaseProviderService
         {
             var error = await process.StandardError.ReadToEndAsync();
             throw new Exception($"PostgreSQL restore failed: {error}");
-        }
-    }
-
-    private async Task BackupMySQLAsync(string backupPath, CancellationToken cancellationToken = default)
-    {
-        var connectionString = _settings.ConnectionString;
-        var builder = new MySqlConnector.MySqlConnectionStringBuilder(connectionString);
-
-        var mysqldumpPath = Path.Combine(_toolsPath, "mysql", "mysqldump.exe");
-
-        if (!File.Exists(mysqldumpPath))
-        {
-            _logger.LogWarning("Bundled mysqldump.exe not found, using system PATH");
-            mysqldumpPath = "mysqldump";
-        }
-
-        var process = new System.Diagnostics.Process
-        {
-            StartInfo = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = mysqldumpPath,
-                Arguments = $"-h {builder.Server} -P {builder.Port} -u {builder.UserID} -p{builder.Password} {builder.Database} --result-file=\"{backupPath}\"",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            }
-        };
-
-        process.Start();
-        await process.WaitForExitAsync();
-
-        if (process.ExitCode == 0)
-        {
-            _logger.LogInformation("MySQL database backed up to {BackupPath}", backupPath);
-        }
-        else
-        {
-            var error = await process.StandardError.ReadToEndAsync();
-            throw new Exception($"MySQL backup failed: {error}");
-        }
-    }
-
-    private async Task RestoreMySQLAsync(string backupPath, CancellationToken cancellationToken = default)
-    {
-        var connectionString = _settings.ConnectionString;
-        var builder = new MySqlConnector.MySqlConnectionStringBuilder(connectionString);
-
-        var mysqlPath = Path.Combine(_toolsPath, "mysql", "mysql.exe");
-
-        if (!File.Exists(mysqlPath))
-        {
-            _logger.LogWarning("Bundled mysql.exe not found, using system PATH");
-            mysqlPath = "mysql";
-        }
-
-        var process = new System.Diagnostics.Process
-        {
-            StartInfo = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = mysqlPath,
-                Arguments = $"-h {builder.Server} -P {builder.Port} -u {builder.UserID} -p{builder.Password} {builder.Database} < \"{backupPath}\"",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            }
-        };
-
-        process.Start();
-        await process.WaitForExitAsync();
-
-        if (process.ExitCode == 0)
-        {
-            _logger.LogInformation("MySQL database restored from {BackupPath}", backupPath);
-        }
-        else
-        {
-            var error = await process.StandardError.ReadToEndAsync();
-            throw new Exception($"MySQL restore failed: {error}");
         }
     }
 

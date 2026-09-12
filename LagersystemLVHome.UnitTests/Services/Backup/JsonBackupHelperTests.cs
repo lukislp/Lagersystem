@@ -24,6 +24,7 @@ namespace LagersystemLVHome.UnitTests.Services.Backup;
 /// import/round-trip logic is correct. This mirrors the "InMemory caveats apply" note in
 /// the task brief.
 /// </summary>
+[Collection(BackupScratchDirectoryTestGroup.Name)]
 public sealed class JsonBackupHelperTests : IDisposable
 {
     private readonly List<string> _tempPaths = new();
@@ -165,6 +166,9 @@ public sealed class JsonBackupHelperTests : IDisposable
         // global temp-directory state, which is racy under parallel test execution - see
         // the test above) by capturing it the instant this SUT's own context-factory call
         // fires, which happens synchronously right after JsonBackupHelper creates it.
+        // "Newest backup_* directory" is only unambiguous while no other test creates one
+        // in the same instant, which the BackupScratchDirectoryTestGroup guarantees (seen
+        // failing in CI on 2026-09-12 before the collection existed).
         string? capturedScratchDir = null;
         var throwingFactory = new CapturingThrowingContextFactory(() =>
         {

@@ -1,3 +1,24 @@
+# [2.0.0](https://github.com/lukislp/Lagersystem/compare/v1.3.14...v2.0.0) (2026-09-12)
+
+
+* feat!: drop the MySQL database provider ([#42](https://github.com/lukislp/Lagersystem/issues/42)) ([a605a48](https://github.com/lukislp/Lagersystem/commit/a605a48c606325c95a717241fce5f0bc8ed6785a))
+
+
+### BREAKING CHANGES
+
+* DatabaseSettings.Provider no longer accepts "MySQL"; use
+PostgreSQL or SQLite.
+
+MySQL has not worked on any release since the EF Core 10 upgrade: Pomelo's
+latest package (9.0.0) targets EF Core 9 and throws MissingMethodException
+inside UseMySql itself, and the only EF Core 10 alternative (Oracle's
+MySql.EntityFrameworkCore) fails schema creation on the first unique index
+in a local test. With no known MySQL installations, the provider goes:
+the EF provider package, the MySQL branches in the provider, health,
+migration, backup and restore services, the settings page, the appsettings
+and README sections, the i18n hints, the CI matrix leg (which had been
+tolerated red for a week) and the MySQL-only unit tests.
+
 ## [1.3.14](https://github.com/lukislp/Lagersystem/compare/v1.3.13...v1.3.14) (2026-09-12)
 
 

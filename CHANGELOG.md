@@ -1,3 +1,10 @@
+## [1.3.13](https://github.com/lukislp/Lagersystem/compare/v1.3.12...v1.3.13) (2026-09-12)
+
+
+### Bug Fixes
+
+* **deps:** Bump coverlet.collector from 6.0.2 to 10.0.1 ([47f7c65](https://github.com/lukislp/Lagersystem/commit/47f7c654230cc9232de13da747229a6253ac5050))
+
 ## [1.3.12](https://github.com/lukislp/Lagersystem/compare/v1.3.11...v1.3.12) (2026-09-11)
 
 

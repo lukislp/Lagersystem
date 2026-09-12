@@ -1,3 +1,10 @@
+## [1.3.14](https://github.com/lukislp/Lagersystem/compare/v1.3.13...v1.3.14) (2026-09-12)
+
+
+### Bug Fixes
+
+* **security:** decide CIDR allow-list patterns by their mask, treat all of 127/8 as loopback ([#39](https://github.com/lukislp/Lagersystem/issues/39)) ([1ee6525](https://github.com/lukislp/Lagersystem/commit/1ee65255780bcb6b969712d6980647c859faca6c))
+
 ## [1.3.13](https://github.com/lukislp/Lagersystem/compare/v1.3.12...v1.3.13) (2026-09-12)
 
 

@@ -579,17 +579,6 @@ public sealed class DatabaseRestoreService : IDatabaseRestoreService
             var result = await command.ExecuteScalarAsync();
             return Convert.ToInt32(result);
         }
-        else if (_databaseProviderService.Provider == DatabaseProvider.MySQL)
-        {
-            var connection = context.Database.GetDbConnection();
-            await connection.OpenAsync();
-
-            using var command = connection.CreateCommand();
-            command.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()";
-
-            var result = await command.ExecuteScalarAsync();
-            return Convert.ToInt32(result);
-        }
 
         return 0;
     }

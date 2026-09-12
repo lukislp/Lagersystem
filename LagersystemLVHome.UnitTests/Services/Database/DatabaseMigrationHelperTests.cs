@@ -125,13 +125,4 @@ public sealed class DatabaseMigrationHelperTests : IDisposable
         await act.Should().NotThrowAsync();
     }
 
-    [Fact]
-    public async Task EnsureMissingColumnsAsync_MySQLProviderAgainstSqliteConnection_UsesUnquotedIdentifiersAndCatchesFailure()
-    {
-        await using var db = CreateSqliteContext();
-
-        var act = () => DatabaseMigrationHelper.EnsureMissingColumnsAsync(db, DatabaseProvider.MySQL, NullLogger.Instance);
-
-        await act.Should().NotThrowAsync();
-    }
 }

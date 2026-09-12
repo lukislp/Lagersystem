@@ -96,7 +96,7 @@ See [ML/README.md](LagersystemLVHome.Infrastructure/ML/README.md) for setup deta
 | Layer | Technology |
 |---|---|
 | Framework | .NET 10, C# 14, Blazor Server (Interactive SSR) |
-| Database | PostgreSQL (primary), MySQL, SQLite (portable fallback) |
+| Database | PostgreSQL (primary), SQLite (portable fallback) |
 | ORM | Entity Framework Core 10 with `IDbContextFactory` |
 | ML | ML.NET 5.0 (anomaly detection, classification, vision) |
 | Charts | Blazor-ApexCharts |
@@ -119,7 +119,6 @@ See [ML/README.md](LagersystemLVHome.Infrastructure/ML/README.md) for setup deta
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - A supported database:
   - **PostgreSQL 14+** (recommended)
-  - **MySQL 8.0+**
   - **SQLite** (no installation required, default fallback)
 - Optional: [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data) database for IP geolocation
 - Optional: [Ollama](https://ollama.com) for local AI assistant
@@ -176,17 +175,6 @@ Configure the provider in `appsettings.json` under `DatabaseSettings`:
     "DatabaseSettings": {
         "Provider": "PostgreSQL",
         "ConnectionString": "Host=localhost;Database=Lagersystem;Username=postgres;Password=PLACEHOLDER;"
-    }
-}
-```
-
-**MySQL:**
-> **Known issue:** currently broken on .NET 10 - [Pomelo.EntityFrameworkCore.MySql](https://github.com/PomeloFoundation/Pomelo.EntityFrameworkCore.MySql) has no stable release for EF Core 10 yet (latest is `9.0.0`, targeting EF Core 9), which crashes the app at startup with a `MissingMethodException`. Use PostgreSQL or SQLite until Pomelo ships a compatible version.
-```json
-{
-    "DatabaseSettings": {
-        "Provider": "MySQL",
-        "ConnectionString": "Server=localhost;Database=Lagersystem;User=root;Password=PLACEHOLDER;"
     }
 }
 ```

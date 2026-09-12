@@ -11,7 +11,7 @@
     Persistence layer: InventoryDbContext, entity configurations and
     repository implementations. References Domain for the POCOs.
     Only pulls in the EF Core core package - concrete provider
-    packages (Sqlite / Npgsql / Pomelo) stay in the Web project where
+    packages (Sqlite / Npgsql) stay in the Web project where
     the DbContext is registered.
   -->
 

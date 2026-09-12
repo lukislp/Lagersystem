@@ -287,17 +287,6 @@ public class DatabaseHealthServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetTableStatisticsAsync_MySQLProviderAgainstSqliteConnection_ReturnsEmptyWithoutThrowing()
-    {
-        using var factory = CreateSqliteFactory();
-        var sut = BuildSut(factory, DatabaseProvider.MySQL);
-
-        var act = async () => await sut.GetTableStatisticsAsync();
-
-        (await act.Should().NotThrowAsync()).Which.Should().BeEmpty();
-    }
-
-    [Fact]
     public async Task GetTableStatisticsAsync_ContextCreationThrows_ReturnsEmptyList()
     {
         var throwingFactory = Substitute.For<IDbContextFactory<InventoryDbContext>>();
@@ -325,17 +314,6 @@ public class DatabaseHealthServiceTests : IDisposable
     {
         using var factory = CreateSqliteFactory();
         var sut = BuildSut(factory, DatabaseProvider.PostgreSQL);
-
-        var act = async () => await sut.GetIndexStatisticsAsync();
-
-        (await act.Should().NotThrowAsync()).Which.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task GetIndexStatisticsAsync_MySQLProviderAgainstSqliteConnection_ReturnsEmptyWithoutThrowing()
-    {
-        using var factory = CreateSqliteFactory();
-        var sut = BuildSut(factory, DatabaseProvider.MySQL);
 
         var act = async () => await sut.GetIndexStatisticsAsync();
 
@@ -424,20 +402,6 @@ public class DatabaseHealthServiceTests : IDisposable
         max.Should().Be(0);
     }
 
-    [Fact]
-    public async Task GetConnectionStatsAsync_MySQLProviderAgainstSqliteConnection_ReturnsZeroZeroWithoutThrowing()
-    {
-        using var factory = CreateSqliteFactory();
-        var (sut, settings) = BuildSutWithSettings(factory, DatabaseProvider.SQLite);
-        settings.Provider = DatabaseProvider.MySQL;
-        await using var ctx = factory.CreateDbContext();
-
-        var (active, max) = await InvokeAsync<(int, int)>(sut, "GetConnectionStatsAsync", ctx, CancellationToken.None);
-
-        active.Should().Be(0);
-        max.Should().Be(0);
-    }
-
     // ==================== GetAverageQueryTimeAsync / provider sub-methods (private) ====================
 
     [Fact]
@@ -456,17 +420,6 @@ public class DatabaseHealthServiceTests : IDisposable
         using var factory = CreateSqliteFactory();
         var (sut, settings) = BuildSutWithSettings(factory, DatabaseProvider.SQLite);
         settings.Provider = DatabaseProvider.PostgreSQL;
-        await using var ctx = factory.CreateDbContext();
-
-        (await InvokeAsync<double>(sut, "GetAverageQueryTimeAsync", ctx, CancellationToken.None)).Should().Be(0);
-    }
-
-    [Fact]
-    public async Task GetAverageQueryTimeAsync_MySQLProviderAgainstSqliteConnection_ReturnsZeroWithoutThrowing()
-    {
-        using var factory = CreateSqliteFactory();
-        var (sut, settings) = BuildSutWithSettings(factory, DatabaseProvider.SQLite);
-        settings.Provider = DatabaseProvider.MySQL;
         await using var ctx = factory.CreateDbContext();
 
         (await InvokeAsync<double>(sut, "GetAverageQueryTimeAsync", ctx, CancellationToken.None)).Should().Be(0);
@@ -742,18 +695,6 @@ public class DatabaseHealthServiceTests : IDisposable
     }
 
     [Fact]
-    public void GenerateRecommendations_MySQLProvider_AddsOptimizeTableRecommendation()
-    {
-        var (sut, _) = BuildSutWithSettings(CreateInMemoryFactory(nameof(GenerateRecommendations_MySQLProvider_AddsOptimizeTableRecommendation)), DatabaseProvider.MySQL);
-        var report = HealthyReport();
-        report.DatabaseSizeBytes = 6L * 1024 * 1024 * 1024;
-
-        InvokeGenerateRecommendations(sut, report, new List<TableStatistics>());
-
-        report.Recommendations.Should().ContainSingle(r => r.Contains("OPTIMIZE TABLE"));
-    }
-
-    [Fact]
     public void GenerateRecommendations_HugeTotalRowCount_AddsPartitioningRecommendation()
     {
         var sut = BuildSut(CreateInMemoryFactory(nameof(GenerateRecommendations_HugeTotalRowCount_AddsPartitioningRecommendation)));
@@ -769,7 +710,7 @@ public class DatabaseHealthServiceTests : IDisposable
     // IndexStatistics / SlowQueryInfo) ====================
     // These classes live in DatabaseHealthService.cs alongside the service itself.
     // IndexStatistics and SlowQueryInfo are never actually instantiated by reachable production
-    // code (GetIndexStatisticsAsync's Postgres/MySQL readers need a live server; GetSlowQueriesAsync
+    // code (GetIndexStatisticsAsync's Postgres reader needs a live server; GetSlowQueriesAsync
     // is a stub that always returns an empty list), so their properties are exercised here directly.
 
     [Theory]

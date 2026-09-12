@@ -3,8 +3,7 @@ namespace LagersystemLVHome.Application.Configuration;
 public enum DatabaseProvider
 {
     SQLite,
-    PostgreSQL,
-    MySQL
+    PostgreSQL
 }
 
 public class DatabaseSettings

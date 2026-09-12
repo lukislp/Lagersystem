@@ -201,7 +201,7 @@ public static class WebApplicationBuilderExtensions
         {
             logger.LogInformation("Initializing database with provider: {Provider}", databaseProvider);
 
-            // Ensure the database itself exists (PostgreSQL/MySQL only - SQLite
+            // Ensure the database itself exists (PostgreSQL only - SQLite
             // is file-based and will be created by EnsureCreatedAsync below).
             if (databaseProvider != DatabaseProvider.SQLite)
             {

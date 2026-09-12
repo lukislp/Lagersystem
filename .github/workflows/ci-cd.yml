@@ -158,16 +158,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        provider: [sqlite, postgresql, mysql]
-    # Pomelo.EntityFrameworkCore.MySql has no stable release for EF Core 10 yet (latest is
-    # 9.0.0, targeting EF Core 9) - the mysql leg currently fails with a genuine
-    # MissingMethodException from that version mismatch, not a flaky/timing issue. Keep it
-    # running so this gets noticed and re-tightened the moment Pomelo ships a compatible
-    # release, but don't let a known upstream gap block the whole pipeline. NOTE: the
-    # allowance sits on the /healthz STEP below, not on the job - a job-level
-    # continue-on-error only spares the workflow run's conclusion while the job's own check
-    # still reports failure to the PR (every Dependabot PR showed a red mysql check because
-    # of that, 2026-09-05).
+        provider: [sqlite, postgresql]
     services:
       postgres:
         image: postgres:17-alpine
@@ -179,20 +170,6 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U lagersystem -d lagersystem"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      mysql:
-        image: mysql:8
-        env:
-          MYSQL_ROOT_PASSWORD: testpass
-          MYSQL_DATABASE: lagersystem
-          MYSQL_USER: lagersystem
-          MYSQL_PASSWORD: testpass
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd "mysqladmin ping -h localhost"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -225,10 +202,6 @@ jobs:
               echo "DatabaseSettings__Provider=PostgreSQL" >> "$GITHUB_ENV"
               echo "DatabaseSettings__ConnectionString=Host=localhost;Port=5432;Database=lagersystem;Username=lagersystem;Password=testpass" >> "$GITHUB_ENV"
               ;;
-            mysql)
-              echo "DatabaseSettings__Provider=MySQL" >> "$GITHUB_ENV"
-              echo "DatabaseSettings__ConnectionString=Server=localhost;Port=3306;Database=lagersystem;User=lagersystem;Password=testpass;" >> "$GITHUB_ENV"
-              ;;
           esac
       # Build separately from starting the app - a cold build of this solution (SkiaSharp/ML.NET
       # native assets, 6 projects) can itself take close to a minute on a shared runner, which
@@ -248,7 +221,6 @@ jobs:
       # a real database for every supported provider, not just whichever one was tested by hand.
       - name: Wait for /healthz
         id: healthz
-        continue-on-error: ${{ matrix.provider == 'mysql' }}
         run: |
           for i in $(seq 1 45); do
             if curl -sf http://localhost:5000/healthz > /dev/null; then
@@ -263,7 +235,7 @@ jobs:
       - if: always()
         name: Stop app
         run: kill "$(cat app.pid)" 2>/dev/null || true
-      # outcome (not failure()) so the log still gets uploaded for the tolerated mysql leg.
+      # outcome (not failure()) so the log gets uploaded whenever the health wait gave up.
       - if: always() && steps.healthz.outcome == 'failure'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

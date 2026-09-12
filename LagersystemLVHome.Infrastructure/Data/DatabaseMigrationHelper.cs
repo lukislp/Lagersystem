@@ -8,17 +8,17 @@ public static class DatabaseMigrationHelper
     public static async Task EnsureMissingColumnsAsync(
         InventoryDbContext db, DatabaseProvider provider, ILogger logger)
     {
-        var columns = new (string Table, string Column, string SqliteType, string PgType, string MysqlType)[]
+        var columns = new (string Table, string Column, string SqliteType, string PgType)[]
         {
-            ("UserGamificationStats", "StorageLocationsCreated", "INTEGER NOT NULL DEFAULT 0", "INTEGER NOT NULL DEFAULT 0", "INT NOT NULL DEFAULT 0"),
-            ("UserGamificationStats", "ExportsCompleted", "INTEGER NOT NULL DEFAULT 0", "INTEGER NOT NULL DEFAULT 0", "INT NOT NULL DEFAULT 0"),
-            ("UserGamificationStats", "PasswordChanges", "INTEGER NOT NULL DEFAULT 0", "INTEGER NOT NULL DEFAULT 0", "INT NOT NULL DEFAULT 0"),
-            ("UserGamificationStats", "TwoFactorToggles", "INTEGER NOT NULL DEFAULT 0", "INTEGER NOT NULL DEFAULT 0", "INT NOT NULL DEFAULT 0"),
-            ("UserGamificationStats", "RoomsCreated", "INTEGER NOT NULL DEFAULT 0", "INTEGER NOT NULL DEFAULT 0", "INT NOT NULL DEFAULT 0"),
-            ("BackupSettings", "CreatedAt", "TEXT NOT NULL DEFAULT '2024-01-01T00:00:00Z'", "TIMESTAMP NOT NULL DEFAULT '2024-01-01T00:00:00Z'", "DATETIME NOT NULL DEFAULT '2024-01-01 00:00:00'"),
+            ("UserGamificationStats", "StorageLocationsCreated", "INTEGER NOT NULL DEFAULT 0", "INTEGER NOT NULL DEFAULT 0"),
+            ("UserGamificationStats", "ExportsCompleted", "INTEGER NOT NULL DEFAULT 0", "INTEGER NOT NULL DEFAULT 0"),
+            ("UserGamificationStats", "PasswordChanges", "INTEGER NOT NULL DEFAULT 0", "INTEGER NOT NULL DEFAULT 0"),
+            ("UserGamificationStats", "TwoFactorToggles", "INTEGER NOT NULL DEFAULT 0", "INTEGER NOT NULL DEFAULT 0"),
+            ("UserGamificationStats", "RoomsCreated", "INTEGER NOT NULL DEFAULT 0", "INTEGER NOT NULL DEFAULT 0"),
+            ("BackupSettings", "CreatedAt", "TEXT NOT NULL DEFAULT '2024-01-01T00:00:00Z'", "TIMESTAMP NOT NULL DEFAULT '2024-01-01T00:00:00Z'"),
         };
 
-        foreach (var (table, column, sqliteType, pgType, mysqlType) in columns)
+        foreach (var (table, column, sqliteType, pgType) in columns)
         {
             try
             {
@@ -28,7 +28,6 @@ public static class DatabaseMigrationHelper
                     var sqlType = provider switch
                     {
                         DatabaseProvider.PostgreSQL => pgType,
-                        DatabaseProvider.MySQL => mysqlType,
                         _ => sqliteType
                     };
 
@@ -58,8 +57,6 @@ public static class DatabaseMigrationHelper
             {
                 DatabaseProvider.PostgreSQL =>
                     $"SELECT 1 FROM information_schema.columns WHERE table_name = '{table}' AND column_name = '{column}'",
-                DatabaseProvider.MySQL =>
-                    $"SELECT 1 FROM information_schema.columns WHERE table_name = '{table}' AND column_name = '{column}' AND table_schema = DATABASE()",
                 _ =>
                     $"SELECT 1 FROM pragma_table_info('{table}') WHERE name = '{column}'"
             };

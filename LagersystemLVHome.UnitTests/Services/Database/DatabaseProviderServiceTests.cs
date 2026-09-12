@@ -100,11 +100,6 @@ public class DatabaseProviderServiceTests : IDisposable
             .WithMessage("*not supported*");
     }
 
-    // NOTE: The MySQL branch of ConfigureDbContext calls ServerVersion.AutoDetect(connectionString),
-    // which opens a real connection to detect the server version. That is a genuine external-DB seam -
-    // it cannot be exercised deterministically (and fast) without a live MySQL server, so it is left
-    // uncovered here by design rather than risking a slow/flaky test against a non-existent server.
-
     // ---------- EnsureDatabaseExistsAsync ----------
 
     [Fact]
@@ -143,24 +138,8 @@ public class DatabaseProviderServiceTests : IDisposable
         (await sut.EnsureDatabaseExistsAsync()).Should().BeFalse();
     }
 
-    [Fact]
-    public async Task EnsureDatabaseExistsAsync_MySQL_MalformedConnectionString_ReturnsFalse()
-    {
-        var sut = Build(DatabaseProvider.MySQL, secureConnectionString: "this is not a valid connection string!!!");
-
-        (await sut.EnsureDatabaseExistsAsync()).Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task EnsureDatabaseExistsAsync_MySQL_InvalidDatabaseName_ReturnsFalse()
-    {
-        var sut = Build(DatabaseProvider.MySQL, secureConnectionString: "Server=localhost;Database=bad name;Uid=x;Pwd=x;");
-
-        (await sut.EnsureDatabaseExistsAsync()).Should().BeFalse();
-    }
-
-    // NOTE: The success branches inside EnsurePostgreSQLDatabaseExistsAsync/EnsureMySQLDatabaseExistsAsync
-    // (actually opening the system database and running CREATE DATABASE) require a live Postgres/MySQL
+    // NOTE: The success branch inside EnsurePostgreSQLDatabaseExistsAsync
+    // (actually opening the system database and running CREATE DATABASE) requires a live Postgres
     // server and are not reachable from these unit tests - documented as a seam.
 
     // ---------- TestConnectionAsync ----------
@@ -254,8 +233,8 @@ public class DatabaseProviderServiceTests : IDisposable
         await act.Should().ThrowAsync<FileNotFoundException>();
     }
 
-    // ---------- BackupDatabaseAsync / RestoreDatabaseAsync (PostgreSQL / MySQL) ----------
-    // These shell out to pg_dump/pg_restore/mysqldump/mysql. The bundled-tool path
+    // ---------- BackupDatabaseAsync / RestoreDatabaseAsync (PostgreSQL) ----------
+    // These shell out to pg_dump/pg_restore. The bundled-tool path
     // (ContentRootPath/Tools/...) never exists in the test sandbox, so they fall back to PATH.
     // Whether or not such a client happens to be installed on the host, a bogus connection
     // string (bad host/port/credentials) makes the operation fail one way or another:
@@ -279,20 +258,6 @@ public class DatabaseProviderServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task BackupDatabaseAsync_MySQL_WithoutReachableServer_Throws()
-    {
-        var dir = CreateTempDir();
-        var sut = Build(
-            DatabaseProvider.MySQL,
-            connectionString: "Server=127.0.0.1;Port=1;Database=test;Uid=test;Pwd=test",
-            contentRoot: dir);
-
-        var act = async () => await sut.BackupDatabaseAsync(Path.Combine(dir, "mysql-backup.sql"));
-
-        await act.Should().ThrowAsync<Exception>();
-    }
-
-    [Fact]
     public async Task RestoreDatabaseAsync_PostgreSQL_WithoutReachableServer_Throws()
     {
         var dir = CreateTempDir();
@@ -302,20 +267,6 @@ public class DatabaseProviderServiceTests : IDisposable
             contentRoot: dir);
 
         var act = async () => await sut.RestoreDatabaseAsync(Path.Combine(dir, "pg-backup.dump"));
-
-        await act.Should().ThrowAsync<Exception>();
-    }
-
-    [Fact]
-    public async Task RestoreDatabaseAsync_MySQL_WithoutReachableServer_Throws()
-    {
-        var dir = CreateTempDir();
-        var sut = Build(
-            DatabaseProvider.MySQL,
-            connectionString: "Server=127.0.0.1;Port=1;Database=test;Uid=test;Pwd=test",
-            contentRoot: dir);
-
-        var act = async () => await sut.RestoreDatabaseAsync(Path.Combine(dir, "mysql-backup.sql"));
 
         await act.Should().ThrowAsync<Exception>();
     }

@@ -9,7 +9,7 @@ namespace LagersystemLVHome.UnitTests.Services.Security;
 /// Covers <see cref="SecureConnectionStringProvider"/>: reads an AES-256 key + encrypted
 /// password from a <c>Pass/</c> directory under the host's content root, decrypts the
 /// password, caches it, and splices it into a connection-string template (PostgreSQL
-/// <c>Password=</c>, MySQL <c>Pwd=</c>, or appended if the template has neither).
+/// <c>Password=</c>, the <c>Pwd=</c> shorthand, or appended if the template has neither).
 /// </summary>
 public class SecureConnectionStringProviderTests : IDisposable
 {
@@ -128,15 +128,15 @@ public class SecureConnectionStringProviderTests : IDisposable
     }
 
     [Fact]
-    public void GetSecureConnectionString_MySqlStylePwdField_IsReplacedWithDecryptedPassword()
+    public void GetSecureConnectionString_PwdShorthandField_IsReplacedWithDecryptedPassword()
     {
         var root = CreateTempDir();
-        WriteEncryptedSecrets(root, "mysqlPass1");
+        WriteEncryptedSecrets(root, "pwdPass1");
         var sut = Build(root);
 
         var result = sut.GetSecureConnectionString("Server=localhost;Pwd=PLACEHOLDER;Database=db");
 
-        result.Should().Be("Server=localhost;Pwd=mysqlPass1;Database=db");
+        result.Should().Be("Server=localhost;Pwd=pwdPass1;Database=db");
     }
 
     [Fact]

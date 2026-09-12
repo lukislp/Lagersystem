@@ -134,8 +134,10 @@ public class SecurityRiskServiceTests
         var user = MakeUser(1, twoFactor: true, createdAt: DateTime.UtcNow.AddDays(-400), lastPasswordChangeAt: DateTime.UtcNow.AddDays(-5));
         var logs = new[]
         {
-            Log(1, "LOGIN_SUCCESS", DateTime.UtcNow.AddHours(-1)),
-            Log(1, "LOGIN_SUCCESS", DateTime.UtcNow.AddHours(-2)),
+            // Fixed daytime stamps: "one/two hours ago" fell into the 00:00-06:00 night-activity
+            // window whenever the suite ran at night, which added risk to the quiet veteran.
+            Log(1, "LOGIN_SUCCESS", DateTime.UtcNow.Date.AddHours(13)),
+            Log(1, "LOGIN_SUCCESS", DateTime.UtcNow.Date.AddHours(12)),
             // PasswordChangeFrequency is derived from PASSWORD_CHANGED audit events (not
             // User.LastPasswordChangeAt); without these the "rare password changes" bonus
             // would fire for this 400-day-old account and this would no longer be a clean

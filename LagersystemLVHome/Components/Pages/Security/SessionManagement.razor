@@ -843,7 +843,7 @@ s.RiskLevel.ToString() == filterRiskLevel);
     {
         await LoadDataAsync();
         StartAutoRefresh();
-        StartDurationUpdateTimer(); // NEU
+        StartDurationUpdateTimer();
     }
     
     protected override async Task OnAfterRenderAsync(bool firstRender)

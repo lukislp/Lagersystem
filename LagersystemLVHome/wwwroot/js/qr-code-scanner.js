@@ -4,7 +4,7 @@ let html5QrCode = null;
 let isScanning = false;
 let lastScannedCode = '';
 let lastScanTime = 0;
-const DEBOUNCE_TIME = 2000; // 2 Sekunden zwischen gleichen Scans
+const DEBOUNCE_TIME = 2000; // 2 seconds between identical scans
 
 export function init(dotNetReference) {
     dotNetRef = dotNetReference;

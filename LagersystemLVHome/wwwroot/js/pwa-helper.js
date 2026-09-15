@@ -237,7 +237,7 @@ async getCacheSize() {
     }
 }
 
-// Global Instance erstellen
+// Create the global instance
 window.pwaHelper = new PWAHelper();
 
 // Auto-initialise once the DOM has loaded

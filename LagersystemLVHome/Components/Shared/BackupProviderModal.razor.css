@@ -92,7 +92,7 @@
   }
 }
 
-/* Mobile: Kleinere Icons aber immer noch gut sichtbar */
+/* Mobile: smaller icons that stay clearly visible */
 @media (max-width: 768px) {
   .backup-provider-tabs.nav-pills {
     gap: 0.4rem;

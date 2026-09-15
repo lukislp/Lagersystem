@@ -1100,7 +1100,11 @@ if (!string.IsNullOrEmpty(sessionId))
 await JSRuntime.InvokeVoidAsync("cookieHelper.setCookie", "LagerSystem.SessionId", sessionId, 7);
                 }
         }
-            catch { }
+            catch (Exception ex)
+            {
+                // The login itself already succeeded; only the session cookie could not be written.
+                _logger.LogWarning(ex, "Failed to write the session cookie after GDPR consent login");
+            }
 
         // Show passkey prompt after GDPR consent
             if (webAuthnSupported)
@@ -1192,7 +1196,11 @@ gdprConsentLogin = false;
         await JSRuntime.InvokeVoidAsync("cookieHelper.setCookie", "LagerSystem.SessionId", sessionId, 7);
         }
 }
-        catch { }
+        catch (Exception ex)
+        {
+            // The 2FA step already succeeded; only the session cookie could not be written.
+            _logger.LogWarning(ex, "Failed to write the session cookie after 2FA verification");
+        }
 
         require2FA = false;
 

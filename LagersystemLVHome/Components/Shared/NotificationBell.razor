@@ -3,6 +3,7 @@
 @inject NavigationManager NavigationManager
 @inject INotificationEventService EventService
 @inject I18nText I18nText
+@inject ILogger<NotificationBell> Logger
 @rendermode InteractiveServer
 @implements IDisposable
 
@@ -139,8 +140,14 @@
                 }
             }
         }
-        catch
+        catch (ObjectDisposedException)
         {
+            // The circuit was torn down while the timer tick was in flight - nothing left to update.
+        }
+        catch (Exception ex)
+        {
+            // Background poll: report the failure but keep the timer alive for the next tick.
+            Logger.LogWarning(ex, "NotificationBell: background notification poll failed");
         }
     }
 
@@ -160,8 +167,10 @@
                 _previousNotificationCount = notifications?.Count ?? 0;
             }
         }
-        catch
+        catch (Exception ex)
         {
+            // Keep the bell rendered with whatever it already shows instead of breaking the layout.
+            Logger.LogError(ex, "NotificationBell: failed to load notifications");
         }
     }
 
@@ -186,8 +195,9 @@
                 await LoadNotifications();
             }
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.LogError(ex, "NotificationBell: failed to mark all notifications as read");
         }
     }
 
@@ -208,8 +218,9 @@
 
             showDropdown = false;
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.LogError(ex, "NotificationBell: failed to handle click on notification {NotificationId}", notification.Id);
         }
     }
 

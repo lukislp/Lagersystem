@@ -228,7 +228,15 @@
             {
                 await JSRuntime.InvokeVoidAsync("appHelper.scrollToBottom", ".chat-box");
             }
-            catch { }
+            catch (JSDisconnectedException)
+            {
+                // The circuit is gone, so there is no chat box left to scroll.
+            }
+            catch (Exception ex)
+            {
+                // Auto-scrolling is cosmetic: never let it break the render loop.
+                Logger.LogDebug(ex, "Could not scroll the chat box to the bottom");
+            }
         }
     }
 

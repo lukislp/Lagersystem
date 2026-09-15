@@ -5,6 +5,7 @@
 @using LagersystemLVHome.Application.Services.BackupProviders
 @inject IJSRuntime JSRuntime
 @inject I18nText I18nText
+@inject ILogger<BackupProviderModal> Logger
 
 <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
     <div class="modal-dialog @GetModalSizeClass()">
@@ -271,8 +272,11 @@ new() { UncPath = "\\\\server\\share\\backups", Enabled = true, Description = "S
                 InitializeDefaults();
             }
         }
-        catch
+        catch (Exception ex)
         {
+            // A corrupt stored configuration leaves the form on its defaults rather than
+            // taking the whole backup page down.
+            Logger.LogError(ex, "BackupProviderModal: failed to read the stored configuration for provider type {ProviderType}", Provider.Type);
         }
     }
 

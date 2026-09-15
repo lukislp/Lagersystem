@@ -12,6 +12,7 @@
 @inject IAnomalyDetectionService AnomalyDetectionService
 @inject IToastService ToastService
 @inject I18nText I18nText
+@inject ILogger<SecurityCenter> Logger
 
 <PageTitle>@T.SecurityCenter_PageTitle</PageTitle>
 
@@ -533,7 +534,15 @@ else
                 failedLoginsTrend = ((failedLogins24h - failedLoginsYesterday) / (double)failedLoginsYesterday) * 100;
             }
         }
-        catch { }
+        catch (OperationCanceledException)
+        {
+            // Component disposed mid-load; nothing to do.
+        }
+        catch (Exception ex)
+        {
+            // Trends are supplementary: the rest of the security center still renders without them.
+            Logger.LogError(ex, "SecurityCenter: failed to calculate security trends");
+        }
     }
 
     private int CalculateOverallSecurityScore()

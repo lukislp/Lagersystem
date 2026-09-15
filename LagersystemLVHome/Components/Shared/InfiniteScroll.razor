@@ -2,6 +2,7 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JSRuntime
 @inject I18nText I18nText
+@inject ILogger<InfiniteScroll> Logger
 
 <div class="infinite-scroll" @ref="scrollContainer">
     @ChildContent
@@ -119,8 +120,14 @@
 
                 await jsModule.InvokeVoidAsync("initialize", triggerElement, dotNetRef, Threshold);
             }
-            catch
+            catch (JSDisconnectedException)
             {
+                // The circuit went away before the observer could be wired up - nothing to clean up.
+            }
+            catch (Exception ex)
+            {
+                // Without the observer the list simply stops auto-loading; the page stays usable.
+                Logger.LogError(ex, "InfiniteScroll: failed to initialize the scroll observer");
             }
         }
     }
@@ -143,7 +150,14 @@
                 await jsModule.InvokeVoidAsync("dispose");
                 await jsModule.DisposeAsync();
             }
-            catch { }
+            catch (JSDisconnectedException)
+            {
+                // The browser is already gone, so the JS-side observer died with it.
+            }
+            catch (ObjectDisposedException)
+            {
+                // The JS runtime was disposed before us; there is nothing left to tear down.
+            }
         }
 
         dotNetRef?.Dispose();

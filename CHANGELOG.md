@@ -1,3 +1,10 @@
+## [2.0.1](https://github.com/lukislp/Lagersystem/compare/v2.0.0...v2.0.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* **components:** stop swallowing exceptions in empty catch blocks ([#55](https://github.com/lukislp/Lagersystem/issues/55)) ([77c61a2](https://github.com/lukislp/Lagersystem/commit/77c61a256744324474c47d8b868d9daf2853b9aa))
+
 # [2.0.0](https://github.com/lukislp/Lagersystem/compare/v1.3.14...v2.0.0) (2026-09-12)
 
 

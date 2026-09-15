@@ -426,7 +426,14 @@
             // Dispose .NET Object Reference
             dotNetHelper?.Dispose();
         }
-        catch { }
+        catch (JSDisconnectedException)
+        {
+            // The browser is already gone, so the session monitor stopped with the circuit.
+        }
+        catch (ObjectDisposedException)
+        {
+            // The JS runtime was disposed before us; there is nothing left to tear down.
+        }
     }
   
     [Inject]

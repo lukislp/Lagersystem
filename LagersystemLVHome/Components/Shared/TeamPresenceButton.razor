@@ -1,6 +1,7 @@
 @inject ITeamPresenceService PresenceService
 @inject IAuthService AuthService
 @inject I18nText I18nText
+@inject ILogger<TeamPresenceButton> Logger
 @rendermode InteractiveServer
 @implements IDisposable
 
@@ -190,8 +191,14 @@
                 StateHasChanged();
             }
         }
-        catch
+        catch (ObjectDisposedException)
         {
+            // The circuit was torn down while the timer tick was in flight - nothing left to update.
+        }
+        catch (Exception ex)
+        {
+            // Background poll: report the failure but keep the timer alive for the next tick.
+            Logger.LogWarning(ex, "TeamPresenceButton: background presence poll failed");
         }
     }
 
@@ -214,8 +221,10 @@
             _previousOnlineCount = onlineCount;
             warehouseName = currentUser.Warehouse?.Name ?? "Lager";
         }
-        catch
+        catch (Exception ex)
         {
+            // Keep the button rendered with whatever it already shows instead of breaking the layout.
+            Logger.LogError(ex, "TeamPresenceButton: failed to load team presence data");
         }
     }
 

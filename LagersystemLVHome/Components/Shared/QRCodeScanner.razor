@@ -1,4 +1,5 @@
 @inject IJSRuntime JS
+@inject ILogger<QRCodeScanner> Logger
 @implements IAsyncDisposable
 
 <div class="qrcode-scanner-container">
@@ -140,8 +141,10 @@
             {
                 await OnScanned.InvokeAsync(qrCode);
             }
-            catch
+            catch (Exception ex)
             {
+                // A failing consumer callback must not kill the scanner loop.
+                Logger.LogError(ex, "QRCodeScanner: the OnScanned callback threw");
             }
         }
     }

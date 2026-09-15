@@ -8,6 +8,7 @@
 @inject IAuthService AuthService
 @inject NavigationManager NavigationManager
 @inject I18nText I18nText
+@inject ILogger<ExpiryMonitoring> Logger
 
 <PageTitle>@T.ExpiryMonitoring_PageTitle</PageTitle>
 
@@ -357,8 +358,13 @@ else
 
             FilterBatches();
         }
-        catch
+        catch (OperationCanceledException)
         {
+            // Component disposed mid-load; nothing to do.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "ExpiryMonitoring: failed to load expiry batches");
         }
         finally
         {

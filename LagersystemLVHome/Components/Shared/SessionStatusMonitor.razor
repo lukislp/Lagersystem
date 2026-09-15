@@ -232,7 +232,14 @@
                     {
                         _checkTask.Wait(TimeSpan.FromSeconds(2));
                     }
-                    catch { }
+                    catch (AggregateException ex) when (ex.InnerExceptions.All(e => e is OperationCanceledException))
+                    {
+                        // Expected: the polling loop observed the cancellation requested above.
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogWarning(ex, "SessionStatusMonitor: periodic check task faulted while shutting down");
+                    }
                 }
             }
         }

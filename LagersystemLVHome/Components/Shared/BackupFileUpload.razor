@@ -182,7 +182,16 @@
                 var header = System.Text.Encoding.ASCII.GetString(buffer);
                 isEncrypted = !header.StartsWith("SQLi");
             }
-            catch { }
+            catch (IOException ex)
+            {
+                // Header probe failed; fall back to the file-extension guess made above.
+                Logger.LogWarning(ex, "Could not read the backup header to detect encryption");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                // Header probe failed; fall back to the file-extension guess made above.
+                Logger.LogWarning(ex, "Could not read the backup header to detect encryption");
+            }
         }
   
         Logger.LogInformation("Encryption check: {IsEncrypted}", isEncrypted);
@@ -260,11 +269,17 @@
         }
         finally
         {
+            // Best-effort cleanup: a temp file still held open by the OS is left for the
+            // temp-folder sweeper rather than failing an otherwise finished restore.
             if (tempDecryptedPath != null && File.Exists(tempDecryptedPath))
-                try { File.Delete(tempDecryptedPath); } catch { }
-          
+                try { File.Delete(tempDecryptedPath); }
+                catch (IOException ex) { Logger.LogWarning(ex, "Could not delete the temporary decrypted backup"); }
+                catch (UnauthorizedAccessException ex) { Logger.LogWarning(ex, "Could not delete the temporary decrypted backup"); }
+
             if (tempUnzippedPath != null && File.Exists(tempUnzippedPath))
-                try { File.Delete(tempUnzippedPath); } catch { }
+                try { File.Delete(tempUnzippedPath); }
+                catch (IOException ex) { Logger.LogWarning(ex, "Could not delete the temporary unzipped backup"); }
+                catch (UnauthorizedAccessException ex) { Logger.LogWarning(ex, "Could not delete the temporary unzipped backup"); }
 
             isProcessing = false;
             StateHasChanged();
@@ -313,13 +328,20 @@ inputStream, aes.CreateDecryptor(), System.Security.Cryptography.CryptoStreamMod
             var tempDbPath = Path.Combine(Path.GetTempPath(), $"restored_{DateTime.Now:yyyyMMddHHmmss}.db");
             File.Copy(dbFiles[0], tempDbPath, overwrite: true);
             
-            try { Directory.Delete(tempFolder, recursive: true); } catch { }
-            
+            // Best-effort cleanup: the extracted copy is no longer needed, but a locked
+            // folder must not fail an otherwise successful unzip.
+            try { Directory.Delete(tempFolder, recursive: true); }
+            catch (IOException ex) { Logger.LogWarning(ex, "Could not delete the temporary unzip folder"); }
+            catch (UnauthorizedAccessException ex) { Logger.LogWarning(ex, "Could not delete the temporary unzip folder"); }
+
             return tempDbPath;
         }
         catch
         {
-            try { Directory.Delete(tempFolder, recursive: true); } catch { }
+            // Best-effort cleanup before rethrowing the original failure.
+            try { Directory.Delete(tempFolder, recursive: true); }
+            catch (IOException ex) { Logger.LogWarning(ex, "Could not delete the temporary unzip folder"); }
+            catch (UnauthorizedAccessException ex) { Logger.LogWarning(ex, "Could not delete the temporary unzip folder"); }
             throw;
         }
     }

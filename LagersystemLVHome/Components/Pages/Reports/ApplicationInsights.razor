@@ -978,7 +978,14 @@
             {
                 _refreshTask.Wait(TimeSpan.FromSeconds(2));
             }
-            catch { }
+            catch (AggregateException ex) when (ex.InnerExceptions.All(e => e is OperationCanceledException))
+            {
+                // Expected: the auto-refresh loop observed the cancellation requested above.
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Auto-refresh task faulted while shutting down");
+            }
             finally
             {
                 _refreshTask = null;
@@ -990,7 +997,14 @@
         {
             JSRuntime.InvokeVoidAsync("InsightsCharts.destroyCharts");
         }
-        catch { }
+        catch (JSDisconnectedException)
+        {
+            // The browser is already gone, so the charts died with the circuit.
+        }
+        catch (ObjectDisposedException)
+        {
+            // The JS runtime was disposed before us; there is nothing left to tear down.
+        }
 
         _logger.LogInformation("Auto-refresh successfully stopped");
     }

@@ -221,9 +221,9 @@
     private AzureBlobConfig azureConfig = new();
     private AwsS3Config awsConfig = new();
     private NetworkShareConfig networkConfig = new();
-    private GoogleDriveConfig googleDriveConfig = new();  // NEU
-    private OneDriveConfig oneDriveConfig = new();  // NEU
-    private CloudflareR2Config cloudflareR2Config = new();  // NEU
+    private GoogleDriveConfig googleDriveConfig = new();
+    private OneDriveConfig oneDriveConfig = new();
+    private CloudflareR2Config cloudflareR2Config = new();
 
     protected override void OnParametersSet()
     {
@@ -256,13 +256,13 @@ new() { UncPath = "\\\\server\\share\\backups", Enabled = true, Description = "S
 };
                         }
                         break;
-                    case BackupProviderType.GoogleDrive:  // NEU
+                    case BackupProviderType.GoogleDrive:
                         googleDriveConfig = JsonSerializer.Deserialize<GoogleDriveConfig>(Provider.Configuration) ?? new();
                         break;
-                    case BackupProviderType.OneDrive:  // NEU
+                    case BackupProviderType.OneDrive:
                         oneDriveConfig = JsonSerializer.Deserialize<OneDriveConfig>(Provider.Configuration) ?? new();
                         break;
-                    case BackupProviderType.CloudflareR2:  // NEU
+                    case BackupProviderType.CloudflareR2:
                         cloudflareR2Config = JsonSerializer.Deserialize<CloudflareR2Config>(Provider.Configuration) ?? new();
                         break;
                 }
@@ -307,9 +307,9 @@ new() { UncPath = "\\\\server\\share\\backups", Enabled = true, Description = "S
         azureConfig = new();
         awsConfig = new();
         networkConfig = new();
-        googleDriveConfig = new();  // NEU
-        oneDriveConfig = new();  // NEU
-        cloudflareR2Config = new();  // NEU
+        googleDriveConfig = new();
+        oneDriveConfig = new();
+        cloudflareR2Config = new();
 
         InitializeDefaults();
         StateHasChanged();
@@ -385,9 +385,9 @@ new() { UncPath = "\\\\server\\share\\backups", Enabled = true, Description = "S
                 BackupProviderType.AzureBlob => JsonSerializer.Serialize(azureConfig),
                 BackupProviderType.AWSS3 => JsonSerializer.Serialize(awsConfig),
                 BackupProviderType.NetworkShare => JsonSerializer.Serialize(networkConfig),
-                BackupProviderType.GoogleDrive => JsonSerializer.Serialize(googleDriveConfig),  // NEU
-                BackupProviderType.OneDrive => JsonSerializer.Serialize(oneDriveConfig),  // NEU
-                BackupProviderType.CloudflareR2 => JsonSerializer.Serialize(cloudflareR2Config),  // NEU
+                BackupProviderType.GoogleDrive => JsonSerializer.Serialize(googleDriveConfig),
+                BackupProviderType.OneDrive => JsonSerializer.Serialize(oneDriveConfig),
+                BackupProviderType.CloudflareR2 => JsonSerializer.Serialize(cloudflareR2Config),
                 _ => "{}"
             };
 

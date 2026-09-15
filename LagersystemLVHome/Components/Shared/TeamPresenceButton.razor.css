@@ -51,8 +51,8 @@
 /* ===== DROPDOWN STYLES ===== */
 .team-presence-dropdown {
   position: fixed; /* Use fixed instead of absolute for better positioning */
-  top: 60px; /* Abstand vom Header */
-  right: 20px; /* Abstand vom rechten Rand */
+  top: 60px; /* Offset from the header */
+  right: 20px; /* Offset from the right edge */
   width: 350px; /* Feste Breite */
   min-width: 350px; /* Mindestbreite */
   max-width: 350px; /* Maximalbreite */

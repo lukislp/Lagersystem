@@ -31,9 +31,9 @@ console.error('Error setting cookie:', error);
     },
 
  /**
-     * Liest ein Cookie
-     * @param {string} name - Cookie-Name
-     * @returns {string|null} Cookie-Wert oder null
+     * Reads a cookie
+     * @param {string} name - Cookie name
+     * @returns {string|null} Cookie value, or null if not set
      */
     getCookie: function(name) {
         try {

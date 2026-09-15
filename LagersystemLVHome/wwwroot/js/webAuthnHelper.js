@@ -121,7 +121,7 @@ deviceName: options.deviceName || this.detectDeviceName(),
 
     // ==================== AUTHENTIFIZIERUNG ====================
 
-    // Authentifiziert mit einem Passkey
+    // Authenticates with a passkey
     authenticatePasskey: async function(options) {
         if (!this.isSupported()) {
      return { success: false, error: 'WebAuthn wird von diesem Browser nicht unterstützt.' };

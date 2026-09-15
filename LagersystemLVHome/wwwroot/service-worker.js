@@ -82,7 +82,7 @@ self.addEventListener('fetch', (event) => {
         return;
     }
     
-    // Blazor Server SignalR - immer vom Netzwerk
+    // Blazor Server SignalR - always go to the network
     if (url.pathname.startsWith('/_blazor/') || 
         url.pathname.startsWith('/_framework/blazor.server.js')) {
     event.respondWith(fetch(request));

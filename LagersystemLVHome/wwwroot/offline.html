@@ -176,7 +176,7 @@
         </div>
 
         <script>
-            // Verbindungsstatus prüfen
+            // Check the connection status
             function checkConnection() {
                 const statusEl = document.getElementById("status");
 
@@ -186,7 +186,7 @@
                     statusEl.style.background = "#c6f6d5";
                     statusEl.style.color = "#22543d";
 
-                    // Automatisch zur letzten Seite navigieren nach 2 Sekunden
+                    // Navigate back to the last page automatically after 2 seconds
                     setTimeout(() => {
                         window.location.href = "/";
                     }, 2000);

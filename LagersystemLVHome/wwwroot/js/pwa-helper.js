@@ -144,49 +144,6 @@ this.showUpdateNotification();
   }
     }
 
-    // Push Notifications Setup
-    async setupPushNotifications() {
-      if (!('Notification' in window)) {
-            console.warn('[PWA] Push notifications not supported');
-            return false;
-  }
-
-    if (!this.registration) {
-       console.warn('[PWA] Service Worker not registered');
-     return false;
-        }
-
-  // Request permission
-        const permission = await Notification.requestPermission();
- 
-        if (permission !== 'granted') {
-   return false;
-    }
-
-   // Subscribe to push notifications
-        try {
-       const subscription = await this.registration.pushManager.subscribe({
-       userVisibleOnly: true,
-      applicationServerKey: this.urlBase64ToUint8Array(
- // VAPID public key (must be generated on the server)
-        'YOUR_VAPID_PUBLIC_KEY_HERE'
-    )
-     });
-
-  // Send subscription to server
-    // await fetch('/api/push/subscribe', {
-   //     method: 'POST',
- //     headers: { 'Content-Type': 'application/json' },
-         //     body: JSON.stringify(subscription)
-   // });
-
-     return true;
- } catch (error) {
- console.error('[PWA] Push subscription failed:', error);
-     return false;
-        }
-    }
-
     // Test Push Notification
     async testPushNotification(title = 'Test Benachrichtigung', body = 'Dies ist eine Test-Benachrichtigung') {
    if (!('Notification' in window)) {
@@ -278,22 +235,6 @@ async getCacheSize() {
 
         return status;
     }
-
-    // Helper: base64 to Uint8Array
- urlBase64ToUint8Array(base64String) {
-        const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding)
-      .replace(/\-/g, '+')
-            .replace(/_/g, '/');
-
-   const rawData = window.atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
-
-        for (let i = 0; i < rawData.length; ++i) {
-        outputArray[i] = rawData.charCodeAt(i);
-   }
-  return outputArray;
-  }
 }
 
 // Create the global instance

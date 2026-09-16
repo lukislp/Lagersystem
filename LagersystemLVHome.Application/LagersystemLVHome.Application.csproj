@@ -57,7 +57,6 @@
     <PackageReference Include="QuestPDF" Version="2026.2.4" />
 
     <!-- Notification / Email / Teams / Push -->
-    <PackageReference Include="Lib.Net.Http.WebPush" Version="3.3.1" />
     <PackageReference Include="Microsoft.Graph" Version="6.6.0" />
     <PackageReference Include="Microsoft.Identity.Client" Version="4.88.0" />
     <!-- Pinned above Microsoft.Graph's transitive 1.21.1 to patch GHSA-7j59-v9qr-6fq9 (header leak on cross-host redirect) -->

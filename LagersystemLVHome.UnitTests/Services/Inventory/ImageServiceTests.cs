@@ -79,13 +79,13 @@ public class ImageServiceTests : IDisposable
 
         var mainBytes = await File.ReadAllBytesAsync(sut.GetImagePath(imageUrl));
         var (mw, mh) = ReadImageDimensions(mainBytes);
-        mw.Should().BeLessOrEqualTo(800);
-        mh.Should().BeLessOrEqualTo(800);
+        mw.Should().BeLessThanOrEqualTo(800);
+        mh.Should().BeLessThanOrEqualTo(800);
 
         var thumbBytes = await File.ReadAllBytesAsync(sut.GetImagePath(thumbnailUrl));
         var (tw, th) = ReadImageDimensions(thumbBytes);
-        tw.Should().BeLessOrEqualTo(150);
-        th.Should().BeLessOrEqualTo(150);
+        tw.Should().BeLessThanOrEqualTo(150);
+        th.Should().BeLessThanOrEqualTo(150);
     }
 
     [Fact]

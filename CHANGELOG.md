@@ -1,3 +1,11 @@
+## [2.0.2](https://github.com/lukislp/Lagersystem/compare/v2.0.1...v2.0.2) (2026-09-17)
+
+
+### Bug Fixes
+
+* **deps:** Bump AWSSDK.S3 from 4.0.103.2 to 4.0.103.3 ([82e9ed0](https://github.com/lukislp/Lagersystem/commit/82e9ed04ad01bc1c32e2018c09c73242c75473f5))
+* **deps:** Bump the dotnet group with 2 updates ([2740459](https://github.com/lukislp/Lagersystem/commit/2740459ecca689f7703537bfac8d134dfc668658))
+
 ## [2.0.1](https://github.com/lukislp/Lagersystem/compare/v2.0.0...v2.0.1) (2026-09-15)
 
 

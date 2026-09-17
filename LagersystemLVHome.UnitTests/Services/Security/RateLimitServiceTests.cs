@@ -65,7 +65,7 @@ public class RateLimitServiceTests
         await sut.CheckRateLimitAsync("2.2.2.2", "/api/a");
         await sut.CheckRateLimitAsync("2.2.2.2", "/api/b");
 
-        sut.GetActiveBucketsCount().Should().BeGreaterOrEqualTo(2);
+        sut.GetActiveBucketsCount().Should().BeGreaterThanOrEqualTo(2);
 
         await sut.ResetLimitAsync("2.2.2.2");
 

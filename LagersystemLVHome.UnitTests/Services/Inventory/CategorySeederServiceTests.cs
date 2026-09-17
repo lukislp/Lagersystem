@@ -63,7 +63,7 @@ public class CategorySeederServiceTests
         {
             var db = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
             var count = await db.Categories.Where(c => c.WarehouseId == warehouseId).CountAsync();
-            count.Should().BeGreaterOrEqualTo(33);
+            count.Should().BeGreaterThanOrEqualTo(33);
         }
     }
 
@@ -88,7 +88,7 @@ public class CategorySeederServiceTests
         using var verify = sp.CreateScope();
         var verifyDb = verify.ServiceProvider.GetRequiredService<InventoryDbContext>();
         var count = await verifyDb.Categories.Where(c => c.WarehouseId == warehouseId).CountAsync();
-        count.Should().BeGreaterOrEqualTo(33);
+        count.Should().BeGreaterThanOrEqualTo(33);
         count.Should().BeLessThan(70);
     }
 
@@ -112,6 +112,6 @@ public class CategorySeederServiceTests
         using var verify = sp.CreateScope();
         var verifyDb = verify.ServiceProvider.GetRequiredService<InventoryDbContext>();
         (await verifyDb.Categories.Where(c => c.WarehouseId == newestId).CountAsync())
-            .Should().BeGreaterOrEqualTo(33);
+            .Should().BeGreaterThanOrEqualTo(33);
     }
 }

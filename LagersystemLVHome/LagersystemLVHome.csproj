@@ -43,7 +43,7 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
     <!-- Pinned above the transitive 2.0.0 to patch GHSA-v5pm-xwqc-g5wc (circular schema references terminate parsing) -->
     <PackageReference Include="Microsoft.OpenApi" Version="2.12.2" />
-    <PackageReference Include="Scalar.AspNetCore" Version="2.13.13" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.17.4" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.12" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.12" />
 

@@ -131,7 +131,7 @@ public sealed class ApplicationUptimeServiceTests : IDisposable
         DeleteUptimeFileIfExists();
         var sut = new ApplicationUptimeService(NullLogger<ApplicationUptimeService>.Instance);
 
-        sut.ApplicationUptime.Should().BeGreaterOrEqualTo(TimeSpan.Zero);
+        sut.ApplicationUptime.Should().BeGreaterThanOrEqualTo(TimeSpan.Zero);
         sut.ApplicationUptime.Should().BeLessThan(TimeSpan.FromMinutes(1));
     }
 
@@ -142,7 +142,7 @@ public sealed class ApplicationUptimeServiceTests : IDisposable
         var sut = new ApplicationUptimeService(NullLogger<ApplicationUptimeService>.Instance);
 
         // The current test process has necessarily been running for a non-negative duration.
-        sut.ProcessUptime.Should().BeGreaterOrEqualTo(TimeSpan.Zero);
+        sut.ProcessUptime.Should().BeGreaterThanOrEqualTo(TimeSpan.Zero);
     }
 
     [Fact]

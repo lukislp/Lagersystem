@@ -114,7 +114,7 @@ public class DatabaseHealthServiceTests : IDisposable
 
         result.Success.Should().BeTrue();
         result.ErrorMessage.Should().BeNull();
-        result.Latency.Should().BeGreaterOrEqualTo(TimeSpan.Zero);
+        result.Latency.Should().BeGreaterThanOrEqualTo(TimeSpan.Zero);
     }
 
     [Fact]

@@ -1,3 +1,10 @@
+## [2.0.5](https://github.com/lukislp/Lagersystem/compare/v2.0.4...v2.0.5) (2026-09-17)
+
+
+### Bug Fixes
+
+* **deps:** Bump FluentAssertions from 6.12.2 to 8.11.0 ([#62](https://github.com/lukislp/Lagersystem/issues/62)) ([3ce4814](https://github.com/lukislp/Lagersystem/commit/3ce481404f702c8da4f3eb0069c1ee01caa9fea6))
+
 ## [2.0.4](https://github.com/lukislp/Lagersystem/compare/v2.0.3...v2.0.4) (2026-09-17)
 
 

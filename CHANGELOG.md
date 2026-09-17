@@ -1,3 +1,11 @@
+## [2.0.3](https://github.com/lukislp/Lagersystem/compare/v2.0.2...v2.0.3) (2026-09-17)
+
+
+### Bug Fixes
+
+* **deps:** Bump Google.Apis.Drive.v3 from 1.73.0.4081 to 1.76.0.4261 ([e6d2207](https://github.com/lukislp/Lagersystem/commit/e6d22079420594d6505146ae7180b11d51253466))
+* **deps:** Bump Scalar.AspNetCore from 2.13.13 to 2.17.4 ([3d9493f](https://github.com/lukislp/Lagersystem/commit/3d9493fba0348c4fa977ddc0efb71ddb8ef6f0cb))
+
 ## [2.0.2](https://github.com/lukislp/Lagersystem/compare/v2.0.1...v2.0.2) (2026-09-17)
 
 

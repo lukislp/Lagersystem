@@ -1,3 +1,10 @@
+## [2.0.4](https://github.com/lukislp/Lagersystem/compare/v2.0.3...v2.0.4) (2026-09-17)
+
+
+### Bug Fixes
+
+* **deps:** Bump JunitXml.TestLogger from 6.1.0 to 8.0.0 ([#64](https://github.com/lukislp/Lagersystem/issues/64)) ([d61b121](https://github.com/lukislp/Lagersystem/commit/d61b121793ed16a080dc1922fae405b35fd09dd3))
+
 ## [2.0.3](https://github.com/lukislp/Lagersystem/compare/v2.0.2...v2.0.3) (2026-09-17)
 
 

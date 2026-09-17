@@ -399,7 +399,7 @@ public sealed class DatabaseRestoreServiceTests : IDisposable
 
         result.Success.Should().BeTrue(result.ErrorMessage);
         result.TablesRestored.Should().BeGreaterThan(0);
-        result.RecordsRestored.Should().BeGreaterOrEqualTo(1);
+        result.RecordsRestored.Should().BeGreaterThanOrEqualTo(1);
         progressEvents.Should().Contain(p => p.Step == RestoreStep.Complete);
         await using var verifyDb = targetFactory.CreateDbContext();
         (await verifyDb.Warehouses.CountAsync()).Should().Be(1);

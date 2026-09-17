@@ -130,7 +130,7 @@ public sealed class NotificationHostedServiceTests
 
         var result = InvokeGetTimeUntilNextRun(sut);
 
-        result.Should().BeGreaterOrEqualTo(TimeSpan.Zero);
+        result.Should().BeGreaterThanOrEqualTo(TimeSpan.Zero);
         result.Should().BeLessThanOrEqualTo(TimeSpan.FromHours(24));
     }
 

@@ -260,8 +260,8 @@
       },
       "Markdig": {
         "type": "Transitive",
-        "resolved": "1.1.1",
-        "contentHash": "wACpji8aLjtmghzdancNFRDUH66F2kS8QE0uywUXvLHgfbTD7LPNj7Vx43sTckpEQFtn5YndEoZvGqIHosBzGQ=="
+        "resolved": "1.4.0",
+        "contentHash": "lLhaiI/mNDTNzgLqnmknhf4LjgTqOAyjx5+GNz0X3AxYMxUhmFppF2WVMdER+SDqwhE5wUF1pzs/cuLwFxs7xA=="
       },
       "MaxMind.Db": {
         "type": "Transitive",
@@ -1658,7 +1658,7 @@
           "GoogleAuthenticator": "[3.2.0, )",
           "LagersystemLVHome.Data": "[1.0.0, )",
           "LagersystemLVHome.Domain": "[1.0.0, )",
-          "Markdig": "[1.1.1, )",
+          "Markdig": "[1.4.0, )",
           "MaxMind.GeoIP2": "[5.4.1, )",
           "Microsoft.EntityFrameworkCore": "[10.0.12, )",
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.12, )",

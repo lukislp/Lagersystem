@@ -61,9 +61,9 @@
       },
       "Markdig": {
         "type": "Direct",
-        "requested": "[1.1.1, )",
-        "resolved": "1.1.1",
-        "contentHash": "wACpji8aLjtmghzdancNFRDUH66F2kS8QE0uywUXvLHgfbTD7LPNj7Vx43sTckpEQFtn5YndEoZvGqIHosBzGQ=="
+        "requested": "[1.4.0, )",
+        "resolved": "1.4.0",
+        "contentHash": "lLhaiI/mNDTNzgLqnmknhf4LjgTqOAyjx5+GNz0X3AxYMxUhmFppF2WVMdER+SDqwhE5wUF1pzs/cuLwFxs7xA=="
       },
       "MaxMind.GeoIP2": {
         "type": "Direct",

@@ -57,7 +57,7 @@
     <PackageReference Include="QuestPDF" Version="2026.2.4" />
 
     <!-- Notification / Email / Teams / Push -->
-    <PackageReference Include="Microsoft.Graph" Version="6.6.0" />
+    <PackageReference Include="Microsoft.Graph" Version="6.7.0" />
     <PackageReference Include="Microsoft.Identity.Client" Version="4.90.0" />
     <!-- Pinned above Microsoft.Graph's transitive 1.21.1 to patch GHSA-7j59-v9qr-6fq9 (header leak on cross-host redirect) -->
     <PackageReference Include="Microsoft.Kiota.Abstractions" Version="2.1.2" />

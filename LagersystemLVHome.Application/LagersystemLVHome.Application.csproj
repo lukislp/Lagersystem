@@ -53,7 +53,7 @@
 
     <!-- Reporting / Export -->
     <PackageReference Include="ClosedXML" Version="0.105.1" />
-    <PackageReference Include="Markdig" Version="1.1.1" />
+    <PackageReference Include="Markdig" Version="1.4.0" />
     <PackageReference Include="QuestPDF" Version="2026.2.4" />
 
     <!-- Notification / Email / Teams / Push -->

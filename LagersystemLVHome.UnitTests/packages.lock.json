@@ -1124,8 +1124,8 @@
       },
       "QRCoder": {
         "type": "Transitive",
-        "resolved": "1.7.0",
-        "contentHash": "6R3hQkayihGIDjp3F1nLRDBWG+nqahGyOY2+fH4Rll16Vad67oaUUfHkOiMWKiJFnGh+PIGDfUos+0R9m54O1g==",
+        "resolved": "1.8.0",
+        "contentHash": "RuvX3PEXU6pbY/I5ItAk800jm62r+YnoPLgyS2WTgwxkOnGkOfU9ORiipHUF0LkLyqM8rlroUCA319JjRYfRFQ==",
         "dependencies": {
           "System.Drawing.Common": "6.0.0"
         }
@@ -1669,7 +1669,7 @@
           "Microsoft.Kiota.Abstractions": "[2.1.2, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
           "Otp.NET": "[1.4.1, )",
-          "QRCoder": "[1.7.0, )",
+          "QRCoder": "[1.8.0, )",
           "QuestPDF": "[2026.2.4, )",
           "SixLabors.ImageSharp": "[3.1.12, )",
           "SkiaSharp": "[3.119.2, )",

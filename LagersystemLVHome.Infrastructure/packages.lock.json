@@ -228,15 +228,15 @@
       },
       "MaxMind.Db": {
         "type": "Transitive",
-        "resolved": "4.3.4",
-        "contentHash": "LtVOvpeHgYn+Ap95c5QuZ5oZd5zDTY7zlSb9L8tNSuCpXg/SAyOyZip1US50idNcEKZSr5Jev18RMnmHZMmvEA=="
+        "resolved": "5.1.0",
+        "contentHash": "u4fynkxX0bNLYaz90N9m9FiaOX22WmEFKlHnvlqw8sswngH54oYvgynhT4GXZvqTy8l7D96/+E9OVzuu34ex9w=="
       },
       "MaxMind.GeoIP2": {
         "type": "Transitive",
-        "resolved": "5.4.1",
-        "contentHash": "xjxNSIU0QlmQM083XFgprMlaEMWbxIN2Ft81IScnCch71Npy0gTEfzY6F7yv3/AYRFKV2ykgnUihUxQsGSyOWA==",
+        "resolved": "6.1.0",
+        "contentHash": "IBy7B0mhzZfLvCZd2znr8+nquNUL8K973MVorQEQowvlX/BHFCVHK6BoMhdIT6ZpDIc8ETMl4ZyixS/6iBQ26A==",
         "dependencies": {
-          "MaxMind.Db": "4.3.4"
+          "MaxMind.Db": "5.1.0"
         }
       },
       "MethodBoundaryAspect.Fody": {
@@ -974,7 +974,7 @@
           "LagersystemLVHome.Data": "[1.0.0, )",
           "LagersystemLVHome.Domain": "[1.0.0, )",
           "Markdig": "[1.4.0, )",
-          "MaxMind.GeoIP2": "[5.4.1, )",
+          "MaxMind.GeoIP2": "[6.1.0, )",
           "Microsoft.EntityFrameworkCore": "[10.0.12, )",
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.12, )",
           "Microsoft.EntityFrameworkCore.Sqlite": "[10.0.12, )",

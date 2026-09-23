@@ -68,7 +68,7 @@
     <PackageReference Include="Google.Apis.Drive.v3" Version="1.76.0.4261" />
 
     <!-- Security -->
-    <PackageReference Include="MaxMind.GeoIP2" Version="5.4.1" />
+    <PackageReference Include="MaxMind.GeoIP2" Version="6.1.0" />
 
     <!-- Image processing (ImageService) -->
     <PackageReference Include="SkiaSharp" Version="3.119.2" />

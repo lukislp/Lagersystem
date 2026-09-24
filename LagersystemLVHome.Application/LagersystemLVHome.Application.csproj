@@ -63,7 +63,7 @@
     <PackageReference Include="Microsoft.Kiota.Abstractions" Version="2.1.2" />
 
     <!-- Backup providers -->
-    <PackageReference Include="AWSSDK.S3" Version="4.0.103.3" />
+    <PackageReference Include="AWSSDK.S3" Version="4.0.103.4" />
     <PackageReference Include="Azure.Storage.Blobs" Version="12.29.2" />
     <PackageReference Include="Google.Apis.Drive.v3" Version="1.76.0.4261" />
 

@@ -4,9 +4,9 @@
     "net10.0": {
       "AWSSDK.S3": {
         "type": "Direct",
-        "requested": "[4.0.103.3, )",
-        "resolved": "4.0.103.3",
-        "contentHash": "dndlr57QVnGDPTaQx4NlYhM7WvNLmfYVEanCVgRr8cPYPRGlT+/1vLoQEqeRr3McEFW/0v/hOjMxvcxNh9yWTw==",
+        "requested": "[4.0.103.4, )",
+        "resolved": "4.0.103.4",
+        "contentHash": "qi8NkWG7s6GkNePTWSxP51O6AaTEWquin4X4L82plMte8bTFL2A1/osRfr6DBmvmSOc8y0orx25jJXg9gcbMIQ==",
         "dependencies": {
           "AWSSDK.Core": "[4.0.102.6, 5.0.0)"
         }
@@ -169,9 +169,9 @@
       },
       "QuestPDF": {
         "type": "Direct",
-        "requested": "[2026.2.4, )",
-        "resolved": "2026.2.4",
-        "contentHash": "fajBdRJFr3hu2Mr6mEVsXjvVKD9Q/Q6hfPEUMpV/xlwxWdFebmpGdi0FLQTApMvpapy72v9dvcGuk7e7NQmQyQ=="
+        "requested": "[2026.9.0, )",
+        "resolved": "2026.9.0",
+        "contentHash": "qJuBVHeJMECFI4xiUQ1+kWaHm8NoVeyNepByezQOjlWGZnDzL4eZjrtHyu6G2ccVVOLOu+z1nX1N3i3zkzuArA=="
       },
       "SixLabors.ImageSharp": {
         "type": "Direct",

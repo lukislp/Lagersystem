@@ -72,9 +72,9 @@
       },
       "QuestPDF": {
         "type": "Direct",
-        "requested": "[2026.2.4, )",
-        "resolved": "2026.2.4",
-        "contentHash": "fajBdRJFr3hu2Mr6mEVsXjvVKD9Q/Q6hfPEUMpV/xlwxWdFebmpGdi0FLQTApMvpapy72v9dvcGuk7e7NQmQyQ=="
+        "requested": "[2026.9.0, )",
+        "resolved": "2026.9.0",
+        "contentHash": "qJuBVHeJMECFI4xiUQ1+kWaHm8NoVeyNepByezQOjlWGZnDzL4eZjrtHyu6G2ccVVOLOu+z1nX1N3i3zkzuArA=="
       },
       "SciSharp.TensorFlow.Redist": {
         "type": "Direct",
@@ -985,7 +985,7 @@
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
           "Otp.NET": "[1.4.1, )",
           "QRCoder": "[1.8.0, )",
-          "QuestPDF": "[2026.2.4, )",
+          "QuestPDF": "[2026.9.0, )",
           "SixLabors.ImageSharp": "[3.1.12, )",
           "SkiaSharp": "[3.119.2, )",
           "SkiaSharp.NativeAssets.Linux": "[3.119.2, )",

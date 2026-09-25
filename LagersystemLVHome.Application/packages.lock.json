@@ -42,9 +42,9 @@
       },
       "Google.Apis.Drive.v3": {
         "type": "Direct",
-        "requested": "[1.76.0.4261, )",
-        "resolved": "1.76.0.4261",
-        "contentHash": "QLdhrQDimW0bMcKptU3JKQHs4zFWWOgmcTwYy2LTim61fDPJeEeCCqDD0fJGnB1kMuC7Ls3vOjrkAaCUZ9TKVw==",
+        "requested": "[1.76.0.4273, )",
+        "resolved": "1.76.0.4273",
+        "contentHash": "xsk6G7Vga0M77SVTF+mpsoyBzxepEQEYoyi1M5uK9WVHVHf0mVzqUrIvknO1Prf7yjnEXSXY7FtNc5Q+Q1CorA==",
         "dependencies": {
           "Google.Apis": "1.76.0",
           "Google.Apis.Auth": "1.76.0"

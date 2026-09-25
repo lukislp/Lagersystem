@@ -55,9 +55,9 @@
       },
       "Scalar.AspNetCore": {
         "type": "Direct",
-        "requested": "[2.17.4, )",
-        "resolved": "2.17.4",
-        "contentHash": "Vd2o9UgoV199HvZ2FuW1W/pZ2nwAr1tsGqE+g4++GjoDmK4Lla/OCXRaUpj86JX6idlapc0L9BHOR26tYibguA=="
+        "requested": "[2.17.9, )",
+        "resolved": "2.17.9",
+        "contentHash": "/HulaHnMtDfMuVIFOSzzYAqFnF4rm/Ih/bLK0hu5RBKrggbjd6UTJOzXIXqzaOGPQ7Kjy12gotQym+QhZJas+A=="
       },
       "Toolbelt.Blazor.I18nText": {
         "type": "Direct",
@@ -187,8 +187,8 @@
       },
       "Google.Apis.Drive.v3": {
         "type": "Transitive",
-        "resolved": "1.76.0.4261",
-        "contentHash": "QLdhrQDimW0bMcKptU3JKQHs4zFWWOgmcTwYy2LTim61fDPJeEeCCqDD0fJGnB1kMuC7Ls3vOjrkAaCUZ9TKVw==",
+        "resolved": "1.76.0.4273",
+        "contentHash": "xsk6G7Vga0M77SVTF+mpsoyBzxepEQEYoyi1M5uK9WVHVHf0mVzqUrIvknO1Prf7yjnEXSXY7FtNc5Q+Q1CorA==",
         "dependencies": {
           "Google.Apis": "1.76.0",
           "Google.Apis.Auth": "1.76.0"
@@ -1038,7 +1038,7 @@
           "Azure.Storage.Blobs": "[12.29.2, )",
           "BCrypt.Net-Next": "[4.2.0, )",
           "ClosedXML": "[0.105.1, )",
-          "Google.Apis.Drive.v3": "[1.76.0.4261, )",
+          "Google.Apis.Drive.v3": "[1.76.0.4273, )",
           "GoogleAuthenticator": "[3.2.0, )",
           "LagersystemLVHome.Data": "[1.0.0, )",
           "LagersystemLVHome.Domain": "[1.0.0, )",

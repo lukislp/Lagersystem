@@ -113,7 +113,7 @@ jobs:
       # a native-interop mismatch. Tolerated by advisory id, so any other finding against the same
       # package still fails the gate.
       - name: Known-vulnerable NuGet packages (High/Critical fail the build)
-        uses: lukislp/ci-workflows/.github/actions/nuget-severity-gate@a5f01cccfa7a63023b5a2f67993f771d856c0ee4 # v1.7.1
+        uses: lukislp/ci-workflows/.github/actions/nuget-severity-gate@962d016c5e3ee498913a8492898dd5e238ccbfb1 # v1.7.9
         with:
           solution: LagersystemLVHome.sln
           allow-advisories: GHSA-2m69-gcr7-jv3q

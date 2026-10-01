@@ -436,8 +436,11 @@ public class PriceHistoryServiceTests
         var productId = await SeedProductAsync(factory);
         var sut = CreateSut(factory);
         var now = DateTime.UtcNow;
+        // Anchor on the first day of the current UTC month: "yesterday" falls into the previous
+        // month on the 1st, and the service counts changes by calendar month (CI went red on 2026-10-01).
+        var thisMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        await sut.AddPriceAsync(productId, 50m, now.AddDays(-1), null, createdBy: "u");
+        await sut.AddPriceAsync(productId, 50m, thisMonth, null, createdBy: "u");
 
         var stats = await sut.GetMonthlyStatisticsAsync(productId);
 
@@ -470,7 +473,11 @@ public class PriceHistoryServiceTests
         var sut = CreateSut(factory);
         var now = DateTime.UtcNow;
 
-        await sut.AddPriceAsync(productId, 10m, now.AddMonths(-2) > new DateTime(now.Year, 1, 1) ? now.AddMonths(-2) : now.AddDays(-10), null, createdBy: "u");
+        // Anchor on 1 January of the current UTC year: any "n days ago" fallback crosses into the
+        // previous year during the first days of January.
+        var thisYear = new DateTime(now.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        await sut.AddPriceAsync(productId, 10m, thisYear, null, createdBy: "u");
         await sut.UpdatePriceAutomaticAsync(productId, 1, 10m, 30m, "EUR", "u2");
 
         var stats = await sut.GetYearlyStatisticsAsync(productId);

@@ -323,6 +323,10 @@ public sealed class ImageService : IImageService
         }
     }
 
+    // SkiaSharp 4 removed SKFilterQuality; this is what SKFilterQuality.High mapped to in 3.x
+    // (bicubic Mitchell resampling), so the resize output stays identical.
+    private static readonly SKSamplingOptions HighQualitySampling = new(SKCubicResampler.Mitchell);
+
     // Helper: create square image (for avatars)
     private SKBitmap ResizeImageSquare(SKBitmap original, int size)
     {
@@ -338,7 +342,7 @@ public sealed class ImageService : IImageService
             new SKRect(0, 0, minDimension, minDimension));
 
         // Resize to target size
-        var resized = square.Resize(new SKImageInfo(size, size), SKFilterQuality.High);
+        var resized = square.Resize(new SKImageInfo(size, size), HighQualitySampling);
         return resized ?? square;
     }
 
@@ -351,7 +355,7 @@ public sealed class ImageService : IImageService
         var newWidth = (int)(original.Width * ratio);
         var newHeight = (int)(original.Height * ratio);
 
-        var resized = original.Resize(new SKImageInfo(newWidth, newHeight), SKFilterQuality.High);
+        var resized = original.Resize(new SKImageInfo(newWidth, newHeight), HighQualitySampling);
         return resized ?? original;
     }
 

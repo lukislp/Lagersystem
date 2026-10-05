@@ -77,7 +77,7 @@
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
 
     <!-- Browser fingerprinting (DeviceFingerprintService uses IThumbmarkjsInterop) -->
-    <PackageReference Include="Soenneker.Blazor.Thumbmarkjs" Version="4.0.187" />
+    <PackageReference Include="Soenneker.Blazor.Thumbmarkjs" Version="4.0.368" />
 
     <!-- System -->
     <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.12" />

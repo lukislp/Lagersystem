@@ -688,204 +688,229 @@
       },
       "Soenneker.Asyncs.Initializers": {
         "type": "Transitive",
-        "resolved": "4.0.45",
-        "contentHash": "9KgJHwTvU2nzqsXUNJHbJWvXccsS74maf4ac20T+zDvTwZN8H5GZch5yibXW1pjelt5kzqcSwS1Tr80gnMEbVA==",
+        "resolved": "4.0.108",
+        "contentHash": "6+zvXJJ4LRfGQiSLawtmNxacoRj+DlyqgW/Y9QjCYiBZ5xdWC5Vh44bVU4/Fvs3hcT7ohRp8r35Z7LNTFxA+SQ==",
         "dependencies": {
-          "Soenneker.Asyncs.Locks": "4.0.41",
-          "Soenneker.Atomics.ValueBools": "4.0.23",
-          "Soenneker.Extensions.ValueTask": "4.0.113"
+          "Soenneker.Asyncs.Locks": "4.0.95",
+          "Soenneker.Atomics.ValueBools": "4.0.45",
+          "Soenneker.Extensions.ValueTask": "4.0.124"
         }
       },
       "Soenneker.Asyncs.Locks": {
         "type": "Transitive",
-        "resolved": "4.0.41",
-        "contentHash": "KYKzpq4PU/OVqH+XlknCFTRJc+EP0Sdf/uxTy2Qs0wcuUPhdSe12t+fAseB+GlHY6crLFBh5OfpLFqM9vLRAhg==",
+        "resolved": "4.0.95",
+        "contentHash": "B3M3xQi/tTzebEN5HdsfQ+yVH9KXPUw3nk1mr0yxtY/lkhKdet77tpdgS75N2AyBRfk+zT7hHzn7CWijvdFtqQ==",
         "dependencies": {
-          "Soenneker.Atomics.ValueInts": "4.0.16",
-          "Soenneker.Extensions.Task": "4.0.120",
-          "Soenneker.Queues.Intrusive.ValueMpsc": "4.0.18"
+          "Soenneker.Atomics.ValueInts": "4.0.30",
+          "Soenneker.Queues.Intrusive.ValueMpsc": "4.0.44"
         }
+      },
+      "Soenneker.Atomics.Longs": {
+        "type": "Transitive",
+        "resolved": "4.0.27",
+        "contentHash": "epSykuyRXpFOiKtI2HOOcXb1rY2PzVEa6wK9GxiA7iyyHQLRmZQeO6YugLqM+y5trrShteKu9xONDWGoAONmwA=="
       },
       "Soenneker.Atomics.Resources": {
         "type": "Transitive",
-        "resolved": "4.0.22",
-        "contentHash": "653sJtRtv9Oue/fsw+ErekaI+nMoPBVt16pKd8DNDwFqYUFFLcNt1wdQ45oLSDFruk891c6ELNI8nKlENzU5lg==",
+        "resolved": "4.0.46",
+        "contentHash": "LS0zlAYdRK8U+vL3HTK17obAsdfVJO8VJ3SxRcRHO/zhzIXEFNIo+0uXJfxFJmiqmrMKi5oDTLp7774jhxyilA==",
         "dependencies": {
-          "Soenneker.Extensions.ValueTask": "4.0.113"
+          "Soenneker.Extensions.ValueTask": "4.0.124"
         }
       },
       "Soenneker.Atomics.ValueBools": {
         "type": "Transitive",
-        "resolved": "4.0.23",
-        "contentHash": "aPRlGQw4Aq2pFVIOMfh3D09Ko0Bji8tmvt6mgk9k4MBgf0VnoKSUEa4Ppc3zZnbS+8fmGqYD8+JuCPjKFpbhbw==",
-        "dependencies": {
-          "Soenneker.Atomics.ValueInts": "4.0.16"
-        }
+        "resolved": "4.0.45",
+        "contentHash": "yTGZ6rjLnREJ0AFM1vajJ1sRpdMqh7VQNdMy36qar65+J5MWDtEabI8HYoomat+4/L8AyHipVL9kHhCAQLHd7g=="
       },
       "Soenneker.Atomics.ValueInts": {
         "type": "Transitive",
-        "resolved": "4.0.16",
-        "contentHash": "PPUSfCC5qmvHeKVM2nDoirVcWIj4IZg7omPuA52c3C3UfMoP1FA61ZG/gq0Xf8c4VAH1QFyfduVYRFQ1kEHdsg=="
+        "resolved": "4.0.30",
+        "contentHash": "RdVC6hoUMZlqqR3vuS0BazbeS8UkmlrwxQFjyFiR8fZZdhe52JZN0+K7FvM3708YYsePWiD3MGxeb1hpZNHyXQ=="
       },
       "Soenneker.Blazor.Extensions.EventCallback": {
         "type": "Transitive",
-        "resolved": "4.0.444",
-        "contentHash": "/zu86at+NDnbrZrzNasAEgwI5f/nDfG/0QmpjITVXuPq55phyQb2W/RtavTE4UuZhmpoejQlqX1sFS32SGPQBg=="
+        "resolved": "4.0.462",
+        "contentHash": "XNNQK6HK5xoP2B953OgXcSBs+hgnj2sakQau0yjtUwZT86ZCgaWGk3YElIhldaPk7s++vAQSbvxtP2QC0z4DxQ=="
       },
       "Soenneker.Blazor.Thumbmarkjs": {
         "type": "Transitive",
-        "resolved": "4.0.187",
-        "contentHash": "TXYWQCkKcrXcwAHyGZM6Q6hA5X3Q9R08OzDx2Itrc6DfffBvYlkrTTBisJXJYpaJZWOnY9juYS7I3+cCuFEp+A==",
+        "resolved": "4.0.368",
+        "contentHash": "2nhLYhn7u3eK5Nsx+6lUoiO35TD4FesekIU1cs6sn+HqtzbfCYA/UIJZqSb87mbb9ecNxvIcLJOD4kb+zJUv5g==",
         "dependencies": {
-          "Soenneker.Blazor.Extensions.EventCallback": "4.0.444",
-          "Soenneker.Blazor.Utils.ResourceLoader": "4.0.1629",
-          "Soenneker.Quark.Components.Core.Cancellable": "4.0.60"
+          "Soenneker.Asyncs.Initializers": "4.0.108",
+          "Soenneker.Blazor.Extensions.EventCallback": "4.0.462",
+          "Soenneker.Blazor.Utils.ResourceLoader": "4.0.1768",
+          "Soenneker.Lepton.Suite": "4.0.93"
+        }
+      },
+      "Soenneker.Blazor.Utils.Ids": {
+        "type": "Transitive",
+        "resolved": "4.0.34",
+        "contentHash": "3kMZU6WFK9tWNctuBtLcDfJErFzPCua+e5FRspPleTk36WiItj5sKg9/BUkGE3G5HvAEg++DKd74DiarQy6LQQ==",
+        "dependencies": {
+          "Soenneker.Atomics.Longs": "4.0.27",
+          "Soenneker.Extensions.Long": "4.0.237",
+          "Soenneker.Extensions.Spans.Chars": "4.0.43"
         }
       },
       "Soenneker.Blazor.Utils.JsVariable": {
         "type": "Transitive",
-        "resolved": "4.0.1269",
-        "contentHash": "1RQxlN5Niiv8v/wxA+HLvr8mzeARKbLllOLnIdJcRQ19Cgm+CIClfvysDg8eiYhD6FZLQVUTAvWg6N+FK7eIZQ==",
+        "resolved": "4.0.1412",
+        "contentHash": "qA94AgqgkVNBdP4TsMQULBXIdMZy+msKufQnmjVTMqyUHloc0D1FzOwh6egocumXZKnC+noLyeQzn2RPEAxL0Q==",
         "dependencies": {
-          "Soenneker.Asyncs.Initializers": "4.0.45",
-          "Soenneker.Extensions.CancellationTokens": "4.0.16",
-          "Soenneker.Utils.CancellationScopes": "4.0.36",
-          "Soenneker.Utils.Delay": "4.0.62"
+          "Soenneker.Blazor.Utils.Ids": "4.0.34",
+          "Soenneker.Blazor.Utils.ModuleImport": "4.0.1909"
         }
       },
       "Soenneker.Blazor.Utils.ModuleImport": {
         "type": "Transitive",
-        "resolved": "4.0.1782",
-        "contentHash": "jiD1KE0p+V2ERIWFlz7rLu4eYJLm/R+n3dPe5iLcql7KcGJ36o6LjV+KK/eqw0+s7cifU2D1M7vgcXiP5wArUA==",
+        "resolved": "4.0.1909",
+        "contentHash": "Z7LuhKpM7wAx/6/PrAHIcp1/JHr0ujI5Lzp5XbEcG5InOKFu1LEocyFJR47AG3tkwQc8DIOAe0i2jYRjC5mbUw==",
         "dependencies": {
-          "Soenneker.Blazor.Utils.JsVariable": "4.0.1269",
-          "Soenneker.Dictionaries.Singletons": "4.0.39"
+          "Soenneker.Atomics.ValueBools": "4.0.45",
+          "Soenneker.Extensions.CancellationTokens": "4.0.27",
+          "Soenneker.Utils.CancellationScopes": "4.0.61"
         }
       },
       "Soenneker.Blazor.Utils.ResourceLoader": {
         "type": "Transitive",
-        "resolved": "4.0.1629",
-        "contentHash": "ElD7kX3OtZbq7PKURSLAhWWEHiI3I81fsqRo2Yy9pyYBWyhKtYzyvj2lZLfmgc8udEtoy1aDdP/SxBdCxUBIUw==",
+        "resolved": "4.0.1768",
+        "contentHash": "eWE2oAAX5jzOSU4fjd/WUDCvCDRPzvT8RDy9O8U9AJJzf9GSGX5K1NidqGnlIInFbCsST8Qw2dc14c//Jli0VA==",
         "dependencies": {
-          "Soenneker.Blazor.Utils.ModuleImport": "4.0.1782"
+          "Soenneker.Blazor.Utils.JsVariable": "4.0.1412"
         }
       },
-      "Soenneker.Dictionaries.SingletonKeys": {
+      "Soenneker.Culture.English.US": {
+        "type": "Transitive",
+        "resolved": "4.0.53",
+        "contentHash": "uca3tf7B2cH7BRWDaSX3rSgFP2EF9SMdum9jQPrMKd+uL0uzJU1YMT2kdz6uTwFq2hCZWuXHYjcUI2jDmVrCSg=="
+      },
+      "Soenneker.Enums.ContentKinds": {
         "type": "Transitive",
         "resolved": "4.0.64",
-        "contentHash": "Qj1ekja6+krqedsiP2JBbWQrVJ1jbVQFF5zgD04/MPDeYzo2wrYn1VfMW8s8gmL9OWQWxhdbUBr//uV8i5MGEQ==",
+        "contentHash": "VrX7TNeItchw+4cm0KEquhahhk0WY2CSkOuFCYyiAUxTCqp9O8HaRVx/CQd52iMtRJ1bWgIAt35u6tlBw2xJTA==",
         "dependencies": {
-          "Soenneker.Asyncs.Locks": "4.0.41",
-          "Soenneker.Atomics.ValueBools": "4.0.23",
-          "Soenneker.Enums.InitializationModes": "4.0.24",
-          "Soenneker.Extensions.Enumerable": "4.0.621"
-        }
-      },
-      "Soenneker.Dictionaries.Singletons": {
-        "type": "Transitive",
-        "resolved": "4.0.39",
-        "contentHash": "Xd6kb+g7eXKFAZKChuphVw4bKGwLb8zdlPFxb/PTR5Ssu6scMyLFNPL+3FwbHh+UBqOMOaofUY6EGFzW3LE1GA==",
-        "dependencies": {
-          "Soenneker.Dictionaries.SingletonKeys": "4.0.64"
-        }
-      },
-      "Soenneker.Enums.InitializationModes": {
-        "type": "Transitive",
-        "resolved": "4.0.24",
-        "contentHash": "A2DR4aEhJdy+FYMVeeCTQCEVt3omBO/PV63On7okCvIOJVEJWrnYLM37iyy0bR/E5smSbFUsoJ/P9UyKc5qAVg==",
-        "dependencies": {
-          "Soenneker.Gen.EnumValues": "4.0.30"
+          "Soenneker.Gen.EnumValues": "4.0.53"
         }
       },
       "Soenneker.Extensions.CancellationTokens": {
         "type": "Transitive",
-        "resolved": "4.0.16",
-        "contentHash": "xswuM44nMYV2rC9+f9aYKER42uP3gvkLndXGLkAbnZjhGF/1SkGXXArCerFIVI1q9c/duwleBs06TCYkCU0n1Q=="
+        "resolved": "4.0.27",
+        "contentHash": "KNGRRtosg4TqLoclfbIvTUITZlGAEUPD3vurThQkcm8w7EZZFftgSgId4Aj02HRVaDWaSgUHWcbyvPN0TTZ0IA=="
       },
-      "Soenneker.Extensions.Enumerable": {
+      "Soenneker.Extensions.Char": {
         "type": "Transitive",
-        "resolved": "4.0.621",
-        "contentHash": "z7plVXnDjnDXE7LSOEaO6omeCRgCtx+XPOSdG42qLIn0GlnmeHkKRbQOpYDf4wqlXU0z6wFeIAxYGeDtA86Rnw==",
+        "resolved": "4.0.105",
+        "contentHash": "8u1Z+vYtiwMywAgkQGbh0oQE8KBHz3z609zdpxRw01SXCD5GYJVQItyDxP8rwf95HxbQyLSdi9HSgLgbcccbIQ=="
+      },
+      "Soenneker.Extensions.Long": {
+        "type": "Transitive",
+        "resolved": "4.0.237",
+        "contentHash": "LJF/dwTlACuKGjsSUMD62AoxZ8DK8UhVMQZsCNC6DZxF6FFZeT7FnopYG8AFuC2VwoN0Dat9ARoznfh4S/gPEg=="
+      },
+      "Soenneker.Extensions.Spans.Bytes": {
+        "type": "Transitive",
+        "resolved": "4.0.25",
+        "contentHash": "G+eVxcANsj5jjwzsbg1VNP+ZhAqNy6Lo8tDUyBTRbV2MhqpwDLselvZoZzGKcbeyOe1pZ1IR2/imLLKrd83l+Q=="
+      },
+      "Soenneker.Extensions.Spans.Chars": {
+        "type": "Transitive",
+        "resolved": "4.0.43",
+        "contentHash": "bPHDrDQqskticB0UwGK5vPK/pc3ZrsGNdXkHvOujNVa1AL6eJ5Zp04VJ1JbetY2Rz30BRjZPcYGWeSVLlDGTIA==",
         "dependencies": {
-          "Soenneker.Extensions.Task": "4.0.120",
-          "Soenneker.Extensions.ValueTask": "4.0.113",
-          "Soenneker.Utils.Random": "4.0.115"
+          "Soenneker.Extensions.Spans.Bytes": "4.0.25"
+        }
+      },
+      "Soenneker.Extensions.Spans.Readonly.Bytes": {
+        "type": "Transitive",
+        "resolved": "4.0.78",
+        "contentHash": "9rNI4KZFXCaz/fH0ULx+eOwHMpP5kBOpibFSB0otpchaymHYB7kDn57+evgIOvPk8HRHjPsJBAezVDyXqRlJdw==",
+        "dependencies": {
+          "Soenneker.Enums.ContentKinds": "4.0.64",
+          "Soenneker.Hashing.Sha256": "4.0.6"
+        }
+      },
+      "Soenneker.Extensions.Spans.Readonly.Chars": {
+        "type": "Transitive",
+        "resolved": "4.0.128",
+        "contentHash": "7kutKBp5lDUBfRpBz3s3OUCAgtInkwcc0XNxhLHx1PRigeYIPKXwZ1SUq+Y/05d483vW6aoY3arIgP6lKtVqeg==",
+        "dependencies": {
+          "Soenneker.Extensions.Char": "4.0.105",
+          "Soenneker.Extensions.Spans.Readonly.Bytes": "4.0.78"
+        }
+      },
+      "Soenneker.Extensions.String": {
+        "type": "Transitive",
+        "resolved": "4.0.770",
+        "contentHash": "V9fgKXqDSX27mGv2VAjbT3vx9uK0svMCkr6wCqtZlvT8DhJbngZ8FzusNjXAa0dkMR2WDfEu1FtaH6sJIxLwDA==",
+        "dependencies": {
+          "Soenneker.Culture.English.US": "4.0.53",
+          "Soenneker.Extensions.Spans.Readonly.Chars": "4.0.128",
+          "Soenneker.Utils.PooledStringBuilders": "4.0.34",
+          "Soenneker.Utils.Random": "4.0.135"
         }
       },
       "Soenneker.Extensions.Task": {
         "type": "Transitive",
-        "resolved": "4.0.120",
-        "contentHash": "X4LeHLBiAA7z6QB1WUJ3lKCPu1x7mgJQhCZ7mGHZIYG26AnkWT13BrMKo21PWS4E4HOVn3+DPUdQ6fHPMjsJOw=="
+        "resolved": "4.0.131",
+        "contentHash": "edexTYF0DZaGOpJBmVQLKsKL+Toi32Cb7T8KlXYj3rPYEscFnPrai9SC/EC4aDSw4gjeX2ClxRYp+GhpC6DXxw=="
       },
       "Soenneker.Extensions.ValueTask": {
         "type": "Transitive",
-        "resolved": "4.0.113",
-        "contentHash": "M2y/X/WLVS84qZFU6hongdt4CmlwWHCjNnqSOVF40qYi6aHf2+4rAL3haZG7GEtphyA8ys0A5W/94NxtYd9aQA=="
+        "resolved": "4.0.124",
+        "contentHash": "JSv+qXkv3gB1iIgCc0OuT8dfM77FhJm11CjWRhiePpB4z/AJMC8UIEB2nEW4ZxYomqZqLkaOLXTSRAZZzfadqA=="
       },
       "Soenneker.Gen.EnumValues": {
         "type": "Transitive",
-        "resolved": "4.0.30",
-        "contentHash": "uXLMgs4511rp7zWg5GifhU0NLnCd78rgXwhMayYVSSgr+sX8iqGES9c9eqvOy5JFayyQvAibimI0Se3K5ErXMw=="
+        "resolved": "4.0.53",
+        "contentHash": "qcflWo5tVOsHGPDve/BRqEXEVp52uwTvJCC2MkRw11mVRX4FxD0e2cQxme8gRkfzDHHlJ9c5n9r7EcWAzgkqNg=="
       },
-      "Soenneker.Quark.Components.Core": {
+      "Soenneker.Hashing.Sha256": {
         "type": "Transitive",
-        "resolved": "4.0.49",
-        "contentHash": "h2p4/h/RkZggN4N4a3/XBiJhrf/cVRSq+8jQSaS2+xrPf5T0NlPr9QrZAJkQqSE7A4tS7J0Ri0TX44+itGaPTw==",
-        "dependencies": {
-          "Soenneker.Atomics.ValueBools": "4.0.23"
-        }
+        "resolved": "4.0.6",
+        "contentHash": "C5A0O383e3mTkdQ4yuOctYYhDB1/NjBYz4QsrcEjPWdT+/gqtDT0h1xoytXXTVrSivP7vyBfqjMnOYKCYfZMXQ=="
       },
-      "Soenneker.Quark.Components.Core.Cancellable": {
+      "Soenneker.Lepton.Suite": {
         "type": "Transitive",
-        "resolved": "4.0.60",
-        "contentHash": "W1AQKOslqG1puJdHCB/dnIr+LtmboHKon35InLVB98vbLyr2/408Ezc5Wtc8SwhZb8R5qucw1xCP4J781LKzpA==",
+        "resolved": "4.0.93",
+        "contentHash": "FiO73+fl0+o5Ss070LExk3l3jps9OYcFlA/BTtmTZ66KnX2DVJ5z3iw1WUo0bP/DOcip6CdSVHZ8Pvdrkt8JvA==",
         "dependencies": {
-          "Soenneker.Atomics.Resources": "4.0.22",
-          "Soenneker.Quark.Components.Core": "4.0.49"
+          "Soenneker.Atomics.Resources": "4.0.46",
+          "Soenneker.Atomics.ValueBools": "4.0.45",
+          "Soenneker.Extensions.String": "4.0.770"
         }
       },
       "Soenneker.Queues.Intrusive.Abstractions": {
         "type": "Transitive",
-        "resolved": "4.0.11",
-        "contentHash": "vlkCKSNj4q+3ftXZwKm/0vWA0UDq51rPxfLMGmmFwzJZyot95fzQPX2JIo+VXj2uy2rBUyOu8rTvla++NLGEcw=="
+        "resolved": "4.0.23",
+        "contentHash": "b8o30vPXASksE/8u507LEbGY/mIOhql1XjJ283DWRCMHYeq5qdo3W3mayTRExH+cYckQGCpGd8jBHnf9LM6GJA=="
       },
       "Soenneker.Queues.Intrusive.ValueMpsc": {
         "type": "Transitive",
-        "resolved": "4.0.18",
-        "contentHash": "gZvKYfU7l/sSv9KaRVmssWBKNffuZPah26bSJn7sN/5GIrSFFSBh1r4oeKhhS1ZhN1Cj+TyPQJ8djQchwWO22Q==",
+        "resolved": "4.0.44",
+        "contentHash": "7fSJIEGHh0Y17fzKiUFTuRuV8Jn3GnxqD3JtfIzos/c1oLwTDB2iH1szGSmQjeQIeWxqeYbSIJpkAkHHyRdd+w==",
         "dependencies": {
-          "Soenneker.Queues.Intrusive.Abstractions": "4.0.11"
-        }
-      },
-      "Soenneker.Utils.AtomicResources": {
-        "type": "Transitive",
-        "resolved": "4.0.10",
-        "contentHash": "HJYPtD4sgiCejvyQNqDmowtwIu00uwBhX0jfO8t9n1vyVKJShcsHU1zkKik/EdfLx1mdORMipflCH/NzWs0YWw==",
-        "dependencies": {
-          "Soenneker.Extensions.ValueTask": "4.0.98"
+          "Soenneker.Queues.Intrusive.Abstractions": "4.0.23"
         }
       },
       "Soenneker.Utils.CancellationScopes": {
         "type": "Transitive",
-        "resolved": "4.0.36",
-        "contentHash": "ahzjSUl8uI3C1YD/Pk+YZd9e0QQChAqhdNkywSRKxWryjM1sjZSnZoM8Z0yj/qDDr0QBl2xexksNKEGkbOtzXQ==",
+        "resolved": "4.0.61",
+        "contentHash": "tKPqQLOESwC1WGRIT+cVS5PzHbadhdXgCk2L6VAGw7uiyrGCB89VZoTU/5drjfcd48XQAC8cPCQCcC+84ZQn7A==",
         "dependencies": {
-          "Soenneker.Extensions.Task": "4.0.120",
-          "Soenneker.Utils.AtomicResources": "4.0.10"
+          "Soenneker.Extensions.Task": "4.0.131"
         }
       },
-      "Soenneker.Utils.Delay": {
+      "Soenneker.Utils.PooledStringBuilders": {
         "type": "Transitive",
-        "resolved": "4.0.62",
-        "contentHash": "G/w+/C4K2CdQlX5q7TNU/5A8QRR7OYVKAmYhgO+OJvOeEDkiNSnT9dkXXzqm2NEUMEbc/lmGhdQvwuXvW9PxEg==",
-        "dependencies": {
-          "Soenneker.Utils.Random": "4.0.115"
-        }
+        "resolved": "4.0.34",
+        "contentHash": "5aWV5/g0qZJcP+3vj6qcgD4RWEotoPS+67cjukM2RdSdhfutkyOmMguPr5GfLqXrXA1ayNwnP+r4TFGsWo8UTw=="
       },
       "Soenneker.Utils.Random": {
         "type": "Transitive",
-        "resolved": "4.0.115",
-        "contentHash": "kzIOzK9kI6mCZZ6q0gPg1SdUC2SLzbm+jVKb2Pul3TIFeCtOfMyD5RiILhZCrEK5RZ8bClHpsOooRTHtG8Gghw=="
+        "resolved": "4.0.135",
+        "contentHash": "vqGKiBgCm6wj8JrBzqyBoBoRyMbHeFR9vsfRQ6u6R4t6RYb57ZhE+lt15RTywqtLAyGx3mOH6z0b7a5NwzLHuQ=="
       },
       "SQLitePCLRaw.bundle_e_sqlite3": {
         "type": "Transitive",
@@ -1064,7 +1089,7 @@
           "SixLabors.ImageSharp": "[3.1.12, )",
           "SkiaSharp": "[4.153.1, )",
           "SkiaSharp.NativeAssets.Linux": "[4.153.1, )",
-          "Soenneker.Blazor.Thumbmarkjs": "[4.0.187, )",
+          "Soenneker.Blazor.Thumbmarkjs": "[4.0.368, )",
           "System.Diagnostics.PerformanceCounter": "[10.0.12, )",
           "ZXing.Net": "[0.16.11, )"
         }

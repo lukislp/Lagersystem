@@ -103,7 +103,7 @@ See [ML/README.md](LagersystemLVHome.Infrastructure/ML/README.md) for setup deta
 | PDF | QuestPDF |
 | Excel | ClosedXML |
 | Barcode/QR | ZXing.Net, QRCoder |
-| Image Processing | SixLabors.ImageSharp, SkiaSharp |
+| Image Processing | SkiaSharp |
 | Cloud Storage | Azure.Storage.Blobs, AWSSDK.S3, Google.Apis.Drive.v3, Microsoft.Graph (OneDrive) |
 | Caching | In-memory (default), Redis (optional via StackExchange.Redis) |
 | Authentication | Custom Blazor + API key schemes, WebAuthn, TOTP (Otp.NET, GoogleAuthenticator) |

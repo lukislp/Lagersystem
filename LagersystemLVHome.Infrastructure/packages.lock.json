@@ -590,11 +590,6 @@
         "resolved": "1.0.0",
         "contentHash": "LFQsCZlV0xlUyXAOMUo5kkSl+8zAQXXbbdwWchtk0B4o7zotZhQsQOcJUELGHdfPfm/xDAsz6hONAuV25bJaAg=="
       },
-      "SixLabors.ImageSharp": {
-        "type": "Transitive",
-        "resolved": "3.1.12",
-        "contentHash": "iAg6zifihXEFS/t7fiHhZBGAdCp3FavsF4i2ZIDp0JfeYeDVzvmlbY1CNhhIKimaIzrzSi5M/NBFcWvZT2rB/A=="
-      },
       "SkiaSharp": {
         "type": "Transitive",
         "resolved": "4.153.1",
@@ -1017,7 +1012,6 @@
           "Otp.NET": "[1.4.1, )",
           "QRCoder": "[1.8.0, )",
           "QuestPDF": "[2026.9.1, )",
-          "SixLabors.ImageSharp": "[3.1.12, )",
           "SkiaSharp": "[4.153.1, )",
           "SkiaSharp.NativeAssets.Linux": "[4.153.1, )",
           "Soenneker.Blazor.Thumbmarkjs": "[4.0.368, )",

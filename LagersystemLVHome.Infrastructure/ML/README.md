@@ -9,7 +9,6 @@ The following packages are included in the project file:
 <PackageReference Include="Microsoft.ML.Vision" Version="5.0.0" />
 <PackageReference Include="Microsoft.ML.ImageAnalytics" Version="5.0.0" />
 <PackageReference Include="Microsoft.ML.TimeSeries" Version="5.0.0" />
-<PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
 ```
 
 ## Directory Structure

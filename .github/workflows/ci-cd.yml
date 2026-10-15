@@ -42,7 +42,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libfontconfig1 libfreetype6 fonts-liberation
       - run: dotnet test LagersystemLVHome.UnitTests/LagersystemLVHome.UnitTests.csproj --configuration ${{ env.CONFIGURATION }} --logger "junit;LogFilePath=TestResults/unit-tests-junit.xml" --collect:"XPlat Code Coverage"
       - if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results
           path: LagersystemLVHome.UnitTests/TestResults/unit-tests-junit.xml
@@ -65,7 +65,7 @@ jobs:
           -assemblyfilters:"-LagersystemLVHome"
           -filefilters:"-*.g.cs"
       - run: python3 scripts/generate_coverage_badge.py coverage-summary/Summary.json coverage-badge.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-badge
           path: coverage-badge.json
@@ -203,7 +203,7 @@ jobs:
         run: kill "$(cat app.pid)" 2>/dev/null || true
       # outcome (not failure()) so the log gets uploaded whenever the health wait gave up.
       - if: always() && steps.healthz.outcome == 'failure'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: app-log-${{ matrix.provider }}
           path: app.log
@@ -339,7 +339,7 @@ jobs:
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: digests-${{ matrix.arch }}
           path: /tmp/digests/*

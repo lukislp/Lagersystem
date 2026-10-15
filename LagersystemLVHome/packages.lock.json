@@ -75,15 +75,15 @@
       },
       "AWSSDK.Core": {
         "type": "Transitive",
-        "resolved": "4.0.102.10",
-        "contentHash": "ngedi+19mHnszODbUrZLtpU6JeIXVbR/MxslGZPJIcC5YVZcJSZxasnde3+0iboQj9V9bKri7b8D+TXTrOW6Aw=="
+        "resolved": "4.0.102.11",
+        "contentHash": "K9PP9/qHQ7pqSB0lYwStJrpXQ8P1xc7Fbn3CyPg8EX78p4+yz8dhIiwiRc3aVbVrUZxmPAPRvmZm+ey1euIXGg=="
       },
       "AWSSDK.S3": {
         "type": "Transitive",
-        "resolved": "4.0.104.3",
-        "contentHash": "AWtrk6Nn9v2+9HdD1qR3o/7zqFnSNWymqAYGQgzs53i2WJHM58avatVJROtF8WjaUzi1k463+uQUsYtUBA8Elg==",
+        "resolved": "4.0.104.4",
+        "contentHash": "Qi+NicEv1md8Vxm6c40zf5pRsQ9DzPm4UwewjxSk4zbHpdzAMZK8bDZJGdp4Za9/vHP8GTbSdnDuseZQ5h9tmw==",
         "dependencies": {
-          "AWSSDK.Core": "[4.0.102.10, 5.0.0)"
+          "AWSSDK.Core": "[4.0.102.11, 5.0.0)"
         }
       },
       "Azure.Core": {
@@ -1060,7 +1060,7 @@
       "lagersystemlvhome.application": {
         "type": "Project",
         "dependencies": {
-          "AWSSDK.S3": "[4.0.104.3, )",
+          "AWSSDK.S3": "[4.0.104.4, )",
           "Azure.Storage.Blobs": "[12.30.1, )",
           "BCrypt.Net-Next": "[4.2.0, )",
           "ClosedXML": "[0.105.1, )",

@@ -29,10 +29,10 @@
 
   <ItemGroup>
     <!-- Machine learning -->
-    <PackageReference Include="Microsoft.ML" Version="5.0.0" />
-    <PackageReference Include="Microsoft.ML.ImageAnalytics" Version="5.0.0" />
-    <PackageReference Include="Microsoft.ML.TimeSeries" Version="5.0.0" />
-    <PackageReference Include="Microsoft.ML.Vision" Version="5.0.0" />
+    <PackageReference Include="Microsoft.ML" Version="5.0.1" />
+    <PackageReference Include="Microsoft.ML.ImageAnalytics" Version="5.0.1" />
+    <PackageReference Include="Microsoft.ML.TimeSeries" Version="5.0.1" />
+    <PackageReference Include="Microsoft.ML.Vision" Version="5.0.1" />
     <PackageReference Include="SciSharp.TensorFlow.Redist" Version="2.16.0" />
 
     <!-- PDF reports -->

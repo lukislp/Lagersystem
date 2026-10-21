@@ -193,8 +193,8 @@
       },
       "Google.Apis.Drive.v3": {
         "type": "Transitive",
-        "resolved": "1.77.0.4276",
-        "contentHash": "0w7UaoIonNwzyGo1Hf/+cIVQX8ITV5Pd4DcSMYWoRuu64qZ8xsP07U2v/L5iNuQk0soXHUASxCuM+JZ61Ylisg==",
+        "resolved": "1.77.0.4301",
+        "contentHash": "+/ztNHih0DgHLt3CmBEkGn69M/4xX5JGbGVrD/CV06IQOQdqe26cC7Om1AggreGqznRBFwaxoP0qweAdf4U2zg==",
         "dependencies": {
           "Google.Apis": "1.77.0",
           "Google.Apis.Auth": "1.77.0"
@@ -1064,7 +1064,7 @@
           "Azure.Storage.Blobs": "[12.30.1, )",
           "BCrypt.Net-Next": "[4.2.0, )",
           "ClosedXML": "[0.105.1, )",
-          "Google.Apis.Drive.v3": "[1.77.0.4276, )",
+          "Google.Apis.Drive.v3": "[1.77.0.4301, )",
           "GoogleAuthenticator": "[3.2.0, )",
           "LagersystemLVHome.Data": "[1.0.0, )",
           "LagersystemLVHome.Domain": "[1.0.0, )",

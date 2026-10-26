@@ -39,13 +39,13 @@
     -->
     <!-- Implicit SDK package pinned explicitly so packages.lock.json stays valid across SDK
          patches (its implicit version follows the installed SDK); Dependabot bumps it. -->
-    <PackageReference Include="Microsoft.AspNetCore.App.Internal.Assets" Version="10.0.13" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
+    <PackageReference Include="Microsoft.AspNetCore.App.Internal.Assets" Version="10.0.14" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
     <!-- Pinned above the transitive 2.0.0 to patch GHSA-v5pm-xwqc-g5wc (circular schema references terminate parsing) -->
     <PackageReference Include="Microsoft.OpenApi" Version="2.13.0" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.18.2" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.13" />
-    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.14" />
 
     <!-- Blazor UI components used inside Razor pages owned by this project -->
     <PackageReference Include="Blazor-ApexCharts" Version="7.0.0" />

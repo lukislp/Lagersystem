@@ -136,8 +136,8 @@
       },
       "Blazor-ApexCharts": {
         "type": "Transitive",
-        "resolved": "7.0.0",
-        "contentHash": "FlbdNp5S3+J3nwSCx9fJJidkwK9Ub2Y4nwY+KCD7gjDHKtIIScbfBzyMearK/v54M2NPveLaBzm1UtciupxF5g==",
+        "resolved": "7.1.0",
+        "contentHash": "QR5xWNETy0DkgFQ0TFQIdmHi7J402hBRpegzOlbFAAaYgcgM+YZs5LL1qaZRf8nMWP+jRE/R4JbnxFUqOPbZNw==",
         "dependencies": {
           "Microsoft.AspNetCore.Components": "10.0.0",
           "Microsoft.AspNetCore.Components.Web": "10.0.0",
@@ -1661,7 +1661,7 @@
       "lagersystemlvhome": {
         "type": "Project",
         "dependencies": {
-          "Blazor-ApexCharts": "[7.0.0, )",
+          "Blazor-ApexCharts": "[7.1.0, )",
           "Blazor.Extensions.Canvas": "[1.1.1, )",
           "LagersystemLVHome.Application": "[1.0.0, )",
           "LagersystemLVHome.Data": "[1.0.0, )",

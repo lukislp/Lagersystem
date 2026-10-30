@@ -4,9 +4,9 @@
     "net10.0": {
       "Blazor-ApexCharts": {
         "type": "Direct",
-        "requested": "[7.0.0, )",
-        "resolved": "7.0.0",
-        "contentHash": "FlbdNp5S3+J3nwSCx9fJJidkwK9Ub2Y4nwY+KCD7gjDHKtIIScbfBzyMearK/v54M2NPveLaBzm1UtciupxF5g=="
+        "requested": "[7.1.0, )",
+        "resolved": "7.1.0",
+        "contentHash": "QR5xWNETy0DkgFQ0TFQIdmHi7J402hBRpegzOlbFAAaYgcgM+YZs5LL1qaZRf8nMWP+jRE/R4JbnxFUqOPbZNw=="
       },
       "Blazor.Extensions.Canvas": {
         "type": "Direct",

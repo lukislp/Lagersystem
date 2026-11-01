@@ -73,7 +73,7 @@
     <!-- Image processing (ImageService) -->
     <PackageReference Include="SkiaSharp" Version="4.153.1" />
     <!-- Native libSkiaSharp for Linux containers (matches SkiaSharp version) -->
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.153.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.154.0" />
 
     <!-- Browser fingerprinting (DeviceFingerprintService uses IThumbmarkjsInterop) -->
     <PackageReference Include="Soenneker.Blazor.Thumbmarkjs" Version="4.0.395" />

@@ -76,7 +76,7 @@
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.153.1" />
 
     <!-- Browser fingerprinting (DeviceFingerprintService uses IThumbmarkjsInterop) -->
-    <PackageReference Include="Soenneker.Blazor.Thumbmarkjs" Version="4.0.368" />
+    <PackageReference Include="Soenneker.Blazor.Thumbmarkjs" Version="4.0.395" />
 
     <!-- System -->
     <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.14" />

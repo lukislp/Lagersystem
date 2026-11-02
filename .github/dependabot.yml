@@ -16,6 +16,10 @@ updates:
       ci-workflows:
         patterns:
           - "lukislp/ci-workflows*"
+      # init, analyze and upload-sarif must run the same version - one PR for all.
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
   - package-ecosystem: nuget
     directory: /
     schedule:
@@ -24,6 +28,9 @@ updates:
     groups:
       dotnet:
         patterns: ["Microsoft.*", "System.*", "Npgsql.*"]
+      # SkiaSharp only loads its matching native assets - bump them together.
+      skiasharp:
+        patterns: ["SkiaSharp*", "HarfBuzzSharp*"]
     ignore:
       # Microsoft.OpenApi 3.x is not compatible with ASP.NET Core OpenApi 10.x.
       # Revisit with the .NET 11 upgrade.

@@ -917,8 +917,8 @@
       },
       "Microsoft.Kiota.Abstractions": {
         "type": "Transitive",
-        "resolved": "2.1.2",
-        "contentHash": "2cPjDGVHxn0YCoPSxzCZSLUc7SQ4m299UqJibvGpZctvP3ixidpMk909BGgqOBpKpxEq+lJ6sTxp4xviLotuDA==",
+        "resolved": "2.1.6",
+        "contentHash": "Erl8w0ccrZnXxm+cFMbkMyJqJHAbtDyMF9hSxn/vMbvruun2TFZ6EBbQiETV6HJl8nm9h1IqK/NyL/xVVsh4bw==",
         "dependencies": {
           "Std.UriTemplate": "2.0.12"
         }
@@ -1692,7 +1692,7 @@
           "Microsoft.Extensions.Caching.StackExchangeRedis": "[10.0.14, )",
           "Microsoft.Graph": "[6.9.0, )",
           "Microsoft.Identity.Client": "[4.92.0, )",
-          "Microsoft.Kiota.Abstractions": "[2.1.2, )",
+          "Microsoft.Kiota.Abstractions": "[2.1.6, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
           "Otp.NET": "[1.4.1, )",
           "QRCoder": "[1.8.1, )",

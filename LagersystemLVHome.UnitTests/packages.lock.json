@@ -1148,8 +1148,8 @@
       },
       "Scalar.AspNetCore": {
         "type": "Transitive",
-        "resolved": "2.18.7",
-        "contentHash": "JrNu0Sm4TVeJ//ptvAS3yRbT0oobfR8qp0ecf3HIS9zX4V7uSABr+VYEyWT7uyXjhN2ZTrZ/cpwKv7zHjlK8Gg=="
+        "resolved": "2.19.0",
+        "contentHash": "nTXL9wsg6UhQ27KPUhuMr3/BE02H3zjuii2I5x7vbx7myPHkJzvzGDj7hfd1lKZBmJgUcKI+W7wcIzDdV/N/Dg=="
       },
       "SciSharp.TensorFlow.Redist": {
         "type": "Transitive",
@@ -1669,7 +1669,7 @@
           "Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore": "[10.0.14, )",
           "Microsoft.Extensions.Hosting.WindowsServices": "[10.0.14, )",
           "Microsoft.OpenApi": "[2.13.0, )",
-          "Scalar.AspNetCore": "[2.18.7, )",
+          "Scalar.AspNetCore": "[2.19.0, )",
           "Toolbelt.Blazor.I18nText": "[14.1.1, )"
         }
       },

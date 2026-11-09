@@ -127,7 +127,7 @@ jobs:
       # a native-interop mismatch. Tolerated by advisory id, so any other finding against the same
       # package still fails the gate.
       - name: Known-vulnerable NuGet packages (High/Critical fail the build)
-        uses: lukislp/ci-workflows/.github/actions/nuget-severity-gate@ea532e9b173cf0e512c9d54c18886eebd0b0d1ab # v1.8.24
+        uses: lukislp/ci-workflows/.github/actions/nuget-severity-gate@9b5de8d751efb4a3f0392a967e7b56db85263789 # v1.11.0
         with:
           solution: LagersystemLVHome.sln
           allow-advisories: GHSA-2m69-gcr7-jv3q
@@ -252,7 +252,7 @@ jobs:
     concurrency:
       group: lagersystem-release-chain
       cancel-in-progress: false
-    uses: lukislp/lktec-bot/.github/workflows/release.yml@d2e0693df66fa10167181e6c3844cdc2032f4399 # v0.7.2
+    uses: lukislp/lktec-bot/.github/workflows/release.yml@ccd513e3fa47d8a6e6f374fe1d6c561232807b65 # v0.8.0
     with:
       dry-run: true
     secrets:
@@ -424,7 +424,7 @@ jobs:
     concurrency:
       group: lagersystem-release-chain
       cancel-in-progress: false
-    uses: lukislp/lktec-bot/.github/workflows/release.yml@d2e0693df66fa10167181e6c3844cdc2032f4399 # v0.7.2
+    uses: lukislp/lktec-bot/.github/workflows/release.yml@ccd513e3fa47d8a6e6f374fe1d6c561232807b65 # v0.8.0
     secrets:
       app-id: ${{ secrets.LKTEC_BOT_APP_ID }}
       private-key: ${{ secrets.LKTEC_BOT_PRIVATE_KEY }}
@@ -433,7 +433,7 @@ jobs:
   publish-badge:
     needs: [release, test-unit]
     if: needs.release.outputs.released == 'true'
-    uses: lukislp/lktec-bot/.github/workflows/sync.yml@d2e0693df66fa10167181e6c3844cdc2032f4399 # v0.7.2
+    uses: lukislp/lktec-bot/.github/workflows/sync.yml@ccd513e3fa47d8a6e6f374fe1d6c561232807b65 # v0.8.0
     with:
       artifact: coverage-badge-handover
       branch: main

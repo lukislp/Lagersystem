@@ -316,8 +316,8 @@
       },
       "Microsoft.Graph": {
         "type": "Transitive",
-        "resolved": "6.9.0",
-        "contentHash": "QyYd3lQQAEys93QAtV9ykxxzEkUjH5GxJG6tBkZvJWRz0SMF+gqVqhwQLkvRpAEWh7S49cF6sFpyv56uNS0MXQ==",
+        "resolved": "6.10.0",
+        "contentHash": "hmSO3zNrzc3poitbCDnWOC4vP3z6f2nianaZEscX+/ItVlmxEzIbZ9dDLJ79MTfc5+4hoQT5rbX7FpZW9GNN0g==",
         "dependencies": {
           "Microsoft.Graph.Core": "4.0.1"
         }
@@ -1071,7 +1071,7 @@
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.14, )",
           "Microsoft.EntityFrameworkCore.Sqlite": "[10.0.14, )",
           "Microsoft.Extensions.Caching.StackExchangeRedis": "[10.0.14, )",
-          "Microsoft.Graph": "[6.9.0, )",
+          "Microsoft.Graph": "[6.10.0, )",
           "Microsoft.Identity.Client": "[4.92.0, )",
           "Microsoft.Kiota.Abstractions": "[2.1.6, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",

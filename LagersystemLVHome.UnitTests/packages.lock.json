@@ -979,12 +979,12 @@
       },
       "Microsoft.ML": {
         "type": "Transitive",
-        "resolved": "5.0.1",
-        "contentHash": "H+MSEsYVrNyV/AcA2UtgYkHsuXEKNVOoKUtUCv+nFzD5+1NWeRMRM87A1wL6jm1CCMTLlPQDR4tkurpEtO+dQg==",
+        "resolved": "6.0.0",
+        "contentHash": "1UfEGtCn7/zRAaOG20N9TLbVCPIbtweQI7tZlpgG7ZwyEklXNxbx0fgXFtAbk8os6EmX4GIEwUIKzQBpfIgGnw==",
         "dependencies": {
           "Microsoft.Bcl.AsyncInterfaces": "9.0.4",
-          "Microsoft.ML.CpuMath": "5.0.1",
-          "Microsoft.ML.DataView": "5.0.1",
+          "Microsoft.ML.CpuMath": "6.0.0",
+          "Microsoft.ML.DataView": "6.0.0",
           "Newtonsoft.Json": "13.0.3",
           "System.CodeDom": "9.0.4",
           "System.Numerics.Tensors": "9.0.4"
@@ -992,44 +992,44 @@
       },
       "Microsoft.ML.CpuMath": {
         "type": "Transitive",
-        "resolved": "5.0.1",
-        "contentHash": "8qG872NrrcBItqNVRomcR8I9qfsidbonMtyuEihn1VTmDiDl0/B2g2OvLNfhl5ZrsDaff7s9XpUKKFCo+85fLQ==",
+        "resolved": "6.0.0",
+        "contentHash": "uKTRWLcDQWL4e64hdrTy1VtaCzsnwQ+BMJHDIDmWGkA/7Ek56HFshxnMbQdJuMxBYcL+Q2QVhCGDJgB4KOMqww==",
         "dependencies": {
           "System.Numerics.Tensors": "9.0.4"
         }
       },
       "Microsoft.ML.DataView": {
         "type": "Transitive",
-        "resolved": "5.0.1",
-        "contentHash": "k7V0P33vXBD8S53OjIoJGKEGFLNf0LMDUUBnmZRtSwlgruhBGGdrxjhDn5GwPK2t0hP3/SPM8Qdly14CIftIBw=="
+        "resolved": "6.0.0",
+        "contentHash": "AShiBd/PYFmbtwQAXLT+c9rsEdHHQL1TdiGCkfe4mKq2+j7p1bnfKk/0aR5vFfwkO8lbUcSLUH4X6J0SuxM1Zw=="
       },
       "Microsoft.ML.ImageAnalytics": {
         "type": "Transitive",
-        "resolved": "5.0.1",
-        "contentHash": "7Fl7G/MX1MN3mwSya5r9asCFngtUs4SGjoQeViHGlPC7saeuCvyNaHxLXj/XnU0BS1/VtMHVBVAz1MqutkTCQw==",
+        "resolved": "6.0.0",
+        "contentHash": "xzpHhDUcv5qnHoHujZW43aSg4ZCp8MKffdTKnO66q0wMI1q34tumMlSHg+dRNmnRmeYX0JtQSpvPE7Iu/R23XA==",
         "dependencies": {
           "Microsoft.Bcl.AsyncInterfaces": "9.0.4",
-          "Microsoft.ML": "5.0.1",
+          "Microsoft.ML": "6.0.0",
           "Newtonsoft.Json": "13.0.3",
-          "SkiaSharp": "2.88.8",
-          "SkiaSharp.NativeAssets.Linux.NoDependencies": "2.88.8",
+          "SkiaSharp": "3.119.2",
+          "SkiaSharp.NativeAssets.Linux.NoDependencies": "3.119.2",
           "System.CodeDom": "9.0.4",
           "System.Numerics.Tensors": "9.0.4"
         }
       },
       "Microsoft.ML.Mkl.Redist": {
         "type": "Transitive",
-        "resolved": "5.0.1",
-        "contentHash": "L0iVtIJsGgIt0xZxgR1VoyuYIx5tkboQ0/a0bxCnu+/c6XB+00EsPjQk2mvCSVMJt9LyK2pDJT2SEJvA8aBndg=="
+        "resolved": "6.0.0",
+        "contentHash": "HlRM3Ezh91XeCmhM3dYDuHI/V+my2qxqYMtpAt062ePWFJTURVxYhGhLvFzo8mhyNe2UOxQO3WQqremGavI3WQ=="
       },
       "Microsoft.ML.TensorFlow": {
         "type": "Transitive",
-        "resolved": "5.0.1",
-        "contentHash": "aG1g9r67ropiA9D0UAxUWy3ob2BDbUi41bIUKT0QPwCCAfCxK2bBhFdINii2fqQnlhSzSd3mSSC5d5KpQhahDA==",
+        "resolved": "6.0.0",
+        "contentHash": "H4dh/UnpQkOUzS+fpdOrxxFJOFFpBJk0DT6F0a1YCmuTSDUVRIcA3BME164u3jWQCw7QxlI6NnqN2ENB5+5eyA==",
         "dependencies": {
           "Google.Protobuf": "3.30.2",
           "Microsoft.Bcl.AsyncInterfaces": "9.0.4",
-          "Microsoft.ML": "5.0.1",
+          "Microsoft.ML": "6.0.0",
           "Newtonsoft.Json": "13.0.3",
           "System.CodeDom": "9.0.4",
           "System.IO.FileSystem.AccessControl": "5.0.0",
@@ -1039,12 +1039,12 @@
       },
       "Microsoft.ML.TimeSeries": {
         "type": "Transitive",
-        "resolved": "5.0.1",
-        "contentHash": "hH6QqjxY1MZlVo9NQdoyB2BJ6hMHPFBD0eAqMj8v2pDo9CctGzXAJ9h6MOWHAHcDuCjK9b94iEBb5eSufcC58A==",
+        "resolved": "6.0.0",
+        "contentHash": "rOo/XveCu81ft28I/tSd0m6CdFK6jXVffnhyRE+3/L+fpb3HGKqSELKCdQtvN4OvA22/+5cccf5DquNfxBGRmw==",
         "dependencies": {
           "Microsoft.Bcl.AsyncInterfaces": "9.0.4",
-          "Microsoft.ML": "5.0.1",
-          "Microsoft.ML.Mkl.Redist": "5.0.1",
+          "Microsoft.ML": "6.0.0",
+          "Microsoft.ML.Mkl.Redist": "6.0.0",
           "Newtonsoft.Json": "13.0.3",
           "System.CodeDom": "9.0.4",
           "System.Numerics.Tensors": "9.0.4"
@@ -1052,12 +1052,12 @@
       },
       "Microsoft.ML.Vision": {
         "type": "Transitive",
-        "resolved": "5.0.1",
-        "contentHash": "U4SLZWzXD8ZI1wsJm/fPRnF9WNeBwa/Gc/DqCNRQtzzeW9tmbYxoyInYQQGkWrxLig2tv9ZEK08mWJEJjzAcqw==",
+        "resolved": "6.0.0",
+        "contentHash": "TACOkWDrJi933My66Fbeiq/LeeU3ykieQJigxVytSG8lud0c6AFTZJ0+S/htix6aEymb6iCRQsU1fm4YRkkTwA==",
         "dependencies": {
           "Google.Protobuf": "3.30.2",
           "Microsoft.Bcl.AsyncInterfaces": "9.0.4",
-          "Microsoft.ML.TensorFlow": "5.0.1",
+          "Microsoft.ML.TensorFlow": "6.0.0",
           "Newtonsoft.Json": "13.0.3",
           "System.CodeDom": "9.0.4",
           "System.IO.FileSystem.AccessControl": "5.0.0",
@@ -1190,11 +1190,8 @@
       },
       "SkiaSharp.NativeAssets.Linux.NoDependencies": {
         "type": "Transitive",
-        "resolved": "2.88.8",
-        "contentHash": "/DoKtdyvRgCC5GR/SH+ps3ZiOjmf0BYpAyrhWQELFOO1hdcqddrDVJjDNCOJ41vV+NlS5b3kcDoZZ7jLhFjyXg==",
-        "dependencies": {
-          "SkiaSharp": "2.88.8"
-        }
+        "resolved": "3.119.2",
+        "contentHash": "1rmveKZ8Cz7k4QJQdtKV6RFXYIEqYBiX450Bm0Bk41EE50MMPUyF81cRnASsuV0qCwdZuzjZTaFvoqS0Q2zVfA=="
       },
       "SkiaSharp.NativeAssets.macOS": {
         "type": "Transitive",
@@ -1722,10 +1719,10 @@
           "LagersystemLVHome.Data": "[1.0.0, )",
           "LagersystemLVHome.Domain": "[1.0.0, )",
           "Microsoft.EntityFrameworkCore": "[10.0.15, )",
-          "Microsoft.ML": "[5.0.1, )",
-          "Microsoft.ML.ImageAnalytics": "[5.0.1, )",
-          "Microsoft.ML.TimeSeries": "[5.0.1, )",
-          "Microsoft.ML.Vision": "[5.0.1, )",
+          "Microsoft.ML": "[6.0.0, )",
+          "Microsoft.ML.ImageAnalytics": "[6.0.0, )",
+          "Microsoft.ML.TimeSeries": "[6.0.0, )",
+          "Microsoft.ML.Vision": "[6.0.0, )",
           "QuestPDF": "[2026.9.1, )",
           "SciSharp.TensorFlow.Redist": "[2.16.0, )"
         }

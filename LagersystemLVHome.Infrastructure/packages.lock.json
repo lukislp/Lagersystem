@@ -939,10 +939,11 @@
       },
       "System.Configuration.ConfigurationManager": {
         "type": "Transitive",
-        "resolved": "10.0.14",
-        "contentHash": "F/bLtwG0JuJ2OnTCsvJbnulvN7hr+BIFJLtE3PzgmW3AWkV8LYO5XF0j+zB4tHn/b4yfR7PAO0dZmoYeaINtnQ==",
+        "resolved": "11.0.0",
+        "contentHash": "EECIyxAPpkd/qek46ZGH/EyfEJHLS5BUxi627flzzoNsO6e4dpLC68Xj8Nl+YxFcfzBMWLu9/tyRKufbTshBAQ==",
         "dependencies": {
-          "System.Security.Cryptography.ProtectedData": "10.0.14"
+          "System.Diagnostics.EventLog": "11.0.0",
+          "System.Security.Cryptography.ProtectedData": "11.0.0"
         }
       },
       "System.Diagnostics.DiagnosticSource": {
@@ -950,12 +951,17 @@
         "resolved": "11.0.0",
         "contentHash": "+boRR9uSKiIPtFeRLGwO5xylhDF80xpwM+dmk5jgIqqeUKLbujGkGICMTKqQrBzKO6fIp8BU8DV6YZkQukqo3A=="
       },
+      "System.Diagnostics.EventLog": {
+        "type": "Transitive",
+        "resolved": "11.0.0",
+        "contentHash": "lKore9DXE1q8o6ss6/M7++xBpn2FMS0axaAypBspYLqY5OT1ZRPLzFGwF18l61aXfXTPpwkx5tYh4zMUHoAv/g=="
+      },
       "System.Diagnostics.PerformanceCounter": {
         "type": "Transitive",
-        "resolved": "10.0.14",
-        "contentHash": "R3SvY4OZXhcCU7mgit8uhBfICXonoNBrV6pi4bTQWrvh4h5EMV/3BXA9Kky52IMUp7/EG1L2K0l1meBqAXxArA==",
+        "resolved": "11.0.0",
+        "contentHash": "QyWQ02Soy64/Eom5szs8IGREfzI9THWuRfPaHdqj0rcHQCTaDJSwM8dQCl7q95loehX0E17CC8clYCTwtw0mhA==",
         "dependencies": {
-          "System.Configuration.ConfigurationManager": "10.0.14"
+          "System.Configuration.ConfigurationManager": "11.0.0"
         }
       },
       "System.Drawing.Common": {
@@ -1010,8 +1016,8 @@
       },
       "System.Security.Cryptography.ProtectedData": {
         "type": "Transitive",
-        "resolved": "10.0.14",
-        "contentHash": "UuaBUHgmtc9h6CMxaQqFDDJxkS5JVy7XEB+DbtCvD68GFcVM9/AccuNwFpARx8nwCnvjaxzoOBjG3gPz32P1Eg=="
+        "resolved": "11.0.0",
+        "contentHash": "iS9iyAMwLDPFBzTdcREDkzRBYmwy7aENYl7EXxAvnNJNCbl7+UVRgJfWaVLtVjSeDmT3JIItgGODmuAPljXFww=="
       },
       "TensorFlow.NET": {
         "type": "Transitive",
@@ -1056,7 +1062,7 @@
           "SkiaSharp": "[4.155.0, )",
           "SkiaSharp.NativeAssets.Linux": "[4.155.0, )",
           "Soenneker.Blazor.Thumbmarkjs": "[4.0.395, )",
-          "System.Diagnostics.PerformanceCounter": "[10.0.14, )",
+          "System.Diagnostics.PerformanceCounter": "[11.0.0, )",
           "ZXing.Net": "[0.16.11, )"
         }
       },

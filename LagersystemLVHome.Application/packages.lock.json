@@ -135,11 +135,11 @@
       },
       "Microsoft.Kiota.Abstractions": {
         "type": "Direct",
-        "requested": "[2.1.6, )",
-        "resolved": "2.1.6",
-        "contentHash": "Erl8w0ccrZnXxm+cFMbkMyJqJHAbtDyMF9hSxn/vMbvruun2TFZ6EBbQiETV6HJl8nm9h1IqK/NyL/xVVsh4bw==",
+        "requested": "[2.2.0, )",
+        "resolved": "2.2.0",
+        "contentHash": "+vjSqwrskOyNlCbgdLKf4YZGObP4I7e3lVNN1hXnl+B0T2jEThi4tqIJWUaiN4QBywwTwH7L8HBrX/Mw5YQfPg==",
         "dependencies": {
-          "Std.UriTemplate": "2.0.12"
+          "Std.UriTemplate": "2.0.13"
         }
       },
       "Npgsql.EntityFrameworkCore.PostgreSQL": {
@@ -782,8 +782,8 @@
       },
       "Std.UriTemplate": {
         "type": "Transitive",
-        "resolved": "2.0.12",
-        "contentHash": "b/w8GfmVjf5c+8sTtGRVuwj6uC5KoPIn8+795xKlnGBBtph4FIVvgJVnh+x9dbDOkrst7XivIDJgyZSDFNsOYA=="
+        "resolved": "2.0.13",
+        "contentHash": "nEqle0VabSdmxlxQzyAYwqAs4hwGVdIu2G6xk1fA77QcqsTBlXV/2K8IwH+nPfx0ePmv8yQre05ObUdT/kGhIA=="
       },
       "System.ClientModel": {
         "type": "Transitive",

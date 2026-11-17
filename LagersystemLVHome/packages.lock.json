@@ -49,9 +49,9 @@
       },
       "Microsoft.OpenApi": {
         "type": "Direct",
-        "requested": "[2.13.0, )",
-        "resolved": "2.13.0",
-        "contentHash": "wavlgBYnn7uU/ZGhFHNl0UlDOlwz+6KRduKkqdCCbfxxANaQ1rmBpETVGdwXanAM6twQOxsvI3CBEGF4OScbeQ=="
+        "requested": "[2.13.1, )",
+        "resolved": "2.13.1",
+        "contentHash": "qPyM4L+CQvM7ljcJN15e3lTx3439fBZoGs03OlpfxiUUxxhPJX+7h8BCJQO1z6ANQbxBAirMA4JkHq7j/naA/A=="
       },
       "Scalar.AspNetCore": {
         "type": "Direct",
@@ -428,10 +428,10 @@
       },
       "Microsoft.Kiota.Abstractions": {
         "type": "Transitive",
-        "resolved": "2.1.6",
-        "contentHash": "Erl8w0ccrZnXxm+cFMbkMyJqJHAbtDyMF9hSxn/vMbvruun2TFZ6EBbQiETV6HJl8nm9h1IqK/NyL/xVVsh4bw==",
+        "resolved": "2.2.0",
+        "contentHash": "+vjSqwrskOyNlCbgdLKf4YZGObP4I7e3lVNN1hXnl+B0T2jEThi4tqIJWUaiN4QBywwTwH7L8HBrX/Mw5YQfPg==",
         "dependencies": {
-          "Std.UriTemplate": "2.0.12"
+          "Std.UriTemplate": "2.0.13"
         }
       },
       "Microsoft.Kiota.Authentication.Azure": {
@@ -947,8 +947,8 @@
       },
       "Std.UriTemplate": {
         "type": "Transitive",
-        "resolved": "2.0.12",
-        "contentHash": "b/w8GfmVjf5c+8sTtGRVuwj6uC5KoPIn8+795xKlnGBBtph4FIVvgJVnh+x9dbDOkrst7XivIDJgyZSDFNsOYA=="
+        "resolved": "2.0.13",
+        "contentHash": "nEqle0VabSdmxlxQzyAYwqAs4hwGVdIu2G6xk1fA77QcqsTBlXV/2K8IwH+nPfx0ePmv8yQre05ObUdT/kGhIA=="
       },
       "System.ClientModel": {
         "type": "Transitive",
@@ -1079,7 +1079,7 @@
           "Microsoft.Extensions.Caching.StackExchangeRedis": "[10.0.15, )",
           "Microsoft.Graph": "[6.10.0, )",
           "Microsoft.Identity.Client": "[4.92.0, )",
-          "Microsoft.Kiota.Abstractions": "[2.1.6, )",
+          "Microsoft.Kiota.Abstractions": "[2.2.0, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
           "Otp.NET": "[1.4.1, )",
           "QRCoder": "[1.8.1, )",

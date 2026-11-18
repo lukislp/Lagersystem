@@ -660,17 +660,17 @@
       },
       "SkiaSharp": {
         "type": "Transitive",
-        "resolved": "4.156.1",
-        "contentHash": "DFlbYk/Rxnqm+UM/EaynxLlucc07+fuWzT84KsyT8aCDAT1PZOPlp5eATD7eYczTgV771bnxQKSrLbNmUCaSLQ==",
+        "resolved": "4.157.0",
+        "contentHash": "C0PYSs8z0OGihExuIPaCEJnoEmDwiVRTFmDI2TZ44rWr2u7UiQX4rZyEwfVSHEiV5Zn/FYh1WbcO9uMPRxAsbw==",
         "dependencies": {
-          "SkiaSharp.NativeAssets.Win32": "4.156.1",
-          "SkiaSharp.NativeAssets.macOS": "4.156.1"
+          "SkiaSharp.NativeAssets.Win32": "4.157.0",
+          "SkiaSharp.NativeAssets.macOS": "4.157.0"
         }
       },
       "SkiaSharp.NativeAssets.Linux": {
         "type": "Transitive",
-        "resolved": "4.156.1",
-        "contentHash": "l9GWuJzlDd+xZ4gXahlsoDYI0oZkhmibA9ZxMOxJO1uKmDYGlQA3DFkUfLH1ksobGhuVLD4cUbQff3G43XcD1g=="
+        "resolved": "4.157.0",
+        "contentHash": "1+xcqjIcXWYJgOh6gLj2noeJRicrqRYt2Y5CPVDH74X/uqHeCpnM1gR+CvUpHKNlfvBsD9WVxqw2zPU01MxCCg=="
       },
       "SkiaSharp.NativeAssets.Linux.NoDependencies": {
         "type": "Transitive",
@@ -679,13 +679,13 @@
       },
       "SkiaSharp.NativeAssets.macOS": {
         "type": "Transitive",
-        "resolved": "4.156.1",
-        "contentHash": "c05wS/CpRum9JKzk77bXrUsBdxIhv4QBk+sbE3nlEfoEV53Uq9VY4yxuae20lO42kE8PoLShuh6dbbvRrE4/iw=="
+        "resolved": "4.157.0",
+        "contentHash": "s44YB0BMAEudDf/AdcJLCcN6AXxhpKto0ZnJjats1TwNC+SD4mI2FhotDft58M593Ocea1ra6ad5slfJBhxfvg=="
       },
       "SkiaSharp.NativeAssets.Win32": {
         "type": "Transitive",
-        "resolved": "4.156.1",
-        "contentHash": "BFSUQxmxG9KI2UV7MW1Xb4XhCLSB7Rwsg9E94KelNi8L6ptGXnHIOm3yqU/y3djwg4ZNiBWhOB8XAGUVaF9LuA=="
+        "resolved": "4.157.0",
+        "contentHash": "tP54cTnPqGrzf2pBcyupMZWdIUjV34ELdKuh3/c329kRQF4UCVLZvilQZrDMqPJ9P/+AUJC8kDRMBgT/jBvYug=="
       },
       "Soenneker.Asyncs.Initializers": {
         "type": "Transitive",
@@ -1084,8 +1084,8 @@
           "Otp.NET": "[1.4.1, )",
           "QRCoder": "[1.8.1, )",
           "QuestPDF": "[2026.9.2, )",
-          "SkiaSharp": "[4.156.1, )",
-          "SkiaSharp.NativeAssets.Linux": "[4.156.1, )",
+          "SkiaSharp": "[4.157.0, )",
+          "SkiaSharp.NativeAssets.Linux": "[4.157.0, )",
           "Soenneker.Blazor.Thumbmarkjs": "[4.0.395, )",
           "System.Diagnostics.PerformanceCounter": "[10.0.15, )",
           "ZXing.Net": "[0.16.11, )"

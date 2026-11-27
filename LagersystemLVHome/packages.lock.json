@@ -55,9 +55,9 @@
       },
       "Scalar.AspNetCore": {
         "type": "Direct",
-        "requested": "[3.2.1, )",
-        "resolved": "3.2.1",
-        "contentHash": "wGrsLOwWvTffOeOLkvNFQFuRVClo4EOADsEby490Hze/5eIxrSkAzqmZ8slJDMRiRrKRoyBzijzTlHS0KSDzyA=="
+        "requested": "[3.3.0, )",
+        "resolved": "3.3.0",
+        "contentHash": "QlSfwIKJLpjIT8NO1gkKjlrqnt087UDIFZu267a9WEA/4nIH6fVYFn7Rr60mytmvce7pQpxAt0Tgp7t1MRaCHQ=="
       },
       "Toolbelt.Blazor.I18nText": {
         "type": "Direct",
